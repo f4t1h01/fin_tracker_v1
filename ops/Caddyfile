@@ -1,0 +1,7 @@
+app.shaxin.uz {
+  reverse_proxy web:3000
+}
+
+api.shaxin.uz {
+  reverse_proxy api:4000
+}

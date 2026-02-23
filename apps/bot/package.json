@@ -1,0 +1,21 @@
+{
+  "name": "@app/bot",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc --noEmit -p tsconfig.json",
+    "start": "tsx src/index.ts",
+    "lint": "node -e \"console.log('bot lint: skip')\"",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "node -e \"console.log('bot test: skip')\""
+  },
+  "dependencies": {
+    "@repo/config": "workspace:*",
+    "grammy": "^1.34.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "tsx": "^4.19.2"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "name": "@repo/config",
+  "version": "0.1.0",
+  "private": true,
+  "main": "dist/env.js",
+  "types": "dist/env.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsc -w -p tsconfig.json",
+    "lint": "node -e \"console.log('config lint: skip')\"",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "node -e \"console.log('config test: skip')\""
+  },
+  "dependencies": {
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2"
+  }
+}
