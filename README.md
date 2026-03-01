@@ -95,9 +95,9 @@ pnpm db:migrate
 
 ## CI/CD
 
-- CI workflow runs typecheck and build on PR/push.
-- Deploy workflow builds three Docker images and pushes to GHCR.
-- On `main`, deploy job SSHes to server and runs compose pull/up.
+- CI workflow runs install, Prisma generate, typecheck, and build on PR/push.
+- Deploy workflow builds and pushes API/Web/Bot images to GHCR with `${{ github.sha }}` and `latest` tags.
+- On `main`, deploy job SSHes to server, logs into GHCR, pulls images, runs `prisma migrate deploy`, then runs compose up.
 
 Required GitHub secrets:
 
@@ -105,3 +105,10 @@ Required GitHub secrets:
 - `VPS_USER`
 - `VPS_SSH_KEY`
 - `VPS_PATH`
+- `GHCR_USERNAME` (account that can pull GHCR packages on the VPS)
+- `GHCR_PAT` (classic PAT with `read:packages` scope)
+
+Required GitHub repository variables:
+
+- `NEXT_PUBLIC_API_URL`
+- `NEXT_PUBLIC_TELEGRAM_BOT_NAME`

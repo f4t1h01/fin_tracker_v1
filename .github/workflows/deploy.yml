@@ -6,6 +6,10 @@ on:
     branches:
       - main
 
+concurrency:
+  group: deploy-main
+  cancel-in-progress: true
+
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
@@ -15,6 +19,21 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Normalize image owner
+        id: image_owner
+        run: echo "value=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_OUTPUT"
+
+      - name: Validate web build variables
+        run: |
+          if [ -z "${{ vars.NEXT_PUBLIC_API_URL }}" ]; then
+            echo "Missing repository variable: NEXT_PUBLIC_API_URL"
+            exit 1
+          fi
+          if [ -z "${{ vars.NEXT_PUBLIC_TELEGRAM_BOT_NAME }}" ]; then
+            echo "Missing repository variable: NEXT_PUBLIC_TELEGRAM_BOT_NAME"
+            exit 1
+          fi
 
       - name: Setup Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -34,7 +53,9 @@ jobs:
           push: true
           build-args: |
             APP_NAME=api
-          tags: ghcr.io/${{ github.repository_owner }}/cft-api:${{ github.sha }}
+          tags: |
+            ghcr.io/${{ steps.image_owner.outputs.value }}/cft-api:${{ github.sha }}
+            ghcr.io/${{ steps.image_owner.outputs.value }}/cft-api:latest
 
       - name: Build and push Web
         uses: docker/build-push-action@v6
@@ -44,7 +65,11 @@ jobs:
           push: true
           build-args: |
             APP_NAME=web
-          tags: ghcr.io/${{ github.repository_owner }}/cft-web:${{ github.sha }}
+            NEXT_PUBLIC_API_URL=${{ vars.NEXT_PUBLIC_API_URL }}
+            NEXT_PUBLIC_TELEGRAM_BOT_NAME=${{ vars.NEXT_PUBLIC_TELEGRAM_BOT_NAME }}
+          tags: |
+            ghcr.io/${{ steps.image_owner.outputs.value }}/cft-web:${{ github.sha }}
+            ghcr.io/${{ steps.image_owner.outputs.value }}/cft-web:latest
 
       - name: Build and push Bot
         uses: docker/build-push-action@v6
@@ -54,21 +79,33 @@ jobs:
           push: true
           build-args: |
             APP_NAME=bot
-          tags: ghcr.io/${{ github.repository_owner }}/cft-bot:${{ github.sha }}
+          tags: |
+            ghcr.io/${{ steps.image_owner.outputs.value }}/cft-bot:${{ github.sha }}
+            ghcr.io/${{ steps.image_owner.outputs.value }}/cft-bot:latest
 
   deploy:
     needs: build-and-push
     runs-on: ubuntu-latest
+    environment: production
     if: github.ref == 'refs/heads/main'
     steps:
+      - name: Normalize image owner
+        id: image_owner
+        run: echo "value=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_OUTPUT"
+
       - name: Deploy on VPS via SSH
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
+          script_stop: true
           script: |
+            set -e
             cd ${{ secrets.VPS_PATH }}
+            echo "${{ secrets.GHCR_PAT }}" | docker login ghcr.io -u "${{ secrets.GHCR_USERNAME }}" --password-stdin
+            export GHCR_OWNER=${{ steps.image_owner.outputs.value }}
             export IMAGE_TAG=${{ github.sha }}
             docker compose -f ops/docker-compose.server.yml pull
-            docker compose -f ops/docker-compose.server.yml up -d
+            docker compose -f ops/docker-compose.server.yml run --rm --no-deps api corepack pnpm --filter @repo/db exec prisma migrate deploy
+            docker compose -f ops/docker-compose.server.yml up -d --remove-orphans

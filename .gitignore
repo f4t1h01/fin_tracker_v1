@@ -10,3 +10,6 @@ pnpm-debug.log*
 *.tsbuildinfo
 apps/**/node_modules
 packages/**/node_modules
+
+#useless md files
+starter.md
