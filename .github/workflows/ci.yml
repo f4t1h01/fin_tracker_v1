@@ -34,6 +34,9 @@ jobs:
       - name: Generate Prisma client
         run: pnpm db:generate
 
+      - name: Build shared workspace packages
+        run: pnpm --filter @repo/types build && pnpm --filter @repo/config build && pnpm --filter @repo/db build
+
       - name: Typecheck
         run: pnpm typecheck
 
