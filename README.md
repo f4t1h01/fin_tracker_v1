@@ -93,22 +93,21 @@ pnpm db:migrate
 - Make sure `CORS_ORIGIN` matches your web domain exactly
 - If building web image in CI, provide `NEXT_PUBLIC_*` values at build time
 
-## CI/CD
+## CI + Manual deployment
 
 - CI workflow runs install, Prisma generate, typecheck, and build on PR/push.
-- Deploy workflow builds and pushes API/Web/Bot images to GHCR with `${{ github.sha }}` and `latest` tags.
-- On `main`, deploy job SSHes to server, logs into GHCR, pulls images, runs `prisma migrate deploy`, then runs compose up.
+- Deployment is manual on the server (no automatic SSH deploy workflow).
 
-Required GitHub secrets:
+Manual deploy commands:
 
-- `VPS_HOST`
-- `VPS_USER`
-- `VPS_SSH_KEY`
-- `VPS_PATH`
-- `GHCR_USERNAME` (account that can pull GHCR packages on the VPS)
-- `GHCR_PAT` (classic PAT with `read:packages` scope)
+```bash
+cd ~/telegram_bots/fin_tracker
+git pull origin main
+docker compose up -d --build --remove-orphans
+docker compose run --rm --no-deps api corepack pnpm --filter @repo/db exec prisma migrate deploy
+docker compose ps
+```
 
-Required GitHub repository variables:
+Reverse proxy target:
 
-- `NEXT_PUBLIC_API_URL`
-- `NEXT_PUBLIC_TELEGRAM_BOT_NAME`
+- `cupfin.shaxin.uz` -> `http://127.0.0.1:71`

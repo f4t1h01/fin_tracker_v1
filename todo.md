@@ -1,5 +1,11 @@
 # Fin Tracker Deployment TODO
 
+## Deployment mode
+
+- Manual deployment mode is active.
+- Automatic GitHub deploy workflow has been removed for safety.
+- CI remains enabled for checks only.
+
 ## Fast-forward intake (fill this first)
 
 Use this section to collect everything needed so I can execute as much as possible quickly.
@@ -20,7 +26,7 @@ Use this section to collect everything needed so I can execute as much as possib
 - [ ] `BOT_SHARED_SECRET=`
 - [x] `GHCR_USERNAME=f4t1h01` (change if different)
 - [x] `GHCR_PAT=`
-- [ ] `REPO_TOKEN=`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
+- [ ] `REPO_TOKEN=***` (masked)
 
 ### Captured information (auto-filled)
 - `VPS_HOST=100.65.0.134`
@@ -33,7 +39,7 @@ Use this section to collect everything needed so I can execute as much as possib
 - `GitHub variables already exist`:
   - `NEXT_PUBLIC_API_URL=https://cupfin.shaxin.uz/api`
   - `NEXT_PUBLIC_TELEGRAM_BOT_NAME=coup_fin_trackerbot`
-- `GitHub secrets exist`: `VPS_HOST`, `VPS_USER`, `VPS_PATH`, `VPS_SSH_KEY`, `GHCR_USERNAME`, `GHCR_PAT`
+- `GitHub deploy secrets`: removed (manual deployment mode)
 
 ### Proposed production values (from latest Cloudflare info)
 - `WEB_DOMAIN=https://cupfin.shaxin.uz`
@@ -78,8 +84,8 @@ This checklist tracks your progress through the deployment runbook in `starter.m
 - `[x]` Done
 
 ## Current stage
-- **Now:** Stage 5 - Watch workflow runs
-- **Sub-stage now:** Re-run CI/Deploy after applying failure fixes
+- **Now:** Stage 6 - Verify services on VPS
+- **Sub-stage now:** Start stack with app nginx on port `71` and verify health
 
 ---
 
@@ -165,12 +171,12 @@ This checklist tracks your progress through the deployment runbook in `starter.m
 ---
 
 ## Stage 4 - Push CI/CD changes
-- [ ] Stage files (`.github/workflows/ci.yml`, `.github/workflows/deploy.yml`, `Dockerfile`, `README.md`)  
-  _Why:_ These are the deployment pipeline updates.
-- [ ] Commit with message: `chore: harden CI/CD and production deploy pipeline`  
+- [ ] Stage files (`.github/workflows/ci.yml`, `docker-compose.yml`, `ops/nginx.conf`, `README.md`)  
+  _Why:_ These are CI + manual deployment updates.
+- [ ] Commit manual deployment switch changes  
   _Why:_ Creates auditable change history.
 - [ ] Push to `origin main`  
-  _Why:_ Triggers CI and deploy workflows.
+  _Why:_ Triggers CI checks.
 
 ---
 
@@ -179,18 +185,17 @@ This checklist tracks your progress through the deployment runbook in `starter.m
   _Why:_ Confirm workflows started.
 - [x] Run `gh run watch -R f4t1h01/fin_tracker_v1`  
   _Why:_ Track live progress and failures.
-- [~] Confirm both CI and Deploy succeed  
-  _Why:_ Ensures build quality and server rollout.
-  _Status:_ latest runs failed. Fixes prepared locally: removed hardcoded pnpm version in CI and updated Dockerfile to build shared workspace packages before app build. Need new push to verify.
+- [ ] Confirm CI succeeds  
+  _Why:_ Ensures build quality before manual server deploy.
 
 ---
 
 ## Stage 6 - Verify services on VPS
 - [ ] SSH to server and open project path  
   _Why:_ Post-deploy checks.
-- [ ] Check containers: `docker compose -f ops/docker-compose.server.yml ps`  
+- [ ] Check containers: `docker compose ps`  
   _Why:_ Confirm services are up.
-- [ ] Check API logs: `docker compose -f ops/docker-compose.server.yml logs --tail=100 api`  
+- [ ] Check API logs: `docker compose logs --tail=100 api`  
   _Why:_ Detect startup/runtime errors.
 - [ ] Health check: `curl http://localhost:4000/health`  
   _Why:_ Confirms API responds as expected (`{"ok":true}`).
@@ -198,9 +203,7 @@ This checklist tracks your progress through the deployment runbook in `starter.m
 ---
 
 ## Final readiness check
-- [ ] Deploy workflow includes `prisma migrate deploy` and it succeeded  
+- [ ] Manual deploy includes `prisma migrate deploy` and it succeeded  
   _Why:_ Database schema must match app version.
-- [ ] GitHub Actions token has package write access  
-  _Why:_ Required for GHCR push/pull operations.
 - [ ] All domains in `.env` point to real production URLs  
   _Why:_ Avoid broken API/web integrations.
