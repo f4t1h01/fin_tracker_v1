@@ -78,8 +78,8 @@ This checklist tracks your progress through the deployment runbook in `starter.m
 - `[x]` Done
 
 ## Current stage
-- **Now:** Stage 4 - Push CI/CD changes
-- **Sub-stage now:** Commit and push pipeline updates to trigger deploy
+- **Now:** Stage 5 - Watch workflow runs
+- **Sub-stage now:** Re-run CI/Deploy after applying failure fixes
 
 ---
 
@@ -175,12 +175,13 @@ This checklist tracks your progress through the deployment runbook in `starter.m
 ---
 
 ## Stage 5 - Watch workflow runs
-- [ ] Run `gh run list -R f4t1h01/fin_tracker_v1 --limit 10`  
+- [x] Run `gh run list -R f4t1h01/fin_tracker_v1 --limit 10`  
   _Why:_ Confirm workflows started.
-- [ ] Run `gh run watch -R f4t1h01/fin_tracker_v1`  
+- [x] Run `gh run watch -R f4t1h01/fin_tracker_v1`  
   _Why:_ Track live progress and failures.
-- [ ] Confirm both CI and Deploy succeed  
+- [~] Confirm both CI and Deploy succeed  
   _Why:_ Ensures build quality and server rollout.
+  _Status:_ latest runs failed. Fixes prepared locally: removed hardcoded pnpm version in CI and updated Dockerfile to build shared workspace packages before app build. Need new push to verify.
 
 ---
 

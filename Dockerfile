@@ -10,6 +10,7 @@ WORKDIR /app
 COPY . .
 RUN pnpm install --frozen-lockfile
 RUN pnpm --filter @repo/db prisma:generate
+RUN pnpm --filter @repo/types build && pnpm --filter @repo/config build && pnpm --filter @repo/db build
 
 ARG APP_NAME
 ARG NEXT_PUBLIC_API_URL=""
