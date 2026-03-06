@@ -25,24 +25,21 @@ export function MarketingEffects() {
 
     let x = window.innerWidth / 2;
     let y = window.innerHeight / 2;
-    let cursorX = x;
-    let cursorY = y;
-    let rafId = 0;
 
     const orbit = document.getElementById("cursor-orbit");
-    const animate = () => {
-      cursorX += (x - cursorX) * 0.12;
-      cursorY += (y - cursorY) * 0.12;
-      if (orbit) {
-        orbit.style.transform = `translate(${cursorX}px, ${cursorY}px)`;
-      }
-      rafId = window.requestAnimationFrame(animate);
-    };
+
+    if (orbit) {
+      orbit.style.transform = `translate(${x}px, ${y}px)`;
+    }
 
     const onPointerMove = (event: PointerEvent) => {
       x = event.clientX;
       y = event.clientY;
       setCursorVisible(true);
+
+      if (orbit) {
+        orbit.style.transform = `translate(${x}px, ${y}px)`;
+      }
 
       const xRatio = event.clientX / window.innerWidth - 0.5;
       const yRatio = event.clientY / window.innerHeight - 0.5;
@@ -59,13 +56,11 @@ export function MarketingEffects() {
     });
 
     window.addEventListener("pointermove", onPointerMove);
-    rafId = window.requestAnimationFrame(animate);
 
     return () => {
       document.body.classList.remove("landing-page-active");
       observer.disconnect();
       window.removeEventListener("pointermove", onPointerMove);
-      window.cancelAnimationFrame(rafId);
       hoverables.forEach((element) => {
         element.removeEventListener("mouseenter", onEnter);
         element.removeEventListener("mouseleave", onLeave);
