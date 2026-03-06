@@ -152,11 +152,16 @@ export class AuthService {
 
   private verifyTelegramHash(payload: TelegramLoginDto): boolean {
     const env = parseApiEnv(process.env);
-    const entries = Object.entries(payload).filter(([key]) => key !== "hash");
+    const entries = Object.entries(payload).filter(([key, value]) => {
+      if (key === "hash") {
+        return false;
+      }
+      return value !== undefined && value !== null && String(value).length > 0;
+    });
 
     const dataCheckString = entries
       .sort(([a], [b]) => a.localeCompare(b))
-      .map(([key, value]) => `${key}=${value}`)
+      .map(([key, value]) => `${key}=${String(value)}`)
       .join("\n");
 
     const secret = createHash("sha256").update(env.TELEGRAM_BOT_TOKEN).digest();
