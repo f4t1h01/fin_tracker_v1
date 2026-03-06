@@ -497,13 +497,13 @@ export default function ProfilePage() {
   }
 
   return (
-    <main className="mx-auto max-w-6xl px-5 pb-16 pt-16 sm:px-8">
-      <header className="soft-rise mb-8 flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <p className="eyebrow text-xs uppercase tracking-[0.2em]">Profile workspace</p>
-          <h1 className="font-[family-name:var(--font-heading)] text-3xl">{displayName}</h1>
-          <p className="body-muted text-sm">Your code: <span className="font-semibold text-pop">{profile?.user.coupleCode ?? "-"}</span></p>
-        </div>
+      <main className="container-shell pb-16 pt-28">
+        <header className="soft-rise mb-8 flex flex-wrap items-center justify-between gap-4">
+          <div>
+          <div className="eyebrow-row">Profile workspace</div>
+          <h1 className="mt-5 font-[family-name:var(--font-heading)] text-[clamp(38px,4vw,56px)] font-light leading-[1.08]">{displayName}</h1>
+          <p className="body-muted mt-3 text-sm">Your code: <span className="font-semibold text-[var(--gold)]">{profile?.user.coupleCode ?? "-"}</span></p>
+          </div>
         <Button variant="outline" asChild>
           <a href="/">Back to overview</a>
         </Button>
@@ -511,7 +511,7 @@ export default function ProfilePage() {
 
       {authMe && !authMe.hasPassword ? (
         <section className="mb-6">
-          <Card className="border-amber-300/25 bg-amber-500/10 dark:border-amber-300/25 dark:bg-amber-500/10">
+          <Card className="panel-soft border-[rgba(201,168,76,0.2)] bg-[color-mix(in_srgb,var(--gold)_8%,var(--card-bg))]">
             <CardHeader>
               <CardTitle>Set email login</CardTitle>
               <CardDescription>
@@ -572,19 +572,19 @@ export default function ProfilePage() {
       ) : null}
 
       <section className="mb-6 grid gap-4 md:grid-cols-3">
-        <Card className="metric-income">
+          <Card className="metric-income">
           <CardHeader>
             <CardTitle>Income</CardTitle>
           </CardHeader>
           <CardContent className="text-2xl font-semibold text-emerald-700 dark:text-emerald-200">{summary ? `${summary.totalIncome.toLocaleString()} UZS` : "-"}</CardContent>
         </Card>
-        <Card className="metric-expense">
+          <Card className="metric-expense">
           <CardHeader>
             <CardTitle>Expense</CardTitle>
           </CardHeader>
           <CardContent className="text-2xl font-semibold text-rose-700 dark:text-rose-200">{summary ? `${summary.totalExpense.toLocaleString()} UZS` : "-"}</CardContent>
         </Card>
-        <Card className="metric-balance">
+          <Card className="metric-balance">
           <CardHeader>
             <CardTitle>Balance</CardTitle>
           </CardHeader>

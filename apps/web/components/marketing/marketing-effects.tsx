@@ -7,6 +7,8 @@ export function MarketingEffects() {
   const [cursorHover, setCursorHover] = useState(false);
 
   useEffect(() => {
+    document.body.classList.add("landing-page-active");
+
     const revealNodes = Array.from(document.querySelectorAll<HTMLElement>("[data-reveal]"));
     const observer = new IntersectionObserver(
       (entries) => {
@@ -60,6 +62,7 @@ export function MarketingEffects() {
     rafId = window.requestAnimationFrame(animate);
 
     return () => {
+      document.body.classList.remove("landing-page-active");
       observer.disconnect();
       window.removeEventListener("pointermove", onPointerMove);
       window.cancelAnimationFrame(rafId);
