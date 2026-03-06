@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
-import { Link2, Loader2, PlusCircle, WalletCards } from "lucide-react";
+import { Link2, Loader2, Pencil, PlusCircle, Trash2, WalletCards, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
@@ -52,6 +52,14 @@ type RecentTransaction = {
     firstName: string | null;
     username: string | null;
   };
+};
+
+type EditableTransaction = {
+  id: string;
+  amount: string;
+  kind: "EXPENSE" | "INCOME";
+  categoryName: string;
+  note: string;
 };
 
 type AuthMeResponse = {
@@ -122,6 +130,9 @@ export default function ProfilePage() {
   const [txMessage, setTxMessage] = useState<string | null>(null);
   const [txError, setTxError] = useState<string | null>(null);
   const [isSubmittingTx, setIsSubmittingTx] = useState(false);
+  const [editingTransaction, setEditingTransaction] = useState<EditableTransaction | null>(null);
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const [isDeletingId, setIsDeletingId] = useState<string | null>(null);
 
   const today = useMemo(() => new Date(), []);
 
@@ -356,6 +367,87 @@ export default function ProfilePage() {
       setSetupError(message);
     } finally {
       setIsSettingPassword(false);
+    }
+  };
+
+  const startEditing = (item: RecentTransaction) => {
+    setTxMessage(null);
+    setTxError(null);
+    setEditingTransaction({
+      id: item.id,
+      amount: String(item.amount),
+      kind: item.kind,
+      categoryName: item.category.name,
+      note: item.note ?? ""
+    });
+  };
+
+  const onSaveEdit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    if (!token || !editingTransaction) {
+      return;
+    }
+
+    setTxError(null);
+    setTxMessage(null);
+    setIsSavingEdit(true);
+
+    try {
+      const response = await fetch(`${webEnv.apiUrl}/profile/transactions/${editingTransaction.id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          amount: Number(editingTransaction.amount),
+          kind: editingTransaction.kind,
+          categoryName: editingTransaction.categoryName,
+          note: editingTransaction.note || undefined
+        })
+      });
+
+      await parseApiResponse(response);
+      setEditingTransaction(null);
+      setTxMessage("Transaction updated.");
+      await fetchSnapshot(token);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Could not update transaction";
+      setTxError(message);
+    } finally {
+      setIsSavingEdit(false);
+    }
+  };
+
+  const onDeleteTransaction = async (transactionId: string) => {
+    if (!token) {
+      return;
+    }
+
+    setTxError(null);
+    setTxMessage(null);
+    setIsDeletingId(transactionId);
+
+    try {
+      const response = await fetch(`${webEnv.apiUrl}/profile/transactions/${transactionId}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+
+      await parseApiResponse(response);
+      if (editingTransaction?.id === transactionId) {
+        setEditingTransaction(null);
+      }
+      setTxMessage("Transaction deleted.");
+      await fetchSnapshot(token);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Could not delete transaction";
+      setTxError(message);
+    } finally {
+      setIsDeletingId(null);
     }
   };
 
@@ -635,17 +727,35 @@ export default function ProfilePage() {
                   const actor = item.user.firstName ?? item.user.username ?? "Member";
 
                   return (
-                    <div key={item.id} className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm">
+                    <div key={item.id} className="rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-sm">
                       <div>
-                        <p className="font-medium">{item.category.name}</p>
+                        <div className="flex items-center justify-between gap-3">
+                          <p className="font-medium">{item.category.name}</p>
+                          <p className={`font-semibold ${amountClass}`}>
+                            {item.kind === "INCOME" ? "+" : "-"}
+                            {amountNumber.toLocaleString()} UZS
+                          </p>
+                        </div>
                         <p className="text-xs text-white/65">
                           {actor} · {item.note ?? "No note"} · {new Date(item.happenedAt).toLocaleString()}
                         </p>
                       </div>
-                      <p className={`font-semibold ${amountClass}`}>
-                        {item.kind === "INCOME" ? "+" : "-"}
-                        {amountNumber.toLocaleString()} UZS
-                      </p>
+                      <div className="mt-3 flex items-center gap-2">
+                        <Button type="button" size="sm" variant="outline" onClick={() => startEditing(item)}>
+                          <Pencil className="size-3.5" />
+                          Edit
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          disabled={isDeletingId === item.id}
+                          onClick={() => void onDeleteTransaction(item.id)}
+                        >
+                          <Trash2 className="size-3.5" />
+                          {isDeletingId === item.id ? "Deleting..." : "Delete"}
+                        </Button>
+                      </div>
                     </div>
                   );
                 })}
@@ -654,6 +764,80 @@ export default function ProfilePage() {
           </CardContent>
         </Card>
       </section>
+
+      {editingTransaction ? (
+        <section className="mt-6">
+          <Card className="border-white/20 bg-white/10">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Pencil className="size-5 text-pop" />
+                Edit transaction
+              </CardTitle>
+              <CardDescription>Adjust only your own saved transaction.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form className="space-y-3" onSubmit={onSaveEdit}>
+                <div className="grid grid-cols-2 gap-3">
+                  <label className="space-y-1 text-sm">
+                    <span className="text-white/70">Type</span>
+                    <select
+                      value={editingTransaction.kind}
+                      onChange={(event) =>
+                        setEditingTransaction((current) => (current ? { ...current, kind: event.target.value as "EXPENSE" | "INCOME" } : current))
+                      }
+                      className="h-10 w-full rounded-xl border border-white/20 bg-slate-900/50 px-3 text-white outline-none ring-pop focus:ring-2"
+                    >
+                      <option value="EXPENSE">Expense</option>
+                      <option value="INCOME">Income</option>
+                    </select>
+                  </label>
+                  <label className="space-y-1 text-sm">
+                    <span className="text-white/70">Amount</span>
+                    <input
+                      required
+                      inputMode="decimal"
+                      min="0.01"
+                      step="0.01"
+                      value={editingTransaction.amount}
+                      onChange={(event) => setEditingTransaction((current) => (current ? { ...current, amount: event.target.value } : current))}
+                      className="h-10 w-full rounded-xl border border-white/20 bg-slate-900/50 px-3 text-white outline-none ring-pop focus:ring-2"
+                    />
+                  </label>
+                </div>
+
+                <label className="space-y-1 text-sm">
+                  <span className="text-white/70">Category</span>
+                  <input
+                    required
+                    value={editingTransaction.categoryName}
+                    onChange={(event) => setEditingTransaction((current) => (current ? { ...current, categoryName: event.target.value } : current))}
+                    className="h-10 w-full rounded-xl border border-white/20 bg-slate-900/50 px-3 text-white outline-none ring-pop focus:ring-2"
+                  />
+                </label>
+
+                <label className="space-y-1 text-sm">
+                  <span className="text-white/70">Note</span>
+                  <input
+                    value={editingTransaction.note}
+                    onChange={(event) => setEditingTransaction((current) => (current ? { ...current, note: event.target.value } : current))}
+                    className="h-10 w-full rounded-xl border border-white/20 bg-slate-900/50 px-3 text-white outline-none ring-pop focus:ring-2"
+                  />
+                </label>
+
+                <div className="flex items-center gap-3">
+                  <Button type="submit" disabled={isSavingEdit}>
+                    {isSavingEdit ? "Saving..." : "Save changes"}
+                  </Button>
+                  <Button type="button" variant="outline" onClick={() => setEditingTransaction(null)}>
+                    <X className="size-4" />
+                    Cancel
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+        </section>
+      ) : null}
     </main>
   );
 }

@@ -1,9 +1,10 @@
-import { Body, Controller, Get, Post, Query, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from "@nestjs/common";
 
 import { CurrentUser } from "../auth/current-user.decorator";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { BindCoupleDto } from "./dto/bind-couple.dto";
 import { CreateProfileTransactionDto } from "./dto/create-profile-transaction.dto";
+import { UpdateProfileTransactionDto } from "./dto/update-profile-transaction.dto";
 import { ProfileService } from "./profile.service";
 
 @UseGuards(JwtAuthGuard)
@@ -24,6 +25,16 @@ export class ProfileController {
   @Post("transactions")
   createTransaction(@CurrentUser() user: { id: string }, @Body() dto: CreateProfileTransactionDto) {
     return this.profileService.createTransaction(user.id, dto);
+  }
+
+  @Patch("transactions/:transactionId")
+  updateTransaction(@CurrentUser() user: { id: string }, @Param("transactionId") transactionId: string, @Body() dto: UpdateProfileTransactionDto) {
+    return this.profileService.updateTransaction(user.id, transactionId, dto);
+  }
+
+  @Delete("transactions/:transactionId")
+  deleteTransaction(@CurrentUser() user: { id: string }, @Param("transactionId") transactionId: string) {
+    return this.profileService.deleteTransaction(user.id, transactionId);
   }
 
   @Get("transactions/recent")

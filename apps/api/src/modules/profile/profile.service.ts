@@ -4,6 +4,7 @@ import { generateCoupleCodeCandidate, normalizeCoupleCode } from "../common/coup
 import { PrismaService } from "../prisma/prisma.service";
 import { BindCoupleDto } from "./dto/bind-couple.dto";
 import { CreateProfileTransactionDto } from "./dto/create-profile-transaction.dto";
+import { UpdateProfileTransactionDto } from "./dto/update-profile-transaction.dto";
 
 @Injectable()
 export class ProfileService {
@@ -356,6 +357,143 @@ export class ProfileService {
         }
       }
     });
+  }
+
+  async updateTransaction(userId: string, transactionId: string, dto: UpdateProfileTransactionDto) {
+    const transaction = await this.prisma.client.transaction.findUnique({
+      where: { id: transactionId },
+      select: {
+        id: true,
+        userId: true,
+        coupleId: true,
+        kind: true,
+        categoryId: true
+      }
+    });
+
+    if (!transaction) {
+      throw new NotFoundException("Transaction not found");
+    }
+
+    if (transaction.userId !== userId) {
+      throw new BadRequestException("You can edit only your own transactions");
+    }
+
+    await this.assertMembership(userId, transaction.coupleId);
+
+    const nextKind = dto.kind ?? transaction.kind;
+    let nextCategoryId = transaction.categoryId;
+
+    if (dto.categoryName || dto.kind) {
+      const categoryName = (dto.categoryName ?? "").trim();
+
+      if (!categoryName && dto.kind && !dto.categoryName) {
+        const existingCategory = await this.prisma.client.category.findUnique({
+          where: { id: transaction.categoryId },
+          select: { name: true }
+        });
+
+        if (!existingCategory) {
+          throw new NotFoundException("Category not found");
+        }
+
+        const category =
+          (await this.prisma.client.category.findFirst({
+            where: {
+              coupleId: transaction.coupleId,
+              kind: nextKind,
+              name: {
+                equals: existingCategory.name,
+                mode: "insensitive"
+              }
+            },
+            select: { id: true }
+          })) ??
+          (await this.prisma.client.category.create({
+            data: {
+              coupleId: transaction.coupleId,
+              kind: nextKind,
+              name: existingCategory.name,
+              createdById: userId
+            },
+            select: { id: true }
+          }));
+
+        nextCategoryId = category.id;
+      } else if (categoryName) {
+        const category =
+          (await this.prisma.client.category.findFirst({
+            where: {
+              coupleId: transaction.coupleId,
+              kind: nextKind,
+              name: {
+                equals: categoryName,
+                mode: "insensitive"
+              }
+            },
+            select: { id: true }
+          })) ??
+          (await this.prisma.client.category.create({
+            data: {
+              coupleId: transaction.coupleId,
+              kind: nextKind,
+              name: categoryName,
+              createdById: userId
+            },
+            select: { id: true }
+          }));
+
+        nextCategoryId = category.id;
+      }
+    }
+
+    return this.prisma.client.transaction.update({
+      where: { id: transactionId },
+      data: {
+        kind: nextKind,
+        categoryId: nextCategoryId,
+        amount: dto.amount?.toFixed(2),
+        note: dto.note ?? undefined
+      },
+      include: {
+        category: {
+          select: { name: true, kind: true }
+        },
+        user: {
+          select: {
+            firstName: true,
+            username: true
+          }
+        }
+      }
+    });
+  }
+
+  async deleteTransaction(userId: string, transactionId: string) {
+    const transaction = await this.prisma.client.transaction.findUnique({
+      where: { id: transactionId },
+      select: {
+        id: true,
+        userId: true,
+        coupleId: true
+      }
+    });
+
+    if (!transaction) {
+      throw new NotFoundException("Transaction not found");
+    }
+
+    if (transaction.userId !== userId) {
+      throw new BadRequestException("You can delete only your own transactions");
+    }
+
+    await this.assertMembership(userId, transaction.coupleId);
+
+    await this.prisma.client.transaction.delete({
+      where: { id: transactionId }
+    });
+
+    return { ok: true };
   }
 
   async recentTransactions(userId: string) {

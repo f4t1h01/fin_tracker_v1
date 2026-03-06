@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Fraunces, Space_Grotesk } from "next/font/google";
 
+import { ThemeToggle } from "@/components/theme-toggle";
+
 import "./globals.css";
 
 const heading = Fraunces({
@@ -20,8 +22,11 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en">
-      <body className={`${heading.variable} ${body.variable} noise font-[family-name:var(--font-body)]`}>{children}</body>
+    <html lang="en" suppressHydrationWarning>
+      <body className={`${heading.variable} ${body.variable} noise font-[family-name:var(--font-body)]`}>
+        <ThemeToggle />
+        <div className="page-shell">{children}</div>
+      </body>
     </html>
   );
 }

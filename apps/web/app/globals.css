@@ -3,25 +3,45 @@
 @tailwind utilities;
 
 :root {
+  --surface: 36 50% 97%;
+  --surface-strong: 36 55% 92%;
+  --ink: 220 28% 16%;
+  --muted: 220 14% 38%;
+  --accent: 18 92% 52%;
+  --accent-foreground: 36 60% 98%;
+  --pop: 189 79% 34%;
+  --card: 0 0% 100%;
+  --card-foreground: 220 28% 16%;
+  --card-border: 25 32% 82%;
+  --shadow-tint: 18 82% 42%;
+}
+
+.dark {
   --surface: 222 34% 7%;
+  --surface-strong: 220 30% 12%;
   --ink: 210 50% 98%;
+  --muted: 214 20% 72%;
   --accent: 24 95% 58%;
   --accent-foreground: 0 0% 8%;
   --pop: 174 88% 41%;
   --card: 220 30% 12%;
+  --card-foreground: 210 50% 98%;
+  --card-border: 0 0% 100% / 0.14;
+  --shadow-tint: 24 95% 58%;
 }
 
 * {
-  border-color: hsl(0 0% 100% / 0.12);
+  border-color: hsl(var(--card-border));
 }
 
 body {
   min-height: 100vh;
   color: hsl(var(--ink));
   background:
-    radial-gradient(1200px 500px at 8% -10%, hsl(24 95% 58% / 0.3), transparent),
-    radial-gradient(900px 400px at 100% 0%, hsl(174 88% 41% / 0.2), transparent),
-    linear-gradient(150deg, hsl(224 30% 9%), hsl(222 35% 6%));
+    radial-gradient(1200px 500px at 8% -10%, hsl(var(--accent) / 0.22), transparent),
+    radial-gradient(900px 400px at 100% 0%, hsl(var(--pop) / 0.16), transparent),
+    linear-gradient(150deg, hsl(var(--surface)), hsl(var(--surface-strong)));
+  transition: background 240ms ease, color 240ms ease;
 }
 
 .noise::before {
@@ -29,7 +49,37 @@ body {
   position: fixed;
   inset: 0;
   pointer-events: none;
-  opacity: 0.08;
-  background-image: radial-gradient(circle, white 1px, transparent 1px);
+  opacity: 0.05;
+  background-image: radial-gradient(circle, hsl(var(--ink) / 0.8) 1px, transparent 1px);
   background-size: 4px 4px;
+}
+
+.page-shell {
+  animation: fade-in 360ms ease-out;
+}
+
+.soft-rise {
+  animation: soft-rise 420ms ease-out both;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes soft-rise {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
