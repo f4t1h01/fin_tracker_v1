@@ -91,7 +91,7 @@ export function TelegramLogin({ onSuccess }: TelegramLoginProps) {
 
   if (!webEnv.botName) {
     return (
-      <div className="rounded-xl border border-white/15 bg-white/5 p-4 text-sm text-white/70">
+      <div className="detail-box text-sm">
         Telegram sign-in is temporarily unavailable. You can still use email login from this page.
       </div>
     );
@@ -100,7 +100,7 @@ export function TelegramLogin({ onSuccess }: TelegramLoginProps) {
   return (
     <div className="space-y-3">
       <div ref={widgetRef} />
-      <p className="text-sm text-white/70">
+      <p className="body-muted text-sm">
         {status === "idle" && "Login using your Telegram account."}
         {status === "loading" && "Verifying Telegram account..."}
         {status === "done" && "Done. Redirecting to your profile..."}

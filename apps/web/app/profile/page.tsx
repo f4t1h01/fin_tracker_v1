@@ -462,7 +462,7 @@ export default function ProfilePage() {
   if (isAuthenticating) {
     return (
       <main className="mx-auto flex min-h-[60vh] max-w-3xl items-center justify-center px-5 py-16 sm:px-8">
-        <Card className="w-full max-w-xl border-white/20 bg-white/10">
+        <Card className="panel-soft w-full max-w-xl">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Loader2 className="size-5 animate-spin text-pop" />
@@ -478,14 +478,14 @@ export default function ProfilePage() {
   if (!token || authError) {
     return (
       <main className="mx-auto flex min-h-[60vh] max-w-3xl items-center justify-center px-5 py-16 sm:px-8">
-        <Card className="w-full max-w-xl border-red-300/20 bg-red-500/10">
+        <Card className="w-full max-w-xl border-red-300/20 bg-red-500/10 dark:border-red-400/30 dark:bg-red-500/10">
           <CardHeader>
             <CardTitle>Could not open profile</CardTitle>
             <CardDescription>{authError ?? "Missing auth token"}</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              <p className="text-sm text-white/75">Use website login if you already have email access, or open from Telegram to link and refresh your chat session.</p>
+              <p className="body-muted text-sm">Use website login if you already have email access, or open from Telegram to link and refresh your chat session.</p>
               <Button variant="outline" asChild>
                 <a href="/login">Go to login</a>
               </Button>
@@ -500,9 +500,9 @@ export default function ProfilePage() {
     <main className="mx-auto max-w-6xl px-5 pb-16 pt-16 sm:px-8">
       <header className="soft-rise mb-8 flex flex-wrap items-center justify-between gap-4">
         <div>
-          <p className="text-xs uppercase tracking-[0.2em] text-white/60">Profile workspace</p>
+          <p className="eyebrow text-xs uppercase tracking-[0.2em]">Profile workspace</p>
           <h1 className="font-[family-name:var(--font-heading)] text-3xl">{displayName}</h1>
-          <p className="text-sm text-white/70">Your code: <span className="font-semibold text-pop">{profile?.user.coupleCode ?? "-"}</span></p>
+          <p className="body-muted text-sm">Your code: <span className="font-semibold text-pop">{profile?.user.coupleCode ?? "-"}</span></p>
         </div>
         <Button variant="outline" asChild>
           <a href="/">Back to overview</a>
@@ -511,7 +511,7 @@ export default function ProfilePage() {
 
       {authMe && !authMe.hasPassword ? (
         <section className="mb-6">
-          <Card className="border-amber-300/25 bg-amber-500/10">
+          <Card className="border-amber-300/25 bg-amber-500/10 dark:border-amber-300/25 dark:bg-amber-500/10">
             <CardHeader>
               <CardTitle>Set email login</CardTitle>
               <CardDescription>
@@ -521,19 +521,19 @@ export default function ProfilePage() {
             <CardContent>
               <form className="grid gap-3 md:grid-cols-3" onSubmit={onSetupPassword}>
                 <label className="space-y-1 text-sm">
-                  <span className="text-white/70">Email</span>
+                  <span className="field-label">Email</span>
                   <input
                     required
                     type="email"
                     value={setupEmail}
                     onChange={(event) => setSetupEmail(event.target.value)}
                     placeholder="you@example.com"
-                    className="h-10 w-full rounded-xl border border-white/20 bg-slate-900/50 px-3 text-white outline-none ring-pop focus:ring-2"
+                    className="form-input"
                   />
                 </label>
 
                 <label className="space-y-1 text-sm">
-                  <span className="text-white/70">Password</span>
+                  <span className="field-label">Password</span>
                   <input
                     required
                     type="password"
@@ -541,12 +541,12 @@ export default function ProfilePage() {
                     value={setupPassword}
                     onChange={(event) => setSetupPassword(event.target.value)}
                     placeholder="At least 8 characters"
-                    className="h-10 w-full rounded-xl border border-white/20 bg-slate-900/50 px-3 text-white outline-none ring-pop focus:ring-2"
+                    className="form-input"
                   />
                 </label>
 
                 <label className="space-y-1 text-sm">
-                  <span className="text-white/70">Confirm password</span>
+                  <span className="field-label">Confirm password</span>
                   <input
                     required
                     type="password"
@@ -554,7 +554,7 @@ export default function ProfilePage() {
                     value={setupConfirmPassword}
                     onChange={(event) => setSetupConfirmPassword(event.target.value)}
                     placeholder="Repeat password"
-                    className="h-10 w-full rounded-xl border border-white/20 bg-slate-900/50 px-3 text-white outline-none ring-pop focus:ring-2"
+                    className="form-input"
                   />
                 </label>
 
@@ -562,8 +562,8 @@ export default function ProfilePage() {
                   <Button type="submit" disabled={isSettingPassword}>
                     {isSettingPassword ? "Saving..." : "Save email login"}
                   </Button>
-                  {setupMessage ? <p className="text-sm text-emerald-200">{setupMessage}</p> : null}
-                  {setupError ? <p className="text-sm text-rose-200">{setupError}</p> : null}
+                  {setupMessage ? <p className="status-success text-sm">{setupMessage}</p> : null}
+                  {setupError ? <p className="status-error text-sm">{setupError}</p> : null}
                 </div>
               </form>
             </CardContent>
@@ -572,19 +572,19 @@ export default function ProfilePage() {
       ) : null}
 
       <section className="mb-6 grid gap-4 md:grid-cols-3">
-        <Card className="border-emerald-300/20 bg-emerald-500/10">
+        <Card className="metric-income">
           <CardHeader>
             <CardTitle>Income</CardTitle>
           </CardHeader>
-          <CardContent className="text-2xl font-semibold text-emerald-200">{summary ? `${summary.totalIncome.toLocaleString()} UZS` : "-"}</CardContent>
+          <CardContent className="text-2xl font-semibold text-emerald-700 dark:text-emerald-200">{summary ? `${summary.totalIncome.toLocaleString()} UZS` : "-"}</CardContent>
         </Card>
-        <Card className="border-rose-300/20 bg-rose-500/10">
+        <Card className="metric-expense">
           <CardHeader>
             <CardTitle>Expense</CardTitle>
           </CardHeader>
-          <CardContent className="text-2xl font-semibold text-rose-200">{summary ? `${summary.totalExpense.toLocaleString()} UZS` : "-"}</CardContent>
+          <CardContent className="text-2xl font-semibold text-rose-700 dark:text-rose-200">{summary ? `${summary.totalExpense.toLocaleString()} UZS` : "-"}</CardContent>
         </Card>
-        <Card className="border-pop/30 bg-white/10">
+        <Card className="metric-balance">
           <CardHeader>
             <CardTitle>Balance</CardTitle>
           </CardHeader>
@@ -593,7 +593,7 @@ export default function ProfilePage() {
       </section>
 
       <section className="grid gap-5 lg:grid-cols-2">
-        <Card className="border-white/20 bg-white/10">
+        <Card className="panel-soft">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <PlusCircle className="size-5 text-pop" />
@@ -607,18 +607,18 @@ export default function ProfilePage() {
             <form className="space-y-3" onSubmit={onCreateTransaction}>
               <div className="grid grid-cols-2 gap-3">
                 <label className="space-y-1 text-sm">
-                  <span className="text-white/70">Type</span>
+                  <span className="field-label">Type</span>
                   <select
                     value={kind}
                     onChange={(event) => setKind(event.target.value as "EXPENSE" | "INCOME")}
-                    className="h-10 w-full rounded-xl border border-white/20 bg-slate-900/50 px-3 text-white outline-none ring-pop focus:ring-2"
+                    className="form-select"
                   >
                     <option value="EXPENSE">Expense</option>
                     <option value="INCOME">Income</option>
                   </select>
                 </label>
                 <label className="space-y-1 text-sm">
-                  <span className="text-white/70">Amount</span>
+                  <span className="field-label">Amount</span>
                   <input
                     required
                     inputMode="decimal"
@@ -627,29 +627,29 @@ export default function ProfilePage() {
                     value={amount}
                     onChange={(event) => setAmount(event.target.value)}
                     placeholder="45000"
-                    className="h-10 w-full rounded-xl border border-white/20 bg-slate-900/50 px-3 text-white outline-none ring-pop focus:ring-2"
+                    className="form-input"
                   />
                 </label>
               </div>
 
               <label className="space-y-1 text-sm">
-                <span className="text-white/70">Category</span>
+                <span className="field-label">Category</span>
                 <input
                   required
                   value={categoryName}
                   onChange={(event) => setCategoryName(event.target.value)}
                   placeholder="groceries / salary"
-                  className="h-10 w-full rounded-xl border border-white/20 bg-slate-900/50 px-3 text-white outline-none ring-pop focus:ring-2"
+                  className="form-input"
                 />
               </label>
 
               <label className="space-y-1 text-sm">
-                <span className="text-white/70">Note (optional)</span>
+                <span className="field-label">Note (optional)</span>
                 <input
                   value={note}
                   onChange={(event) => setNote(event.target.value)}
                   placeholder="short context"
-                  className="h-10 w-full rounded-xl border border-white/20 bg-slate-900/50 px-3 text-white outline-none ring-pop focus:ring-2"
+                  className="form-input"
                 />
               </label>
 
@@ -657,33 +657,33 @@ export default function ProfilePage() {
                 <Button type="submit" disabled={isSubmittingTx}>
                   {isSubmittingTx ? "Saving..." : "Save transaction"}
                 </Button>
-                {txMessage ? <p className="text-sm text-emerald-200">{txMessage}</p> : null}
-                {txError ? <p className="text-sm text-rose-200">{txError}</p> : null}
+                {txMessage ? <p className="status-success text-sm">{txMessage}</p> : null}
+                {txError ? <p className="status-error text-sm">{txError}</p> : null}
               </div>
             </form>
           </CardContent>
         </Card>
 
-        <Card className="border-white/20 bg-white/10">
+        <Card className="panel-soft">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Link2 className="size-5 text-pop" />
               Connect partner by code
             </CardTitle>
             <CardDescription>
-              Share your code <span className="font-semibold text-white">{profile?.user.coupleCode}</span> and enter your partner&apos;s code below.
+              Share your code <span className="font-semibold text-ink dark:text-white">{profile?.user.coupleCode}</span> and enter your partner&apos;s code below.
             </CardDescription>
           </CardHeader>
           <CardContent>
             <form className="space-y-3" onSubmit={onBind}>
               <label className="space-y-1 text-sm">
-                <span className="text-white/70">Partner code</span>
+                <span className="field-label">Partner code</span>
                 <input
                   required
                   value={bindCode}
                   onChange={(event) => setBindCode(event.target.value.toUpperCase())}
                   placeholder="AB12CD"
-                  className="h-10 w-full rounded-xl border border-white/20 bg-slate-900/50 px-3 text-white outline-none ring-pop focus:ring-2"
+                  className="form-input"
                 />
               </label>
 
@@ -691,11 +691,11 @@ export default function ProfilePage() {
                 <Button type="submit" variant="outline" disabled={isBinding}>
                   {isBinding ? "Connecting..." : "Connect"}
                 </Button>
-                {bindMessage ? <p className="text-sm text-emerald-200">{bindMessage}</p> : null}
-                {bindError ? <p className="text-sm text-rose-200">{bindError}</p> : null}
+                {bindMessage ? <p className="status-success text-sm">{bindMessage}</p> : null}
+                {bindError ? <p className="status-error text-sm">{bindError}</p> : null}
               </div>
 
-              <div className="rounded-xl border border-white/15 bg-white/5 p-3 text-sm text-white/70">
+              <div className="detail-box text-sm">
                 <p>Active workspace: {profile?.activeCouple?.name ?? "None"}</p>
                 <p>Role: {profile?.activeCouple?.role ?? "-"}</p>
                 <p>Last linked code: {profile?.bind?.insertedCode ?? "Not linked yet"}</p>
@@ -706,7 +706,7 @@ export default function ProfilePage() {
       </section>
 
       <section className="mt-6">
-        <Card className="border-white/20 bg-white/10">
+        <Card className="panel-soft">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <WalletCards className="size-5 text-pop" />
@@ -716,18 +716,18 @@ export default function ProfilePage() {
           </CardHeader>
           <CardContent>
             {isLoadingData ? (
-              <p className="text-sm text-white/70">Refreshing...</p>
+              <p className="body-muted text-sm">Refreshing...</p>
             ) : recent.length === 0 ? (
-              <p className="text-sm text-white/70">No transactions yet.</p>
+              <p className="body-muted text-sm">No transactions yet.</p>
             ) : (
               <div className="space-y-2">
                 {recent.map((item) => {
                   const amountNumber = Number(item.amount);
-                  const amountClass = item.kind === "INCOME" ? "text-emerald-200" : "text-rose-200";
+                  const amountClass = item.kind === "INCOME" ? "text-emerald-700 dark:text-emerald-200" : "text-rose-700 dark:text-rose-200";
                   const actor = item.user.firstName ?? item.user.username ?? "Member";
 
                   return (
-                    <div key={item.id} className="rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-sm">
+                    <div key={item.id} className="detail-box px-3 py-3 text-sm">
                       <div>
                         <div className="flex items-center justify-between gap-3">
                           <p className="font-medium">{item.category.name}</p>
@@ -736,7 +736,7 @@ export default function ProfilePage() {
                             {amountNumber.toLocaleString()} UZS
                           </p>
                         </div>
-                        <p className="text-xs text-white/65">
+                        <p className="body-muted text-xs">
                           {actor} · {item.note ?? "No note"} · {new Date(item.happenedAt).toLocaleString()}
                         </p>
                       </div>
@@ -767,7 +767,7 @@ export default function ProfilePage() {
 
       {editingTransaction ? (
         <section className="mt-6">
-          <Card className="border-white/20 bg-white/10">
+          <Card className="panel-soft">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Pencil className="size-5 text-pop" />
@@ -779,20 +779,20 @@ export default function ProfilePage() {
               <form className="space-y-3" onSubmit={onSaveEdit}>
                 <div className="grid grid-cols-2 gap-3">
                   <label className="space-y-1 text-sm">
-                    <span className="text-white/70">Type</span>
+                    <span className="field-label">Type</span>
                     <select
                       value={editingTransaction.kind}
                       onChange={(event) =>
                         setEditingTransaction((current) => (current ? { ...current, kind: event.target.value as "EXPENSE" | "INCOME" } : current))
                       }
-                      className="h-10 w-full rounded-xl border border-white/20 bg-slate-900/50 px-3 text-white outline-none ring-pop focus:ring-2"
+                      className="form-select"
                     >
                       <option value="EXPENSE">Expense</option>
                       <option value="INCOME">Income</option>
                     </select>
                   </label>
                   <label className="space-y-1 text-sm">
-                    <span className="text-white/70">Amount</span>
+                    <span className="field-label">Amount</span>
                     <input
                       required
                       inputMode="decimal"
@@ -800,27 +800,27 @@ export default function ProfilePage() {
                       step="0.01"
                       value={editingTransaction.amount}
                       onChange={(event) => setEditingTransaction((current) => (current ? { ...current, amount: event.target.value } : current))}
-                      className="h-10 w-full rounded-xl border border-white/20 bg-slate-900/50 px-3 text-white outline-none ring-pop focus:ring-2"
+                      className="form-input"
                     />
                   </label>
                 </div>
 
                 <label className="space-y-1 text-sm">
-                  <span className="text-white/70">Category</span>
+                  <span className="field-label">Category</span>
                   <input
                     required
                     value={editingTransaction.categoryName}
                     onChange={(event) => setEditingTransaction((current) => (current ? { ...current, categoryName: event.target.value } : current))}
-                    className="h-10 w-full rounded-xl border border-white/20 bg-slate-900/50 px-3 text-white outline-none ring-pop focus:ring-2"
+                    className="form-input"
                   />
                 </label>
 
                 <label className="space-y-1 text-sm">
-                  <span className="text-white/70">Note</span>
+                  <span className="field-label">Note</span>
                   <input
                     value={editingTransaction.note}
                     onChange={(event) => setEditingTransaction((current) => (current ? { ...current, note: event.target.value } : current))}
-                    className="h-10 w-full rounded-xl border border-white/20 bg-slate-900/50 px-3 text-white outline-none ring-pop focus:ring-2"
+                    className="form-input"
                   />
                 </label>
 

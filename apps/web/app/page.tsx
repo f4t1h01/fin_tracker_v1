@@ -27,7 +27,7 @@ export default function HomePage() {
     <main className="mx-auto max-w-6xl px-5 pb-20 pt-16 sm:px-8">
       <header className="soft-rise mb-12 flex items-center justify-between gap-4">
         <div>
-          <p className="text-sm uppercase tracking-[0.18em] text-white/60">shaxin.uz project</p>
+          <p className="eyebrow text-sm uppercase tracking-[0.18em]">shaxin.uz project</p>
           <h1 className="font-[family-name:var(--font-heading)] text-2xl">Couple Finance Tracker</h1>
         </div>
         <div className="flex gap-3">
@@ -43,12 +43,12 @@ export default function HomePage() {
       </header>
 
       <section className="grid gap-8 lg:grid-cols-[1.35fr_1fr]">
-        <Card className="border-white/20 bg-white/10">
+        <Card className="panel-soft">
           <CardHeader>
             <CardTitle className="font-[family-name:var(--font-heading)] text-4xl leading-tight">
               Smart couple finance, ready from bot or browser.
             </CardTitle>
-            <CardDescription className="max-w-2xl text-base text-white/75">
+            <CardDescription className="max-w-2xl text-base">
               Use Telegram for fast entry, or continue on the website with email login. Track money together and connect with your partner by code.
             </CardDescription>
           </CardHeader>
@@ -67,7 +67,7 @@ export default function HomePage() {
             <CardTitle>How access works</CardTitle>
             <CardDescription>Pick the entry point that fits the moment.</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-2 text-sm text-white/75">
+          <CardContent className="body-muted space-y-2 text-sm">
             <p>1) Use Telegram `/start` and tap `Open app` for instant entry</p>
             <p>2) Save email login once from profile</p>
             <p>3) Come back later directly from the website if you want</p>
@@ -84,7 +84,7 @@ export default function HomePage() {
               <CardTitle>{title}</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-sm text-white/70">{text}</p>
+               <p className="body-muted text-sm">{text}</p>
             </CardContent>
           </Card>
         ))}

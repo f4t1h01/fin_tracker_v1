@@ -82,15 +82,15 @@ export default function LoginPage() {
   return (
     <main className="mx-auto max-w-5xl px-5 py-16 sm:px-8">
       <header className="soft-rise mb-8">
-        <p className="text-xs uppercase tracking-[0.2em] text-white/60">Account access</p>
+        <p className="eyebrow text-xs uppercase tracking-[0.2em]">Account access</p>
         <h1 className="font-[family-name:var(--font-heading)] text-3xl">Sign in to Couple Finance Tracker</h1>
-        <p className="mt-2 max-w-2xl text-sm text-white/70">
+        <p className="body-muted mt-2 max-w-2xl text-sm">
           Use email if you already created web credentials. Use Telegram for instant sign-in when you are coming from the bot.
         </p>
       </header>
 
       <section className="grid gap-5 lg:grid-cols-2">
-        <Card className="border-white/20 bg-white/10">
+        <Card className="panel-soft">
           <CardHeader>
             <CardTitle>Login with email</CardTitle>
             <CardDescription>Website login works independently once your account has email credentials.</CardDescription>
@@ -98,26 +98,26 @@ export default function LoginPage() {
           <CardContent>
             <form className="space-y-3" onSubmit={onSubmit}>
               <label className="space-y-1 text-sm">
-                <span className="text-white/70">Email</span>
+                <span className="field-label">Email</span>
                 <input
                   required
                   type="email"
                   value={email}
                   onChange={(event) => setEmail(event.target.value)}
                   placeholder="you@example.com"
-                  className="h-10 w-full rounded-xl border border-white/20 bg-slate-900/50 px-3 text-white outline-none ring-pop focus:ring-2"
+                  className="form-input"
                 />
               </label>
 
               <label className="space-y-1 text-sm">
-                <span className="text-white/70">Password</span>
+                <span className="field-label">Password</span>
                 <input
                   required
                   type="password"
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
                   placeholder="Your password"
-                  className="h-10 w-full rounded-xl border border-white/20 bg-slate-900/50 px-3 text-white outline-none ring-pop focus:ring-2"
+                  className="form-input"
                 />
               </label>
 
@@ -125,20 +125,20 @@ export default function LoginPage() {
                 <Button type="submit" disabled={isSubmitting}>
                   {isSubmitting ? "Signing in..." : "Sign in"}
                 </Button>
-                {errorMessage ? <p className="text-sm text-rose-200">{errorMessage}</p> : null}
+                {errorMessage ? <p className="status-error text-sm">{errorMessage}</p> : null}
               </div>
             </form>
           </CardContent>
         </Card>
 
-        <Card className="border-white/20 bg-white/10">
+        <Card className="panel-soft">
           <CardHeader>
             <CardTitle>Login with Telegram</CardTitle>
             <CardDescription>Fast sign-in using the Telegram widget when your bot session is available.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <TelegramLogin onSuccess={onTelegramSuccess} />
-            <p className="text-sm text-white/70">
+            <p className="body-muted text-sm">
               New here? You can start from Telegram with <code>/start</code> and <code>Open app</code>, then save email access in profile for future website logins.
             </p>
             <Button variant="outline" asChild>

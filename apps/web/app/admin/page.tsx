@@ -47,8 +47,11 @@ export default function AdminPage() {
   }, [router]);
 
   return (
-    <main className="mx-auto max-w-5xl px-5 py-8 sm:px-8">
-      <h1 className="mb-6 font-[family-name:var(--font-heading)] text-3xl">Admin Panel</h1>
+    <main className="mx-auto max-w-5xl px-5 py-16 sm:px-8">
+      <div className="soft-rise mb-6">
+        <p className="eyebrow text-xs uppercase tracking-[0.2em]">Operations</p>
+        <h1 className="font-[family-name:var(--font-heading)] text-3xl">Admin Panel</h1>
+      </div>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <Card>
