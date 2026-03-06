@@ -24,8 +24,8 @@ const features = [
 
 export default function HomePage() {
   return (
-    <main className="mx-auto max-w-6xl px-5 pb-20 pt-8 sm:px-8">
-      <header className="mb-12 flex items-center justify-between">
+    <main className="mx-auto max-w-6xl px-5 pb-20 pt-16 sm:px-8">
+      <header className="soft-rise mb-12 flex items-center justify-between gap-4">
         <div>
           <p className="text-sm uppercase tracking-[0.18em] text-white/60">shaxin.uz project</p>
           <h1 className="font-[family-name:var(--font-heading)] text-2xl">Couple Finance Tracker</h1>

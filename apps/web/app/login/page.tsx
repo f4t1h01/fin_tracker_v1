@@ -80,8 +80,8 @@ export default function LoginPage() {
   };
 
   return (
-    <main className="mx-auto max-w-5xl px-5 py-10 sm:px-8">
-      <header className="mb-8">
+    <main className="mx-auto max-w-5xl px-5 py-16 sm:px-8">
+      <header className="soft-rise mb-8">
         <p className="text-xs uppercase tracking-[0.2em] text-white/60">Account access</p>
         <h1 className="font-[family-name:var(--font-heading)] text-3xl">Sign in to Couple Finance Tracker</h1>
         <p className="mt-2 max-w-2xl text-sm text-white/70">

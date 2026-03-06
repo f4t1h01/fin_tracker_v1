@@ -369,7 +369,7 @@ export default function ProfilePage() {
 
   if (isAuthenticating) {
     return (
-      <main className="mx-auto flex min-h-[60vh] max-w-3xl items-center justify-center px-5 py-12 sm:px-8">
+      <main className="mx-auto flex min-h-[60vh] max-w-3xl items-center justify-center px-5 py-16 sm:px-8">
         <Card className="w-full max-w-xl border-white/20 bg-white/10">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -385,7 +385,7 @@ export default function ProfilePage() {
 
   if (!token || authError) {
     return (
-      <main className="mx-auto flex min-h-[60vh] max-w-3xl items-center justify-center px-5 py-12 sm:px-8">
+      <main className="mx-auto flex min-h-[60vh] max-w-3xl items-center justify-center px-5 py-16 sm:px-8">
         <Card className="w-full max-w-xl border-red-300/20 bg-red-500/10">
           <CardHeader>
             <CardTitle>Could not open profile</CardTitle>
@@ -405,8 +405,8 @@ export default function ProfilePage() {
   }
 
   return (
-    <main className="mx-auto max-w-6xl px-5 pb-16 pt-8 sm:px-8">
-      <header className="mb-8 flex flex-wrap items-center justify-between gap-4">
+    <main className="mx-auto max-w-6xl px-5 pb-16 pt-16 sm:px-8">
+      <header className="soft-rise mb-8 flex flex-wrap items-center justify-between gap-4">
         <div>
           <p className="text-xs uppercase tracking-[0.2em] text-white/60">Profile workspace</p>
           <h1 className="font-[family-name:var(--font-heading)] text-3xl">{displayName}</h1>
