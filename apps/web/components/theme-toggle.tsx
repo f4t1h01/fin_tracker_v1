@@ -3,47 +3,51 @@
 import { Moon, SunMedium } from "lucide-react";
 import { useEffect, useState } from "react";
 
-import { Button } from "@/components/ui/button";
+const storageKey = "duet-theme";
 
-const storageKey = "cf_theme";
-
-function getPreferredTheme() {
-  if (typeof window === "undefined") {
-    return "dark";
-  }
-
-  const saved = window.localStorage.getItem(storageKey);
-  if (saved === "light" || saved === "dark") {
-    return saved;
-  }
-
+function getSystemTheme() {
   return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 }
 
 function applyTheme(theme: "light" | "dark") {
-  document.documentElement.classList.toggle("dark", theme === "dark");
+  document.documentElement.setAttribute("data-theme", theme);
 }
 
 export function ThemeToggle() {
-  const [theme, setTheme] = useState<"light" | "dark">("dark");
+  const [theme, setTheme] = useState<"light" | "dark">("light");
 
   useEffect(() => {
-    const preferred = getPreferredTheme();
-    setTheme(preferred);
-    applyTheme(preferred);
+    const saved = window.localStorage.getItem(storageKey);
+    const initial = saved === "light" || saved === "dark" ? saved : getSystemTheme();
+    setTheme(initial);
+    applyTheme(initial);
+
+    const media = window.matchMedia("(prefers-color-scheme: dark)");
+    const listener = (event: MediaQueryListEvent) => {
+      if (window.localStorage.getItem(storageKey)) {
+        return;
+      }
+
+      const next = event.matches ? "dark" : "light";
+      setTheme(next);
+      applyTheme(next);
+    };
+
+    media.addEventListener("change", listener);
+    return () => media.removeEventListener("change", listener);
   }, []);
 
   const toggleTheme = () => {
-    const next = theme === "dark" ? "light" : "dark";
+    const next = theme === "light" ? "dark" : "light";
     setTheme(next);
     applyTheme(next);
     window.localStorage.setItem(storageKey, next);
   };
 
   return (
-    <Button aria-label="Toggle theme" className="fixed right-4 top-4 z-50 shadow-lg shadow-black/10" variant="outline" onClick={toggleTheme}>
-      {theme === "dark" ? <SunMedium className="size-4" /> : <Moon className="size-4" />}
-      <span>{theme === "dark" ? "Light" : "Dark"}</span>
-    </Button>
+    <button aria-label="Toggle color theme" className="theme-pill" type="button" onClick={toggleTheme}>
+      <SunMedium className="theme-icon theme-icon--sun size-3.5" />
+      <Moon className="theme-icon theme-icon--moon size-3.5" />
+    </button>
   );
 }

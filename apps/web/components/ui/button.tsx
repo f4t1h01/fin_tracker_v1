@@ -5,18 +5,23 @@ import * as React from "react";
 import { cn } from "@/lib/cn";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pop disabled:pointer-events-none disabled:opacity-60",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap transition-[transform,background-color,border-color,color] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] focus-visible:outline-none focus-visible:ring-2 disabled:pointer-events-none disabled:opacity-60",
   {
     variants: {
       variant: {
-        default: "bg-accent text-accent-foreground shadow-lg shadow-[hsl(var(--shadow-tint)/0.18)] hover:-translate-y-0.5 hover:opacity-95",
-        outline: "border bg-[hsl(var(--card)/0.72)] text-ink hover:-translate-y-0.5 hover:bg-[hsl(var(--card)/0.96)]",
-        ghost: "text-ink hover:bg-[hsl(var(--card)/0.66)]"
+        default:
+          "primary-button [&>span]:relative [&>span]:z-[1]",
+        outline:
+          "rounded-[2px] border border-[rgba(201,168,76,0.2)] bg-transparent px-5 py-3 text-[13px] uppercase tracking-[0.1em] text-[var(--ink-soft)] hover:-translate-y-0.5 hover:border-[var(--gold)] hover:text-[var(--ink)]",
+        ghost:
+          "rounded-[2px] px-3 py-2 text-[13px] uppercase tracking-[0.08em] text-[var(--ink-soft)] hover:text-[var(--ink)]",
+        link:
+          "secondary-link px-0 py-0"
       },
       size: {
-        default: "h-10",
-        lg: "h-12 px-6",
-        sm: "h-9 px-3"
+        default: "",
+        lg: "text-[13px]",
+        sm: "px-3 py-2 text-[12px]"
       }
     },
     defaultVariants: {
@@ -30,12 +35,14 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
   asChild?: boolean;
 }
 
-const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, asChild = false, ...props }, ref) => {
-    const Comp = asChild ? Slot : "button";
-    return <Comp className={cn(buttonVariants({ variant, size, className }))} ref={ref} {...props} />;
-  }
-);
+const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(({ className, variant, size, asChild = false, children, ...props }, ref) => {
+  const Comp = asChild ? Slot : "button";
+  return (
+    <Comp className={cn(buttonVariants({ variant, size, className }))} ref={ref} {...props}>
+      {variant === "default" ? <span>{children}</span> : children}
+    </Comp>
+  );
+});
 
 Button.displayName = "Button";
 

@@ -1,30 +1,30 @@
 import type { Metadata } from "next";
-import { Fraunces, Space_Grotesk } from "next/font/google";
-
-import { ThemeToggle } from "@/components/theme-toggle";
+import { Cormorant_Garamond, DM_Sans } from "next/font/google";
 
 import "./globals.css";
 
-const heading = Fraunces({
+const heading = Cormorant_Garamond({
   subsets: ["latin"],
+  weight: ["300", "400", "600"],
+  style: ["normal", "italic"],
   variable: "--font-heading"
 });
 
-const body = Space_Grotesk({
+const body = DM_Sans({
   subsets: ["latin"],
+  weight: ["300", "400", "500"],
   variable: "--font-body"
 });
 
 export const metadata: Metadata = {
-  title: "Couple Finance Tracker",
-  description: "Telegram-native couple finance tracking"
+  title: "Duet",
+  description: "Warm editorial couple finance experience for web and Telegram"
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${heading.variable} ${body.variable} noise font-[family-name:var(--font-body)]`}>
-        <ThemeToggle />
+      <body className={`${heading.variable} ${body.variable}`}>
         <div className="page-shell">{children}</div>
       </body>
     </html>
