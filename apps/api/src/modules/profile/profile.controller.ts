@@ -17,8 +17,18 @@ export class ProfileController {
     return this.profileService.getProfile(user.id);
   }
 
+  @Get("me")
+  getMyProfile(@CurrentUser() user: { id: string }) {
+    return this.profileService.getProfile(user.id);
+  }
+
   @Post("bind")
   bind(@CurrentUser() user: { id: string }, @Body() dto: BindCoupleDto) {
+    return this.profileService.bindByCode(user.id, dto);
+  }
+
+  @Post("me/bind")
+  bindMe(@CurrentUser() user: { id: string }, @Body() dto: BindCoupleDto) {
     return this.profileService.bindByCode(user.id, dto);
   }
 
@@ -27,8 +37,18 @@ export class ProfileController {
     return this.profileService.createTransaction(user.id, dto);
   }
 
+  @Post("me/transactions")
+  createMyTransaction(@CurrentUser() user: { id: string }, @Body() dto: CreateProfileTransactionDto) {
+    return this.profileService.createTransaction(user.id, dto);
+  }
+
   @Patch("transactions/:transactionId")
   updateTransaction(@CurrentUser() user: { id: string }, @Param("transactionId") transactionId: string, @Body() dto: UpdateProfileTransactionDto) {
+    return this.profileService.updateTransaction(user.id, transactionId, dto);
+  }
+
+  @Patch("me/transactions/:transactionId")
+  updateMyTransaction(@CurrentUser() user: { id: string }, @Param("transactionId") transactionId: string, @Body() dto: UpdateProfileTransactionDto) {
     return this.profileService.updateTransaction(user.id, transactionId, dto);
   }
 
@@ -37,13 +57,30 @@ export class ProfileController {
     return this.profileService.deleteTransaction(user.id, transactionId);
   }
 
+  @Delete("me/transactions/:transactionId")
+  deleteMyTransaction(@CurrentUser() user: { id: string }, @Param("transactionId") transactionId: string) {
+    return this.profileService.deleteTransaction(user.id, transactionId);
+  }
+
   @Get("transactions/recent")
   recent(@CurrentUser() user: { id: string }) {
     return this.profileService.recentTransactions(user.id);
   }
 
+  @Get("me/transactions/recent")
+  recentMine(@CurrentUser() user: { id: string }) {
+    return this.profileService.recentTransactions(user.id);
+  }
+
   @Get("summary")
   summary(@CurrentUser() user: { id: string }, @Query("month") month?: string, @Query("year") year?: string) {
+    const monthNumber = month ? Number(month) : undefined;
+    const yearNumber = year ? Number(year) : undefined;
+    return this.profileService.summary(user.id, monthNumber, yearNumber);
+  }
+
+  @Get("me/summary")
+  mySummary(@CurrentUser() user: { id: string }, @Query("month") month?: string, @Query("year") year?: string) {
     const monthNumber = month ? Number(month) : undefined;
     const yearNumber = year ? Number(year) : undefined;
     return this.profileService.summary(user.id, monthNumber, yearNumber);

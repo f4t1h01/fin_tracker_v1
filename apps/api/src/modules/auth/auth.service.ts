@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, Injectable, UnauthorizedException } from "@nestjs/common";
+import { BadRequestException, ConflictException, Injectable, NotFoundException, UnauthorizedException } from "@nestjs/common";
 import { parseApiEnv } from "@repo/config";
 import { sign, verify } from "jsonwebtoken";
 import { createHash, createHmac, randomBytes, scrypt, timingSafeEqual } from "node:crypto";
@@ -71,6 +71,7 @@ export class AuthService {
     firstName: string | null;
     lastName: string | null;
     isAdmin: boolean;
+    isDark: boolean;
     coupleCode: string;
     email: string | null;
     hasPassword: boolean;
@@ -84,6 +85,7 @@ export class AuthService {
         firstName: user.firstName,
         lastName: user.lastName,
         isAdmin: user.isAdmin,
+        isDark: user.isDark,
         coupleCode: user.coupleCode,
         email: user.email,
         hasPassword: user.hasPassword
@@ -227,12 +229,13 @@ export class AuthService {
       id: user.id,
       telegramId: user.telegramId,
       username: user.username,
-      firstName: user.firstName,
-      lastName: user.lastName,
-      isAdmin: user.isAdmin,
-      coupleCode,
-      email: user.email,
-      hasPassword: Boolean(user.passwordHash)
+        firstName: user.firstName,
+        lastName: user.lastName,
+        isAdmin: user.isAdmin,
+        isDark: user.isDark,
+        coupleCode,
+        email: user.email,
+        hasPassword: Boolean(user.passwordHash)
     });
   }
 
@@ -272,6 +275,7 @@ export class AuthService {
         firstName: linkedUser.firstName,
         lastName: linkedUser.lastName,
         isAdmin: linkedUser.isAdmin,
+        isDark: linkedUser.isDark,
         coupleCode,
         email: linkedUser.email,
         hasPassword: Boolean(linkedUser.passwordHash)
@@ -284,7 +288,7 @@ export class AuthService {
         telegramId,
         lastTelegramChatId: chatId,
         username: `tg_${payload.telegramId}`,
-        firstName: "Telegram"
+        firstName: "Duet"
       },
       update: {
         lastTelegramChatId: chatId
@@ -296,12 +300,13 @@ export class AuthService {
       id: user.id,
       telegramId: user.telegramId,
       username: user.username,
-      firstName: user.firstName,
-      lastName: user.lastName,
-      isAdmin: user.isAdmin,
-      coupleCode,
-      email: user.email,
-      hasPassword: Boolean(user.passwordHash)
+        firstName: user.firstName,
+        lastName: user.lastName,
+        isAdmin: user.isAdmin,
+        isDark: user.isDark,
+        coupleCode,
+        email: user.email,
+        hasPassword: Boolean(user.passwordHash)
     });
   }
 
@@ -317,14 +322,19 @@ export class AuthService {
         firstName: true,
         lastName: true,
         isAdmin: true,
+        isDark: true,
         coupleCode: true,
         email: true,
         passwordHash: true
       }
     });
 
-    if (!user?.passwordHash) {
-      throw new UnauthorizedException("Invalid email or password");
+    if (!user) {
+      throw new NotFoundException("No account found for this email");
+    }
+
+    if (!user.passwordHash) {
+      throw new UnauthorizedException("This account still needs Telegram setup before website login");
     }
 
     const validPassword = await this.verifyPassword(payload.password, user.passwordHash);
@@ -342,6 +352,7 @@ export class AuthService {
       firstName: user.firstName,
       lastName: user.lastName,
       isAdmin: user.isAdmin,
+      isDark: user.isDark,
       coupleCode,
       email: user.email,
       hasPassword: true
@@ -361,6 +372,7 @@ export class AuthService {
           firstName: true,
           lastName: true,
           isAdmin: true,
+          isDark: true,
           coupleCode: true,
           email: true,
           passwordHash: true
@@ -401,6 +413,7 @@ export class AuthService {
         firstName: true,
         lastName: true,
         isAdmin: true,
+        isDark: true,
         coupleCode: true,
         email: true,
         passwordHash: true
@@ -416,6 +429,7 @@ export class AuthService {
       firstName: updated.firstName,
       lastName: updated.lastName,
       isAdmin: updated.isAdmin,
+      isDark: updated.isDark,
       coupleCode,
       email: updated.email,
       hasPassword: Boolean(updated.passwordHash)
@@ -436,7 +450,8 @@ export class AuthService {
         username: true,
         firstName: true,
         lastName: true,
-        isAdmin: true
+        isAdmin: true,
+        isDark: true
       }
     });
 
@@ -451,7 +466,20 @@ export class AuthService {
       username: user.username,
       firstName: user.firstName,
       lastName: user.lastName,
-      isAdmin: user.isAdmin
+      isAdmin: user.isAdmin,
+      isDark: user.isDark
     };
+  }
+
+  async setThemePreference(userId: string, isDark: boolean) {
+    const user = await this.prisma.client.user.update({
+      where: { id: userId },
+      data: { isDark },
+      select: {
+        isDark: true
+      }
+    });
+
+    return user;
   }
 }

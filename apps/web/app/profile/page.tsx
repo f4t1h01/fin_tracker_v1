@@ -2,10 +2,13 @@
 
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { Link2, Loader2, Pencil, PlusCircle, Trash2, WalletCards, X } from "lucide-react";
-import { useRouter } from "next/navigation";
 
+import { BrandMark } from "@/components/marketing/brand-mark";
+import { TelegramLogin } from "@/components/telegram-login";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { persistTheme, type ThemeMode } from "@/lib/theme";
 import { webEnv } from "@/lib/env";
 
 type ProfileResponse = {
@@ -74,6 +77,7 @@ type AuthMeResponse = {
   firstName: string | null;
   lastName: string | null;
   isAdmin: boolean;
+  isDark: boolean;
 };
 
 const tokenKey = "cf_token";
@@ -99,12 +103,17 @@ async function parseApiResponse<T>(response: Response): Promise<T> {
 }
 
 export default function ProfilePage() {
-  const router = useRouter();
-
   const [token, setToken] = useState<string | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
   const [isAuthenticating, setIsAuthenticating] = useState(true);
   const [authMe, setAuthMe] = useState<AuthMeResponse | null>(null);
+  const [loginEmail, setLoginEmail] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
+  const [isSubmittingLogin, setIsSubmittingLogin] = useState(false);
+  const [loginMessage, setLoginMessage] = useState<string | null>(null);
+  const [loginError, setLoginError] = useState<string | null>(null);
+  const [showCreateAccountAction, setShowCreateAccountAction] = useState(false);
+  const [createAccountHint, setCreateAccountHint] = useState<string | null>(null);
 
   const [setupEmail, setSetupEmail] = useState("");
   const [setupPassword, setSetupPassword] = useState("");
@@ -136,6 +145,15 @@ export default function ProfilePage() {
 
   const today = useMemo(() => new Date(), []);
 
+  const clearSession = useCallback(() => {
+    localStorage.removeItem(tokenKey);
+    setToken(null);
+    setAuthMe(null);
+    setProfile(null);
+    setSummary(null);
+    setRecent([]);
+  }, []);
+
   const fetchSnapshot = useCallback(
     async (authToken: string) => {
       setIsLoadingData(true);
@@ -143,17 +161,17 @@ export default function ProfilePage() {
 
       try {
         const [profileResponse, summaryResponse, recentResponse, meResponse] = await Promise.all([
-          fetch(`${webEnv.apiUrl}/profile`, {
+          fetch(`${webEnv.apiUrl}/profile/me`, {
             headers: {
               Authorization: `Bearer ${authToken}`
             }
           }).then((response) => parseApiResponse<ProfileResponse>(response)),
-          fetch(`${webEnv.apiUrl}/profile/summary?month=${today.getMonth() + 1}&year=${today.getFullYear()}`, {
+          fetch(`${webEnv.apiUrl}/profile/me/summary?month=${today.getMonth() + 1}&year=${today.getFullYear()}`, {
             headers: {
               Authorization: `Bearer ${authToken}`
             }
           }).then((response) => parseApiResponse<MonthlySummary>(response)),
-          fetch(`${webEnv.apiUrl}/profile/transactions/recent`, {
+          fetch(`${webEnv.apiUrl}/profile/me/transactions/recent`, {
             headers: {
               Authorization: `Bearer ${authToken}`
             }
@@ -177,9 +195,7 @@ export default function ProfilePage() {
         const message = error instanceof Error ? error.message : "Could not load profile data";
 
         if (message === "Invalid token" || message === "Missing bearer token") {
-          localStorage.removeItem(tokenKey);
-          setToken(null);
-          router.replace("/login");
+          clearSession();
         }
 
         setAuthError(message);
@@ -187,7 +203,7 @@ export default function ProfilePage() {
         setIsLoadingData(false);
       }
     },
-    [router, today]
+    [clearSession, today]
   );
 
   useEffect(() => {
@@ -202,11 +218,8 @@ export default function ProfilePage() {
         const existing = localStorage.getItem(tokenKey);
         if (existing) {
           setToken(existing);
-          setIsAuthenticating(false);
-          return;
         }
 
-        router.replace("/login");
         setIsAuthenticating(false);
         return;
       }
@@ -230,7 +243,7 @@ export default function ProfilePage() {
         const payload = await parseApiResponse<{ accessToken: string }>(response);
         localStorage.setItem(tokenKey, payload.accessToken);
         setToken(payload.accessToken);
-
+        setAuthError(null);
         window.history.replaceState({}, "", "/profile");
       } catch (error) {
         const message = error instanceof Error ? error.message : "Could not sign in from Telegram";
@@ -241,7 +254,7 @@ export default function ProfilePage() {
     };
 
     void bootstrap();
-  }, [router]);
+  }, []);
 
   useEffect(() => {
     if (!token) {
@@ -250,6 +263,79 @@ export default function ProfilePage() {
 
     void fetchSnapshot(token);
   }, [fetchSnapshot, token]);
+
+  useEffect(() => {
+    if (!authMe) {
+      return;
+    }
+
+    persistTheme(authMe.isDark ? "dark" : "light");
+  }, [authMe]);
+
+  const onThemeChange = async (theme: ThemeMode) => {
+    if (!token) {
+      persistTheme(theme);
+      return;
+    }
+
+    setAuthMe((current) => (current ? { ...current, isDark: theme === "dark" } : current));
+
+    try {
+      const response = await fetch(`${webEnv.apiUrl}/auth/preferences/theme`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ isDark: theme === "dark" })
+      });
+
+      await parseApiResponse<{ isDark: boolean }>(response);
+    } catch (error) {
+      setAuthError(error instanceof Error ? error.message : "Could not save theme preference");
+    }
+  };
+
+  const onSubmitLogin = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setLoginError(null);
+    setLoginMessage(null);
+    setCreateAccountHint(null);
+    setShowCreateAccountAction(false);
+    setIsSubmittingLogin(true);
+
+    try {
+      const response = await fetch(`${webEnv.apiUrl}/auth/password/login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          email: loginEmail,
+          password: loginPassword
+        })
+      });
+
+      const payload = await parseApiResponse<{ accessToken: string }>(response);
+      localStorage.setItem(tokenKey, payload.accessToken);
+      setToken(payload.accessToken);
+      setAuthError(null);
+      setLoginMessage("Signed in successfully.");
+      setLoginPassword("");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Could not sign in";
+      setLoginError(message);
+      setShowCreateAccountAction(message === "No account found for this email");
+    } finally {
+      setIsSubmittingLogin(false);
+    }
+  };
+
+  const onCreateAccount = () => {
+    setCreateAccountHint("Use Telegram below to create your Duet account first, then save browser login inside your profile.");
+    const telegramCard = document.getElementById("profile-telegram-auth");
+    telegramCard?.scrollIntoView({ behavior: "smooth", block: "center" });
+  };
 
   const onBind = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -263,7 +349,7 @@ export default function ProfilePage() {
     setIsBinding(true);
 
     try {
-      const response = await fetch(`${webEnv.apiUrl}/profile/bind`, {
+      const response = await fetch(`${webEnv.apiUrl}/profile/me/bind`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -296,7 +382,7 @@ export default function ProfilePage() {
     setIsSubmittingTx(true);
 
     try {
-      const response = await fetch(`${webEnv.apiUrl}/profile/transactions`, {
+      const response = await fetch(`${webEnv.apiUrl}/profile/me/transactions`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -310,7 +396,7 @@ export default function ProfilePage() {
         })
       });
 
-      await parseApiResponse(response);
+      await parseApiResponse<unknown>(response);
       setAmount("");
       setCategoryName("");
       setNote("");
@@ -394,7 +480,7 @@ export default function ProfilePage() {
     setIsSavingEdit(true);
 
     try {
-      const response = await fetch(`${webEnv.apiUrl}/profile/transactions/${editingTransaction.id}`, {
+      const response = await fetch(`${webEnv.apiUrl}/profile/me/transactions/${editingTransaction.id}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -408,7 +494,7 @@ export default function ProfilePage() {
         })
       });
 
-      await parseApiResponse(response);
+      await parseApiResponse<unknown>(response);
       setEditingTransaction(null);
       setTxMessage("Transaction updated.");
       await fetchSnapshot(token);
@@ -430,14 +516,14 @@ export default function ProfilePage() {
     setIsDeletingId(transactionId);
 
     try {
-      const response = await fetch(`${webEnv.apiUrl}/profile/transactions/${transactionId}`, {
+      const response = await fetch(`${webEnv.apiUrl}/profile/me/transactions/${transactionId}`, {
         method: "DELETE",
         headers: {
           Authorization: `Bearer ${token}`
         }
       });
 
-      await parseApiResponse(response);
+      await parseApiResponse<unknown>(response);
       if (editingTransaction?.id === transactionId) {
         setEditingTransaction(null);
       }
@@ -456,8 +542,16 @@ export default function ProfilePage() {
       return "Your profile";
     }
 
-    return profile.user.firstName ?? profile.user.username ?? "Telegram user";
+    return profile.user.firstName ?? profile.user.username ?? "Duet member";
   }, [profile]);
+
+  const onTelegramSuccess = useCallback(() => {
+    const existing = localStorage.getItem(tokenKey);
+    if (existing) {
+      setToken(existing);
+      setAuthError(null);
+    }
+  }, []);
 
   if (isAuthenticating) {
     return (
@@ -466,57 +560,167 @@ export default function ProfilePage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Loader2 className="size-5 animate-spin text-pop" />
-              Authenticating with Telegram
+              Preparing your profile
             </CardTitle>
-            <CardDescription>Preparing your profile securely...</CardDescription>
+            <CardDescription>Checking saved access and Telegram handoff...</CardDescription>
           </CardHeader>
         </Card>
       </main>
     );
   }
 
-  if (!token || authError) {
+  if (!token) {
+    return (
+      <main className="container-shell pb-16 pt-24">
+        <header className="soft-rise mb-8 flex flex-wrap items-start justify-between gap-4">
+          <div className="space-y-4">
+            <BrandMark href="/" />
+            <div>
+              <p className="eyebrow-row">Profile access</p>
+              <h1 className="mt-5 font-[family-name:var(--font-heading)] text-[clamp(38px,4vw,56px)] font-light leading-[1.08]">Sign in or start your account here.</h1>
+              <p className="body-muted mt-3 max-w-2xl text-sm">
+                Email login works for returning members. New accounts still begin with Telegram, then you can save browser access inside your profile.
+              </p>
+            </div>
+          </div>
+          <ThemeToggle />
+        </header>
+
+        {authError ? (
+          <Card className="mb-6 border-red-300/20 bg-red-500/10 dark:border-red-400/30 dark:bg-red-500/10">
+            <CardContent className="pt-6">
+              <p className="status-error text-sm">{authError}</p>
+            </CardContent>
+          </Card>
+        ) : null}
+
+        <section className="grid gap-5 lg:grid-cols-[1.15fr_0.85fr]">
+          <Card className="panel-soft">
+            <CardHeader>
+              <CardTitle>Sign in with email</CardTitle>
+              <CardDescription>Use this when you already saved browser credentials from your Duet profile.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <form className="space-y-3" onSubmit={onSubmitLogin}>
+                <label className="space-y-1 text-sm">
+                  <span className="field-label">Email</span>
+                  <input
+                    required
+                    type="email"
+                    value={loginEmail}
+                    onChange={(event) => setLoginEmail(event.target.value)}
+                    placeholder="you@example.com"
+                    className="form-input"
+                  />
+                </label>
+
+                <label className="space-y-1 text-sm">
+                  <span className="field-label">Password</span>
+                  <input
+                    required
+                    type="password"
+                    value={loginPassword}
+                    onChange={(event) => setLoginPassword(event.target.value)}
+                    placeholder="Your password"
+                    className="form-input"
+                  />
+                </label>
+
+                <div className="flex flex-wrap items-center gap-3">
+                  <Button type="submit" disabled={isSubmittingLogin}>
+                    {isSubmittingLogin ? "Signing in..." : "Sign in"}
+                  </Button>
+                  {loginMessage ? <p className="status-success text-sm">{loginMessage}</p> : null}
+                  {loginError ? <p className="status-error text-sm">{loginError}</p> : null}
+                </div>
+              </form>
+
+              {showCreateAccountAction ? (
+                <div className="detail-box space-y-3 text-sm">
+                  <p className="body-muted">No browser account exists for this email yet. Start with Telegram once, then save email access from inside your profile.</p>
+                  <Button type="button" variant="outline" onClick={onCreateAccount}>
+                    Create account
+                  </Button>
+                </div>
+              ) : null}
+
+              {createAccountHint ? <p className="body-muted text-sm">{createAccountHint}</p> : null}
+            </CardContent>
+          </Card>
+
+          <Card className="panel-soft" id="profile-telegram-auth">
+            <CardHeader>
+              <CardTitle>Start with Telegram</CardTitle>
+              <CardDescription>Use Telegram to create your account, reconnect your chat, or link browser access to the same profile.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <TelegramLogin onSuccess={onTelegramSuccess} />
+              <div className="detail-box space-y-2 text-sm">
+                <p>1. Sign in with Telegram.</p>
+                <p>2. Open your profile.</p>
+                <p>3. Save email login once for future website access.</p>
+              </div>
+              <Button variant="outline" asChild>
+                <a href="/">Back to overview</a>
+              </Button>
+            </CardContent>
+          </Card>
+        </section>
+      </main>
+    );
+  }
+
+  if (!profile || !authMe) {
     return (
       <main className="mx-auto flex min-h-[60vh] max-w-3xl items-center justify-center px-5 py-16 sm:px-8">
-        <Card className="w-full max-w-xl border-red-300/20 bg-red-500/10 dark:border-red-400/30 dark:bg-red-500/10">
+        <Card className="panel-soft w-full max-w-xl">
           <CardHeader>
-            <CardTitle>Could not open profile</CardTitle>
-            <CardDescription>{authError ?? "Missing auth token"}</CardDescription>
+            <CardTitle className="flex items-center gap-2">
+              <Loader2 className="size-5 animate-spin text-pop" />
+              Loading your workspace
+            </CardTitle>
+            <CardDescription>{authError ?? "Fetching profile, balances, and recent activity..."}</CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              <p className="body-muted text-sm">Use website login if you already have email access, or open from Telegram to link and refresh your chat session.</p>
-              <Button variant="outline" asChild>
-                <a href="/login">Go to login</a>
-              </Button>
-            </div>
-          </CardContent>
         </Card>
       </main>
     );
   }
 
   return (
-      <main className="container-shell pb-16 pt-28">
-        <header className="soft-rise mb-8 flex flex-wrap items-center justify-between gap-4">
+    <main className="container-shell pb-16 pt-28">
+      <header className="soft-rise mb-8 flex flex-wrap items-start justify-between gap-4">
+        <div className="space-y-4">
+          <BrandMark href="/" />
           <div>
-          <div className="eyebrow-row">Profile workspace</div>
-          <h1 className="mt-5 font-[family-name:var(--font-heading)] text-[clamp(38px,4vw,56px)] font-light leading-[1.08]">{displayName}</h1>
-          <p className="body-muted mt-3 text-sm">Your code: <span className="font-semibold text-[var(--gold)]">{profile?.user.coupleCode ?? "-"}</span></p>
+            <div className="eyebrow-row">Profile workspace</div>
+            <h1 className="mt-5 font-[family-name:var(--font-heading)] text-[clamp(38px,4vw,56px)] font-light leading-[1.08]">{displayName}</h1>
+            <p className="body-muted mt-3 text-sm">
+              Your code: <span className="font-semibold text-[var(--gold)]">{profile.user.coupleCode ?? "-"}</span>
+            </p>
           </div>
-        <Button variant="outline" asChild>
-          <a href="/">Back to overview</a>
-        </Button>
+        </div>
+        <div className="flex items-center gap-3">
+          <ThemeToggle onChange={(theme) => void onThemeChange(theme)} />
+          <Button variant="outline" asChild>
+            <a href="/">Back to overview</a>
+          </Button>
+        </div>
       </header>
 
-      {authMe && !authMe.hasPassword ? (
+      {authError ? (
+        <Card className="mb-6 border-red-300/20 bg-red-500/10 dark:border-red-400/30 dark:bg-red-500/10">
+          <CardContent className="pt-6">
+            <p className="status-error text-sm">{authError}</p>
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {!authMe.hasPassword ? (
         <section className="mb-6">
           <Card className="panel-soft border-[rgba(201,168,76,0.2)] bg-[color-mix(in_srgb,var(--gold)_8%,var(--card-bg))]">
             <CardHeader>
-              <CardTitle>Set email login</CardTitle>
-              <CardDescription>
-                Finish your account setup once. Next time you can login from browser without opening Telegram first.
-              </CardDescription>
+              <CardTitle>Save email login</CardTitle>
+              <CardDescription>Finish this once. After that, you can open your Duet profile directly from the browser without Telegram first.</CardDescription>
             </CardHeader>
             <CardContent>
               <form className="grid gap-3 md:grid-cols-3" onSubmit={onSetupPassword}>
@@ -558,7 +762,7 @@ export default function ProfilePage() {
                   />
                 </label>
 
-                <div className="md:col-span-3 flex items-center gap-3">
+                <div className="flex items-center gap-3 md:col-span-3">
                   <Button type="submit" disabled={isSettingPassword}>
                     {isSettingPassword ? "Saving..." : "Save email login"}
                   </Button>
@@ -572,19 +776,19 @@ export default function ProfilePage() {
       ) : null}
 
       <section className="mb-6 grid gap-4 md:grid-cols-3">
-          <Card className="metric-income">
+        <Card className="metric-income">
           <CardHeader>
             <CardTitle>Income</CardTitle>
           </CardHeader>
           <CardContent className="text-2xl font-semibold text-emerald-700 dark:text-emerald-200">{summary ? `${summary.totalIncome.toLocaleString()} UZS` : "-"}</CardContent>
         </Card>
-          <Card className="metric-expense">
+        <Card className="metric-expense">
           <CardHeader>
             <CardTitle>Expense</CardTitle>
           </CardHeader>
           <CardContent className="text-2xl font-semibold text-rose-700 dark:text-rose-200">{summary ? `${summary.totalExpense.toLocaleString()} UZS` : "-"}</CardContent>
         </Card>
-          <Card className="metric-balance">
+        <Card className="metric-balance">
           <CardHeader>
             <CardTitle>Balance</CardTitle>
           </CardHeader>
@@ -599,9 +803,7 @@ export default function ProfilePage() {
               <PlusCircle className="size-5 text-pop" />
               Add income or expense
             </CardTitle>
-            <CardDescription>
-              Transactions are saved to your active couple workspace: {profile?.activeCouple?.name ?? "Personal workspace"}
-            </CardDescription>
+            <CardDescription>Transactions are saved to your active couple workspace: {profile.activeCouple?.name ?? "Personal workspace"}</CardDescription>
           </CardHeader>
           <CardContent>
             <form className="space-y-3" onSubmit={onCreateTransaction}>
@@ -653,7 +855,7 @@ export default function ProfilePage() {
                 />
               </label>
 
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center gap-3">
                 <Button type="submit" disabled={isSubmittingTx}>
                   {isSubmittingTx ? "Saving..." : "Save transaction"}
                 </Button>
@@ -671,7 +873,7 @@ export default function ProfilePage() {
               Connect partner by code
             </CardTitle>
             <CardDescription>
-              Share your code <span className="font-semibold text-ink dark:text-white">{profile?.user.coupleCode}</span> and enter your partner&apos;s code below.
+              Share your code <span className="font-semibold text-ink dark:text-white">{profile.user.coupleCode}</span> and enter your partner&apos;s code below.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -687,7 +889,7 @@ export default function ProfilePage() {
                 />
               </label>
 
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center gap-3">
                 <Button type="submit" variant="outline" disabled={isBinding}>
                   {isBinding ? "Connecting..." : "Connect"}
                 </Button>
@@ -696,9 +898,9 @@ export default function ProfilePage() {
               </div>
 
               <div className="detail-box text-sm">
-                <p>Active workspace: {profile?.activeCouple?.name ?? "None"}</p>
-                <p>Role: {profile?.activeCouple?.role ?? "-"}</p>
-                <p>Last linked code: {profile?.bind?.insertedCode ?? "Not linked yet"}</p>
+                <p>Active workspace: {profile.activeCouple?.name ?? "None"}</p>
+                <p>Role: {profile.activeCouple?.role ?? "-"}</p>
+                <p>Last linked code: {profile.bind?.insertedCode ?? "Not linked yet"}</p>
               </div>
             </form>
           </CardContent>
@@ -737,7 +939,7 @@ export default function ProfilePage() {
                           </p>
                         </div>
                         <p className="body-muted text-xs">
-                          {actor} · {item.note ?? "No note"} · {new Date(item.happenedAt).toLocaleString()}
+                          {actor} - {item.note ?? "No note"} - {new Date(item.happenedAt).toLocaleString()}
                         </p>
                       </div>
                       <div className="mt-3 flex items-center gap-2">

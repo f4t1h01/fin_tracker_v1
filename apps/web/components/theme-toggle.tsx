@@ -3,34 +3,30 @@
 import { Moon, SunMedium } from "lucide-react";
 import { useEffect, useState } from "react";
 
-const storageKey = "duet-theme";
+import { applyTheme, getSystemTheme, persistTheme, resolveThemePreference, type ThemeMode, themeStorageKey } from "@/lib/theme";
 
-function getSystemTheme() {
-  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-}
+type ThemeToggleProps = {
+  onChange?: (theme: ThemeMode) => void;
+};
 
-function applyTheme(theme: "light" | "dark") {
-  document.documentElement.setAttribute("data-theme", theme);
-}
-
-export function ThemeToggle() {
-  const [theme, setTheme] = useState<"light" | "dark">("light");
+export function ThemeToggle({ onChange }: ThemeToggleProps) {
+  const [theme, setTheme] = useState<ThemeMode>("light");
 
   useEffect(() => {
-    const saved = window.localStorage.getItem(storageKey);
-    const initial = saved === "light" || saved === "dark" ? saved : getSystemTheme();
+    const initial = resolveThemePreference();
     setTheme(initial);
     applyTheme(initial);
 
     const media = window.matchMedia("(prefers-color-scheme: dark)");
     const listener = (event: MediaQueryListEvent) => {
-      if (window.localStorage.getItem(storageKey)) {
+      if (window.localStorage.getItem(themeStorageKey)) {
         return;
       }
 
-      const next = event.matches ? "dark" : "light";
+      const next: ThemeMode = event.matches ? "dark" : "light";
       setTheme(next);
       applyTheme(next);
+      onChange?.(next);
     };
 
     media.addEventListener("change", listener);
@@ -40,8 +36,8 @@ export function ThemeToggle() {
   const toggleTheme = () => {
     const next = theme === "light" ? "dark" : "light";
     setTheme(next);
-    applyTheme(next);
-    window.localStorage.setItem(storageKey, next);
+    persistTheme(next);
+    onChange?.(next);
   };
 
   return (

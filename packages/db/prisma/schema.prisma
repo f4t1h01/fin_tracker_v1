@@ -30,6 +30,7 @@ model User {
   lastName          String?
   photoUrl          String?
   isAdmin           Boolean       @default(false)
+  isDark            Boolean       @default(false)
   memberships       Membership[]
   coupleBind        CoupleBind?
   transactions      Transaction[]
@@ -38,6 +39,15 @@ model User {
   createdInvites    Invite[]      @relation("CreatedInvites")
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
+}
+
+model ZeroAdmin {
+  email        String   @id
+  passwordHash String   @map("password_hash")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@map("0admin")
 }
 
 model Couple {

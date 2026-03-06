@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Headers, Post, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, Headers, Patch, Post, UseGuards } from "@nestjs/common";
 
 import { AuthService } from "./auth.service";
 import { CurrentUser } from "./current-user.decorator";
@@ -6,6 +6,7 @@ import { BotWebAppLoginDto } from "./dto/bot-webapp-login.dto";
 import { PasswordLoginDto } from "./dto/password-login.dto";
 import { PasswordSetupDto } from "./dto/password-setup.dto";
 import { TelegramLoginDto } from "./dto/telegram-login.dto";
+import { UpdateThemePreferenceDto } from "./dto/update-theme-preference.dto";
 import { JwtAuthGuard } from "./jwt-auth.guard";
 
 @Controller("auth")
@@ -42,5 +43,11 @@ export class AuthController {
       telegramId: data.telegramId.toString(),
       lastTelegramChatId: data.lastTelegramChatId ? data.lastTelegramChatId.toString() : null
     };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch("preferences/theme")
+  setThemePreference(@CurrentUser() user: { id: string }, @Body() payload: UpdateThemePreferenceDto) {
+    return this.authService.setThemePreference(user.id, payload.isDark);
   }
 }
