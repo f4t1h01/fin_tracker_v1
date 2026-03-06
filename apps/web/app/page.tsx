@@ -7,8 +7,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 const features = [
   {
     icon: Bot,
-    title: "Start from Telegram",
-    text: "Use /start and tap Open app to jump straight into your finance profile."
+    title: "Telegram or Web",
+    text: "Open from Telegram for instant context, or sign in on the website with saved email credentials."
   },
   {
     icon: Wallet2,
@@ -46,10 +46,10 @@ export default function HomePage() {
         <Card className="border-white/20 bg-white/10">
           <CardHeader>
             <CardTitle className="font-[family-name:var(--font-heading)] text-4xl leading-tight">
-              Smart couple finance, starting with one tap.
+              Smart couple finance, ready from bot or browser.
             </CardTitle>
             <CardDescription className="max-w-2xl text-base text-white/75">
-              Open the app from Telegram /start, authenticate instantly, track money, and connect with your partner by code.
+              Use Telegram for fast entry, or continue on the website with email login. Track money together and connect with your partner by code.
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-wrap gap-3">
@@ -64,14 +64,14 @@ export default function HomePage() {
 
         <Card id="setup">
           <CardHeader>
-            <CardTitle>Current Bot Flow</CardTitle>
-            <CardDescription>Only one command is needed now.</CardDescription>
+            <CardTitle>How access works</CardTitle>
+            <CardDescription>Pick the entry point that fits the moment.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-2 text-sm text-white/75">
-            <p>1) Open your bot in Telegram</p>
-            <p>2) Send `/start`</p>
-            <p>3) Tap `Open app`</p>
-            <p>4) Manage profile, transactions, and couple binding</p>
+            <p>1) Use Telegram `/start` and tap `Open app` for instant entry</p>
+            <p>2) Save email login once from profile</p>
+            <p>3) Come back later directly from the website if you want</p>
+            <p>4) Telegram can still refresh linked chat context on future opens</p>
           </CardContent>
         </Card>
       </section>

@@ -393,7 +393,7 @@ export default function ProfilePage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              <p className="text-sm text-white/75">Open Telegram bot and tap Open app, or use email login from the website login page.</p>
+              <p className="text-sm text-white/75">Use website login if you already have email access, or open from Telegram to link and refresh your chat session.</p>
               <Button variant="outline" asChild>
                 <a href="/login">Go to login</a>
               </Button>

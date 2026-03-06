@@ -91,9 +91,9 @@ export function TelegramLogin({ onSuccess }: TelegramLoginProps) {
 
   if (!webEnv.botName) {
     return (
-      <Button variant="outline" asChild>
-        <a href="#setup">Set bot username in env</a>
-      </Button>
+      <div className="rounded-xl border border-white/15 bg-white/5 p-4 text-sm text-white/70">
+        Telegram sign-in is temporarily unavailable. You can still use email login from this page.
+      </div>
     );
   }
 

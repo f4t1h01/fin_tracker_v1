@@ -84,13 +84,16 @@ export default function LoginPage() {
       <header className="mb-8">
         <p className="text-xs uppercase tracking-[0.2em] text-white/60">Account access</p>
         <h1 className="font-[family-name:var(--font-heading)] text-3xl">Sign in to Couple Finance Tracker</h1>
+        <p className="mt-2 max-w-2xl text-sm text-white/70">
+          Use email if you already created web credentials. Use Telegram for instant sign-in when you are coming from the bot.
+        </p>
       </header>
 
       <section className="grid gap-5 lg:grid-cols-2">
         <Card className="border-white/20 bg-white/10">
           <CardHeader>
             <CardTitle>Login with email</CardTitle>
-            <CardDescription>Use credentials you created from Telegram web app onboarding.</CardDescription>
+            <CardDescription>Website login works independently once your account has email credentials.</CardDescription>
           </CardHeader>
           <CardContent>
             <form className="space-y-3" onSubmit={onSubmit}>
@@ -131,12 +134,12 @@ export default function LoginPage() {
         <Card className="border-white/20 bg-white/10">
           <CardHeader>
             <CardTitle>Login with Telegram</CardTitle>
-            <CardDescription>Fast sign-in using Telegram account verification widget.</CardDescription>
+            <CardDescription>Fast sign-in using the Telegram widget when your bot session is available.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <TelegramLogin onSuccess={onTelegramSuccess} />
             <p className="text-sm text-white/70">
-              New here? Open the bot in Telegram, send <code>/start</code>, tap <code>Open app</code>, then set your email and password in profile.
+              New here? You can start from Telegram with <code>/start</code> and <code>Open app</code>, then save email access in profile for future website logins.
             </p>
             <Button variant="outline" asChild>
               <Link href="/">Back to home</Link>
