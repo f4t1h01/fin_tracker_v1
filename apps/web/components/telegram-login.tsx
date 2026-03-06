@@ -27,6 +27,7 @@ type TelegramLoginProps = {
 
 export function TelegramLogin({ onSuccess }: TelegramLoginProps) {
   const [status, setStatus] = useState<"idle" | "loading" | "done" | "error">("idle");
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const widgetRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -36,6 +37,7 @@ export function TelegramLogin({ onSuccess }: TelegramLoginProps) {
 
     window.onTelegramAuth = async (user: TelegramUser) => {
       setStatus("loading");
+      setErrorMessage(null);
       try {
         const response = await fetch(`${webEnv.apiUrl}/auth/telegram`, {
           method: "POST",
@@ -46,14 +48,25 @@ export function TelegramLogin({ onSuccess }: TelegramLoginProps) {
         });
 
         if (!response.ok) {
-          throw new Error("Login failed");
+          let message = `Telegram login failed (${response.status})`;
+          try {
+            const payload = (await response.json()) as { message?: string | string[] };
+            if (Array.isArray(payload.message)) {
+              message = payload.message.join(", ");
+            } else if (payload.message) {
+              message = payload.message;
+            }
+          } catch {}
+          throw new Error(message);
         }
 
         const data = (await response.json()) as { accessToken: string };
         localStorage.setItem("cf_token", data.accessToken);
         setStatus("done");
         onSuccess?.();
-      } catch {
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Failed to authenticate. Please try again.";
+        setErrorMessage(message);
         setStatus("error");
       }
     };
@@ -91,7 +104,7 @@ export function TelegramLogin({ onSuccess }: TelegramLoginProps) {
         {status === "idle" && "Login using your Telegram account."}
         {status === "loading" && "Verifying Telegram account..."}
         {status === "done" && "Done. Redirecting to your profile..."}
-        {status === "error" && "Failed to authenticate. Please try again."}
+        {status === "error" && (errorMessage ?? "Failed to authenticate. Please try again.")}
       </p>
     </div>
   );

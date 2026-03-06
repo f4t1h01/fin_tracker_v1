@@ -7,22 +7,22 @@ const sharedSchema = z.object({
 
 export const apiEnvSchema = sharedSchema.extend({
   API_PORT: z.coerce.number().default(4000),
-  API_JWT_SECRET: z.string().min(24),
-  TELEGRAM_BOT_TOKEN: z.string().min(10),
-  BOT_SHARED_SECRET: z.string().min(16),
-  CORS_ORIGIN: z.string().default("http://localhost:3000")
+  API_JWT_SECRET: z.string().trim().min(24),
+  TELEGRAM_BOT_TOKEN: z.string().trim().min(10),
+  BOT_SHARED_SECRET: z.string().trim().min(16),
+  CORS_ORIGIN: z.string().trim().default("http://localhost:3000")
 });
 
 export const webEnvSchema = z.object({
-  NEXT_PUBLIC_API_URL: z.string().url(),
-  NEXT_PUBLIC_TELEGRAM_BOT_NAME: z.string().min(3)
+  NEXT_PUBLIC_API_URL: z.string().trim().url(),
+  NEXT_PUBLIC_TELEGRAM_BOT_NAME: z.string().trim().min(3)
 });
 
 export const botEnvSchema = z.object({
-  TELEGRAM_BOT_TOKEN: z.string().min(10),
-  API_BASE_URL: z.string().url(),
-  BOT_SHARED_SECRET: z.string().min(16),
-  WEB_APP_URL: z.string().url().default("http://localhost:3000/profile")
+  TELEGRAM_BOT_TOKEN: z.string().trim().min(10),
+  API_BASE_URL: z.string().trim().url(),
+  BOT_SHARED_SECRET: z.string().trim().min(16),
+  WEB_APP_URL: z.string().trim().url().default("http://localhost:3000/profile")
 });
 
 export function parseApiEnv(env: NodeJS.ProcessEnv) {
