@@ -80,7 +80,15 @@ type AuthMeResponse = {
   isDark: boolean;
 };
 
+type ProfileSnapshotResponse = {
+  profile: ProfileResponse;
+  summary: MonthlySummary;
+  recent: RecentTransaction[];
+  auth: AuthMeResponse;
+};
+
 const tokenKey = "cf_token";
+const canonicalProfilePath = "/profile/me";
 
 async function parseApiResponse<T>(response: Response): Promise<T> {
   if (response.ok) {
@@ -154,42 +162,31 @@ export default function ProfilePage() {
     setRecent([]);
   }, []);
 
+  const ensureCanonicalProfileUrl = useCallback(() => {
+    if (window.location.pathname !== canonicalProfilePath) {
+      window.history.replaceState({}, "", canonicalProfilePath);
+    }
+  }, []);
+
   const fetchSnapshot = useCallback(
     async (authToken: string) => {
       setIsLoadingData(true);
       setAuthError(null);
 
       try {
-        const [profileResponse, summaryResponse, recentResponse, meResponse] = await Promise.all([
-          fetch(`${webEnv.apiUrl}/profile/me`, {
-            headers: {
-              Authorization: `Bearer ${authToken}`
-            }
-          }).then((response) => parseApiResponse<ProfileResponse>(response)),
-          fetch(`${webEnv.apiUrl}/profile/me/summary?month=${today.getMonth() + 1}&year=${today.getFullYear()}`, {
-            headers: {
-              Authorization: `Bearer ${authToken}`
-            }
-          }).then((response) => parseApiResponse<MonthlySummary>(response)),
-          fetch(`${webEnv.apiUrl}/profile/me/transactions/recent`, {
-            headers: {
-              Authorization: `Bearer ${authToken}`
-            }
-          }).then((response) => parseApiResponse<RecentTransaction[]>(response)),
-          fetch(`${webEnv.apiUrl}/auth/me`, {
-            headers: {
-              Authorization: `Bearer ${authToken}`
-            }
-          }).then((response) => parseApiResponse<AuthMeResponse>(response))
-        ]);
+        const snapshot = await fetch(`${webEnv.apiUrl}/profile/me/snapshot?month=${today.getMonth() + 1}&year=${today.getFullYear()}`, {
+          headers: {
+            Authorization: `Bearer ${authToken}`
+          }
+        }).then((response) => parseApiResponse<ProfileSnapshotResponse>(response));
 
-        setProfile(profileResponse);
-        setSummary(summaryResponse);
-        setRecent(recentResponse);
-        setAuthMe(meResponse);
+        setProfile(snapshot.profile);
+        setSummary(snapshot.summary);
+        setRecent(snapshot.recent);
+        setAuthMe(snapshot.auth);
 
-        if (meResponse.email) {
-          setSetupEmail((current) => current || meResponse.email || "");
+        if (snapshot.auth.email) {
+          setSetupEmail((current) => current || snapshot.auth.email || "");
         }
       } catch (error) {
         const message = error instanceof Error ? error.message : "Could not load profile data";
@@ -208,6 +205,8 @@ export default function ProfilePage() {
 
   useEffect(() => {
     const bootstrap = async () => {
+      ensureCanonicalProfileUrl();
+
       const params = new URLSearchParams(window.location.search);
       const telegramId = params.get("telegramId");
       const chatId = params.get("chatId");
@@ -218,6 +217,7 @@ export default function ProfilePage() {
         const existing = localStorage.getItem(tokenKey);
         if (existing) {
           setToken(existing);
+          ensureCanonicalProfileUrl();
         }
 
         setIsAuthenticating(false);
@@ -244,7 +244,7 @@ export default function ProfilePage() {
         localStorage.setItem(tokenKey, payload.accessToken);
         setToken(payload.accessToken);
         setAuthError(null);
-        window.history.replaceState({}, "", "/profile");
+        window.history.replaceState({}, "", canonicalProfilePath);
       } catch (error) {
         const message = error instanceof Error ? error.message : "Could not sign in from Telegram";
         setAuthError(message);
@@ -254,7 +254,7 @@ export default function ProfilePage() {
     };
 
     void bootstrap();
-  }, []);
+  }, [ensureCanonicalProfileUrl]);
 
   useEffect(() => {
     if (!token) {
@@ -322,6 +322,7 @@ export default function ProfilePage() {
       setAuthError(null);
       setLoginMessage("Signed in successfully.");
       setLoginPassword("");
+      ensureCanonicalProfileUrl();
     } catch (error) {
       const message = error instanceof Error ? error.message : "Could not sign in";
       setLoginError(message);
@@ -538,20 +539,17 @@ export default function ProfilePage() {
   };
 
   const displayName = useMemo(() => {
-    if (!profile) {
-      return "Your profile";
-    }
-
-    return profile.user.firstName ?? profile.user.username ?? "Duet member";
-  }, [profile]);
+    return "Good day";
+  }, []);
 
   const onTelegramSuccess = useCallback(() => {
     const existing = localStorage.getItem(tokenKey);
     if (existing) {
       setToken(existing);
       setAuthError(null);
+      ensureCanonicalProfileUrl();
     }
-  }, []);
+  }, [ensureCanonicalProfileUrl]);
 
   if (isAuthenticating) {
     return (
@@ -695,7 +693,7 @@ export default function ProfilePage() {
             <div className="eyebrow-row">Profile workspace</div>
             <h1 className="mt-5 font-[family-name:var(--font-heading)] text-[clamp(38px,4vw,56px)] font-light leading-[1.08]">{displayName}</h1>
             <p className="body-muted mt-3 text-sm">
-              Your code: <span className="font-semibold text-[var(--gold)]">{profile.user.coupleCode ?? "-"}</span>
+              Your workspace is ready. Code: <span className="font-semibold text-[var(--gold)]">{profile.user.coupleCode ?? "-"}</span>
             </p>
           </div>
         </div>

@@ -23,6 +23,11 @@
   --marketing-dark: #1a1410;
   --marketing-dark-ink: #f0ebe1;
   --marketing-dark-soft: rgba(240, 235, 225, 0.62);
+  --button-primary-bg: #1a1410;
+  --button-primary-fg: #f5f0e8;
+  --button-primary-border: #1a1410;
+  --button-primary-hover-bg: #c9a84c;
+  --button-primary-hover-fg: #1a1410;
 }
 
 html[data-theme="dark"] {
@@ -46,6 +51,11 @@ html[data-theme="dark"] {
   --marketing-dark: #15120f;
   --marketing-dark-ink: #f0ebe1;
   --marketing-dark-soft: rgba(240, 235, 225, 0.62);
+  --button-primary-bg: color-mix(in srgb, var(--gold) 18%, var(--warm-white));
+  --button-primary-fg: var(--ink);
+  --button-primary-border: rgba(212, 176, 90, 0.32);
+  --button-primary-hover-bg: var(--gold);
+  --button-primary-hover-fg: #1a1410;
 }
 
 * {
@@ -237,24 +247,24 @@ html[data-theme="dark"] .theme-icon--moon {
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  border: 1px solid var(--ink);
+  border: 1px solid var(--button-primary-border);
   border-radius: 10px;
-  background: var(--ink);
+  background: var(--button-primary-bg);
   padding: 16px 36px;
-  color: var(--cream);
+  color: var(--button-primary-fg);
   font-size: 13px;
   font-weight: 400;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   transform: translateY(0);
-  transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.4s ease;
+  transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.4s ease, color 0.4s ease, background-color 0.4s ease;
 }
 
 .primary-button::before {
   content: "";
   position: absolute;
   inset: 0;
-  background: var(--gold);
+  background: var(--button-primary-hover-bg);
   transform: translateX(-100%);
   transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
@@ -262,10 +272,14 @@ html[data-theme="dark"] .theme-icon--moon {
 .primary-button > span {
   position: relative;
   z-index: 1;
+  color: inherit;
+  transition: color 0.4s ease;
 }
 
 .primary-button:hover {
   transform: translateY(-2px);
+  color: var(--button-primary-hover-fg);
+  border-color: var(--button-primary-hover-bg);
 }
 
 .primary-button:hover::before {

@@ -22,7 +22,7 @@ export const botEnvSchema = z.object({
   TELEGRAM_BOT_TOKEN: z.string().trim().min(10),
   API_BASE_URL: z.string().trim().url(),
   BOT_SHARED_SECRET: z.string().trim().min(16),
-  WEB_APP_URL: z.string().trim().url().default("http://localhost:3000/profile")
+  WEB_APP_URL: z.string().trim().url().default("http://localhost:3000/profile/me")
 });
 
 export function parseApiEnv(env: NodeJS.ProcessEnv) {

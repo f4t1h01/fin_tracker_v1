@@ -10,6 +10,41 @@ import { UpdateProfileTransactionDto } from "./dto/update-profile-transaction.dt
 export class ProfileService {
   constructor(private readonly prisma: PrismaService) {}
 
+  private async getAuthState(userId: string) {
+    const user = await this.prisma.client.user.findUniqueOrThrow({
+      where: { id: userId },
+      select: {
+        id: true,
+        telegramId: true,
+        lastTelegramChatId: true,
+        email: true,
+        passwordSetAt: true,
+        passwordHash: true,
+        coupleCode: true,
+        username: true,
+        firstName: true,
+        lastName: true,
+        isAdmin: true,
+        isDark: true
+      }
+    });
+
+    return {
+      id: user.id,
+      telegramId: user.telegramId.toString(),
+      lastTelegramChatId: user.lastTelegramChatId ? user.lastTelegramChatId.toString() : null,
+      email: user.email,
+      passwordSetAt: user.passwordSetAt,
+      hasPassword: Boolean(user.passwordHash),
+      coupleCode: user.coupleCode,
+      username: user.username,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      isAdmin: user.isAdmin,
+      isDark: user.isDark
+    };
+  }
+
   private async ensureUserCoupleCode(userId: string): Promise<string> {
     for (let attempt = 0; attempt < 12; attempt += 1) {
       const existing = await this.prisma.client.user.findUnique({
@@ -178,6 +213,22 @@ export class ProfileService {
           }
         : null,
       bind: user.coupleBind
+    };
+  }
+
+  async snapshot(userId: string, month?: number, year?: number) {
+    const [profile, summary, recent, auth] = await Promise.all([
+      this.getProfile(userId),
+      this.summary(userId, month, year),
+      this.recentTransactions(userId),
+      this.getAuthState(userId)
+    ]);
+
+    return {
+      profile,
+      summary,
+      recent,
+      auth
     };
   }
 

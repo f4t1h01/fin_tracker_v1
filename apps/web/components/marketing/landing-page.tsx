@@ -143,7 +143,7 @@ export function LandingPage() {
             Couples
           </Link>
           <ThemeToggle />
-          <PrimaryLink href="/profile">Get Started</PrimaryLink>
+          <PrimaryLink href="/profile/me">Get Started</PrimaryLink>
         </div>
       </NavShell>
 
@@ -164,7 +164,7 @@ export function LandingPage() {
                 noisy dashboard.
               </p>
               <div className="hero-ctas" data-seq="4">
-                <PrimaryLink href="/profile">Open your workspace</PrimaryLink>
+                <PrimaryLink href="/profile/me">Open your workspace</PrimaryLink>
                 <SecondaryLink href="#features">
                   Explore the system
                 </SecondaryLink>
@@ -478,8 +478,8 @@ export function LandingPage() {
               sight, and make every financial decision feel more aligned.
             </p>
             <div className="hero-ctas" style={{ justifyContent: "center" }}>
-              <PrimaryLink href="/profile">Get Started</PrimaryLink>
-              <SecondaryLink href="/profile">Open workspace</SecondaryLink>
+              <PrimaryLink href="/profile/me">Get Started</PrimaryLink>
+              <SecondaryLink href="/profile/me">Open workspace</SecondaryLink>
             </div>
           </div>
         </section>

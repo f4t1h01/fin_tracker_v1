@@ -41,7 +41,7 @@ Web:
 Bot:
 
 - `API_BASE_URL` (for example `https://api.example.com`)
-- `WEB_APP_URL` (for example `https://app.example.com/profile`)
+- `WEB_APP_URL` (for example `https://app.example.com/profile/me`)
 
 3. Keep `DATABASE_URL` pointed to host PostgreSQL.
 
@@ -84,7 +84,7 @@ pnpm db:migrate
 
 - Telegram-first onboarding: open bot, send `/start`, tap `Open app`
 - First profile visit can set `email + password` for browser login
-- Website login page: `/login` (Telegram widget or email/password)
+- Website login/page entry: `/profile/me` (Telegram widget or email/password)
 
 ## MVP deployment preflight
 
