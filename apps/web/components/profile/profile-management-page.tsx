@@ -14,17 +14,21 @@ export function ProfileManagementPage() {
   const workspace = useProfileWorkspace({ routePath: "/profile/me/manage" });
 
   useEffect(() => {
-    if (!workspace.isAuthenticating && (!workspace.token || !workspace.profile || !workspace.authMe)) {
+    if (!workspace.isAuthenticating && !workspace.token) {
       window.location.replace("/profile/me");
     }
-  }, [workspace.authMe, workspace.isAuthenticating, workspace.profile, workspace.token]);
+  }, [workspace.isAuthenticating, workspace.token]);
 
   if (workspace.isAuthenticating) {
     return <ProfileLoadingState title="Preparing profile management" description="Checking your saved session..." />;
   }
 
-  if (!workspace.token || !workspace.profile || !workspace.authMe) {
+  if (!workspace.token) {
     return null;
+  }
+
+  if (!workspace.profile || !workspace.authMe) {
+    return <ProfileLoadingState title="Loading profile management" description={workspace.authError ?? "Fetching profile details and connections..."} />;
   }
 
   return (
