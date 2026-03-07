@@ -77,7 +77,7 @@ export default function ProfileEntryPage() {
               {warmName ? `Good day, ${warmName}` : "Good day"}
             </h1>
             <p className="body-muted mt-3 max-w-2xl text-sm">
-              This page is your profile entry point. Your full workspace lives under `/profile/me`.
+              This page is your profile entry point. Create your account directly in the browser, then use the Telegram WebApp later if you want faster in-chat access.
             </p>
           </div>
         </div>
@@ -92,7 +92,7 @@ export default function ProfileEntryPage() {
               ? "Looking for your saved browser session..."
               : auth
                 ? "Open your private workspace or continue from the main overview."
-                : "Continue to your workspace page to sign in, create an account, or reconnect Telegram."}
+                : "Continue to your workspace page to sign in or create your account directly in the browser."}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">

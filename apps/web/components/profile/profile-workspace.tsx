@@ -4,7 +4,6 @@ import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { Link2, Loader2, Pencil, PlusCircle, Trash2, WalletCards, X } from "lucide-react";
 
 import { BrandMark } from "@/components/marketing/brand-mark";
-import { TelegramLogin } from "@/components/telegram-login";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -128,7 +127,13 @@ export function ProfileWorkspace() {
   const [loginMessage, setLoginMessage] = useState<string | null>(null);
   const [loginError, setLoginError] = useState<string | null>(null);
   const [showCreateAccountAction, setShowCreateAccountAction] = useState(false);
-  const [createAccountHint, setCreateAccountHint] = useState<string | null>(null);
+  const [createFirstName, setCreateFirstName] = useState("");
+  const [createEmail, setCreateEmail] = useState("");
+  const [createPassword, setCreatePassword] = useState("");
+  const [createConfirmPassword, setCreateConfirmPassword] = useState("");
+  const [isCreatingAccount, setIsCreatingAccount] = useState(false);
+  const [createAccountMessage, setCreateAccountMessage] = useState<string | null>(null);
+  const [createAccountError, setCreateAccountError] = useState<string | null>(null);
 
   const [setupEmail, setSetupEmail] = useState("");
   const [setupPassword, setSetupPassword] = useState("");
@@ -301,7 +306,6 @@ export function ProfileWorkspace() {
     event.preventDefault();
     setLoginError(null);
     setLoginMessage(null);
-    setCreateAccountHint(null);
     setShowCreateAccountAction(false);
     setIsSubmittingLogin(true);
 
@@ -320,19 +324,60 @@ export function ProfileWorkspace() {
       setAuthError(null);
       setLoginMessage("Signed in successfully.");
       setLoginPassword("");
+      setCreateEmail("");
       ensureCanonicalProfileUrl();
     } catch (error) {
       const message = error instanceof Error ? error.message : "Could not sign in";
       setLoginError(message);
-      setShowCreateAccountAction(message === "No account found for this email");
+      setShowCreateAccountAction(message === "Account was not found. Please create account.");
+      if (message === "Account was not found. Please create account.") {
+        setCreateEmail(loginEmail);
+      }
     } finally {
       setIsSubmittingLogin(false);
     }
   };
 
-  const onCreateAccount = () => {
-    setCreateAccountHint("Use Telegram below to create your Duet account first, then save browser login inside your profile.");
-    document.getElementById("profile-telegram-auth")?.scrollIntoView({ behavior: "smooth", block: "center" });
+  const onCreateAccount = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setCreateAccountError(null);
+    setCreateAccountMessage(null);
+
+    if (createPassword !== createConfirmPassword) {
+      setCreateAccountError("Passwords do not match");
+      return;
+    }
+
+    setIsCreatingAccount(true);
+
+    try {
+      const response = await fetch(`${webEnv.apiUrl}/auth/password/register`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          firstName: createFirstName || undefined,
+          email: createEmail,
+          password: createPassword
+        })
+      });
+
+      const payload = await parseApiResponse<{ accessToken: string }>(response);
+      localStorage.setItem(tokenKey, payload.accessToken);
+      setToken(payload.accessToken);
+      setCreateAccountMessage("Account created successfully.");
+      setCreateFirstName("");
+      setCreateEmail("");
+      setCreatePassword("");
+      setCreateConfirmPassword("");
+      setShowCreateAccountAction(false);
+      ensureCanonicalProfileUrl();
+    } catch (error) {
+      setCreateAccountError(error instanceof Error ? error.message : "Could not create account");
+    } finally {
+      setIsCreatingAccount(false);
+    }
   };
 
   const onBind = async (event: FormEvent<HTMLFormElement>) => {
@@ -503,16 +548,7 @@ export function ProfileWorkspace() {
     }
   };
 
-  const onTelegramSuccess = useCallback(() => {
-    const existing = localStorage.getItem(tokenKey);
-    if (existing) {
-      setToken(existing);
-      setAuthError(null);
-      ensureCanonicalProfileUrl();
-    }
-  }, [ensureCanonicalProfileUrl]);
-
-  const displayName = useMemo(() => "Good day", []);
+  const displayName = useMemo(() => "It is better to use WebApp inside Telegram.", []);
 
   if (isAuthenticating) {
     return (
@@ -553,7 +589,7 @@ export function ProfileWorkspace() {
           </Card>
         ) : null}
 
-        <section className="grid gap-5 lg:grid-cols-[1.15fr_0.85fr]">
+        <section className="grid gap-5 lg:grid-cols-[1.05fr_0.95fr]">
           <Card className="panel-soft">
             <CardHeader>
               <CardTitle>Sign in with email</CardTitle>
@@ -570,28 +606,31 @@ export function ProfileWorkspace() {
                 </div>
               </form>
 
-              {showCreateAccountAction ? (
-                <div className="detail-box space-y-3 text-sm">
-                  <p className="body-muted">No browser account exists for this email yet. Start with Telegram once, then save email access from inside your profile.</p>
-                  <Button type="button" variant="outline" onClick={onCreateAccount}>Create account</Button>
-                </div>
-              ) : null}
-
-              {createAccountHint ? <p className="body-muted text-sm">{createAccountHint}</p> : null}
+              {showCreateAccountAction ? <p className="body-muted text-sm">Account was not found. Please create it in the browser.</p> : null}
             </CardContent>
           </Card>
 
-          <Card className="panel-soft" id="profile-telegram-auth">
+          <Card className="panel-soft">
             <CardHeader>
-              <CardTitle>Start with Telegram</CardTitle>
-              <CardDescription>Use Telegram to create your account, reconnect your chat, or link browser access to the same profile.</CardDescription>
+              <CardTitle>Create account in browser</CardTitle>
+              <CardDescription>Create your Duet account directly on the website. Telegram can be connected later for chat-based access.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <TelegramLogin onSuccess={onTelegramSuccess} />
+              <form className="space-y-3" onSubmit={onCreateAccount}>
+                <label className="space-y-1 text-sm"><span className="field-label">Name (optional)</span><input type="text" value={createFirstName} onChange={(event) => setCreateFirstName(event.target.value)} placeholder="Fatih" className="form-input" /></label>
+                <label className="space-y-1 text-sm"><span className="field-label">Email</span><input required type="email" value={createEmail} onChange={(event) => setCreateEmail(event.target.value)} placeholder="you@example.com" className="form-input" /></label>
+                <label className="space-y-1 text-sm"><span className="field-label">Password</span><input required type="password" minLength={8} value={createPassword} onChange={(event) => setCreatePassword(event.target.value)} placeholder="At least 8 characters" className="form-input" /></label>
+                <label className="space-y-1 text-sm"><span className="field-label">Confirm password</span><input required type="password" minLength={8} value={createConfirmPassword} onChange={(event) => setCreateConfirmPassword(event.target.value)} placeholder="Repeat password" className="form-input" /></label>
+                <div className="flex flex-wrap items-center gap-3">
+                  <Button type="submit" disabled={isCreatingAccount}>{isCreatingAccount ? "Creating..." : "Create account"}</Button>
+                  {createAccountMessage ? <p className="status-success text-sm">{createAccountMessage}</p> : null}
+                  {createAccountError ? <p className="status-error text-sm">{createAccountError}</p> : null}
+                </div>
+              </form>
               <div className="detail-box space-y-2 text-sm">
-                <p>1. Sign in with Telegram.</p>
-                <p>2. Open your profile.</p>
-                <p>3. Save email login once for future website access.</p>
+                <p>1. Create your account here in the browser.</p>
+                <p>2. Open your profile workspace right away.</p>
+                <p>3. Later open the Telegram WebApp to save chat-based access.</p>
               </div>
               <Button variant="outline" asChild><a href="/">Back to overview</a></Button>
             </CardContent>
@@ -622,7 +661,7 @@ export function ProfileWorkspace() {
           <div>
             <div className="eyebrow-row">Profile workspace</div>
             <h1 className="mt-5 font-[family-name:var(--font-heading)] text-[clamp(38px,4vw,56px)] font-light leading-[1.08]">{displayName}</h1>
-            <p className="body-muted mt-3 text-sm">Your workspace is ready. Code: <span className="font-semibold text-[var(--gold)]">{profile.user.coupleCode ?? "-"}</span></p>
+            <p className="body-muted mt-3 text-sm">Use Telegram WebApp for the smoothest experience: <a className="font-semibold text-[var(--gold)] underline-offset-4 hover:underline" href="https://t.me/coup_fin_trackerbot" target="_blank" rel="noreferrer">@coup_fin_trackerbot</a>. Your code: <span className="font-semibold text-[var(--gold)]">{profile.user.coupleCode ?? "-"}</span></p>
           </div>
         </div>
         <div className="flex items-center gap-3">

@@ -12,6 +12,7 @@
 - Server app entrypoint is `http://127.0.0.1:71` behind external reverse proxy.
 - Local/source deploy uses `docker-compose.yml`.
 - Production domain is `cupfin.shaxin.uz`.
+- Telegram bot link: `https://t.me/coup_fin_trackerbot`.
 
 ## Planning workflow
 

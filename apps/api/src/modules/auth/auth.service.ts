@@ -8,6 +8,7 @@ import { generateCoupleCodeCandidate } from "../common/couple-code";
 import { PrismaService } from "../prisma/prisma.service";
 import { BotWebAppLoginDto } from "./dto/bot-webapp-login.dto";
 import { PasswordLoginDto } from "./dto/password-login.dto";
+import { PasswordRegisterDto } from "./dto/password-register.dto";
 import { PasswordSetupDto } from "./dto/password-setup.dto";
 import { TelegramLoginDto } from "./dto/telegram-login.dto";
 
@@ -152,6 +153,11 @@ export class AuthService {
     throw new UnauthorizedException("Failed to generate a unique couple code");
   }
 
+  private generateWebsiteTelegramIdCandidate(): bigint {
+    const randomPart = BigInt(randomBytes(4).readUInt32BE(0));
+    return -(BigInt(Date.now()) * 1000000n + randomPart);
+  }
+
   private verifyTelegramHash(payload: TelegramLoginDto): boolean {
     const env = parseApiEnv(process.env);
     const entries = Object.entries(payload).filter(([key, value]) => {
@@ -199,12 +205,51 @@ export class AuthService {
     return timingSafeEqual(digest, incomingHash);
   }
 
-  async loginWithTelegram(payload: TelegramLoginDto) {
+  async loginWithTelegram(payload: TelegramLoginDto, authorizationHeader?: string) {
     if (!this.verifyTelegramHash(payload)) {
       throw new UnauthorizedException("Telegram login signature is invalid");
     }
 
     const telegramId = BigInt(payload.id);
+    const authorizedUserId = this.resolveAuthorizedUserId(authorizationHeader);
+
+    if (authorizedUserId) {
+      const existingByTelegramId = await this.prisma.client.user.findUnique({
+        where: { telegramId },
+        select: { id: true }
+      });
+
+      if (existingByTelegramId && existingByTelegramId.id !== authorizedUserId) {
+        throw new ConflictException("This Telegram account is already linked to another user");
+      }
+
+      const linkedUser = await this.prisma.client.user.update({
+        where: { id: authorizedUserId },
+        data: {
+          telegramId,
+          lastTelegramChatId: telegramId,
+          username: payload.username,
+          firstName: payload.first_name,
+          lastName: payload.last_name,
+          photoUrl: payload.photo_url
+        }
+      });
+
+      const linkedCoupleCode = await this.ensureUserCoupleCode(linkedUser.id);
+      return this.buildAuthPayload({
+        id: linkedUser.id,
+        telegramId: linkedUser.telegramId,
+        username: linkedUser.username,
+        firstName: linkedUser.firstName,
+        lastName: linkedUser.lastName,
+        isAdmin: linkedUser.isAdmin,
+        isDark: linkedUser.isDark,
+        coupleCode: linkedCoupleCode,
+        email: linkedUser.email,
+        hasPassword: Boolean(linkedUser.passwordHash)
+      });
+    }
+
     const user = await this.prisma.client.user.upsert({
       where: { telegramId },
       create: {
@@ -237,6 +282,67 @@ export class AuthService {
         email: user.email,
         hasPassword: Boolean(user.passwordHash)
     });
+  }
+
+  async registerWithPassword(payload: PasswordRegisterDto) {
+    const normalizedEmail = this.normalizeEmail(payload.email);
+    const existingUser = await this.prisma.client.user.findUnique({
+      where: { email: normalizedEmail },
+      select: { id: true }
+    });
+
+    if (existingUser) {
+      throw new ConflictException("Account already exists for this email. Please sign in.");
+    }
+
+    const passwordHash = await this.hashPassword(payload.password);
+
+    for (let attempt = 0; attempt < 12; attempt += 1) {
+      try {
+        const created = await this.prisma.client.user.create({
+          data: {
+            telegramId: this.generateWebsiteTelegramIdCandidate(),
+            email: normalizedEmail,
+            passwordHash,
+            passwordSetAt: new Date(),
+            firstName: payload.firstName?.trim() || null
+          },
+          select: {
+            id: true,
+            telegramId: true,
+            username: true,
+            firstName: true,
+            lastName: true,
+            isAdmin: true,
+            isDark: true,
+            coupleCode: true,
+            email: true,
+            passwordHash: true
+          }
+        });
+
+        const coupleCode = created.coupleCode ?? (await this.ensureUserCoupleCode(created.id));
+
+        return this.buildAuthPayload({
+          id: created.id,
+          telegramId: created.telegramId,
+          username: created.username,
+          firstName: created.firstName,
+          lastName: created.lastName,
+          isAdmin: created.isAdmin,
+          isDark: created.isDark,
+          coupleCode,
+          email: created.email,
+          hasPassword: Boolean(created.passwordHash)
+        });
+      } catch (error) {
+        if (attempt === 11) {
+          throw error;
+        }
+      }
+    }
+
+    throw new BadRequestException("Could not create account right now");
   }
 
   async loginFromBotWebApp(payload: BotWebAppLoginDto, authorizationHeader?: string) {
@@ -330,17 +436,17 @@ export class AuthService {
     });
 
     if (!user) {
-      throw new NotFoundException("No account found for this email");
+      throw new NotFoundException("Account was not found. Please create account.");
     }
 
     if (!user.passwordHash) {
-      throw new UnauthorizedException("This account still needs Telegram setup before website login");
+      throw new UnauthorizedException("This account does not have a website password yet.");
     }
 
     const validPassword = await this.verifyPassword(payload.password, user.passwordHash);
 
     if (!validPassword) {
-      throw new UnauthorizedException("Invalid email or password");
+      throw new UnauthorizedException("Password is incorrect");
     }
 
     const coupleCode = user.coupleCode ?? (await this.ensureUserCoupleCode(user.id));

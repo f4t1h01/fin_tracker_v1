@@ -4,6 +4,7 @@ import { AuthService } from "./auth.service";
 import { CurrentUser } from "./current-user.decorator";
 import { BotWebAppLoginDto } from "./dto/bot-webapp-login.dto";
 import { PasswordLoginDto } from "./dto/password-login.dto";
+import { PasswordRegisterDto } from "./dto/password-register.dto";
 import { PasswordSetupDto } from "./dto/password-setup.dto";
 import { TelegramLoginDto } from "./dto/telegram-login.dto";
 import { UpdateThemePreferenceDto } from "./dto/update-theme-preference.dto";
@@ -14,8 +15,8 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post("telegram")
-  loginWithTelegram(@Body() payload: TelegramLoginDto) {
-    return this.authService.loginWithTelegram(payload);
+  loginWithTelegram(@Body() payload: TelegramLoginDto, @Headers("authorization") authorizationHeader?: string) {
+    return this.authService.loginWithTelegram(payload, authorizationHeader);
   }
 
   @Post("bot-webapp")
@@ -26,6 +27,11 @@ export class AuthController {
   @Post("password/login")
   loginWithPassword(@Body() payload: PasswordLoginDto) {
     return this.authService.loginWithPassword(payload);
+  }
+
+  @Post("password/register")
+  registerWithPassword(@Body() payload: PasswordRegisterDto) {
+    return this.authService.registerWithPassword(payload);
   }
 
   @UseGuards(JwtAuthGuard)
