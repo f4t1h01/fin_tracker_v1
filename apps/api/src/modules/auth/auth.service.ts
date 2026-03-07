@@ -11,6 +11,7 @@ import { PasswordLoginDto } from "./dto/password-login.dto";
 import { PasswordRegisterDto } from "./dto/password-register.dto";
 import { PasswordSetupDto } from "./dto/password-setup.dto";
 import { TelegramLoginDto } from "./dto/telegram-login.dto";
+import { createTelegramLinkToken as createTelegramLinkTokenValue, resolveTelegramLinkToken } from "./telegram-link-token";
 
 const scryptAsync = promisify(scrypt);
 
@@ -112,6 +113,25 @@ export class AuthService {
     } catch {
       return null;
     }
+  }
+
+  private async resolveTelegramLinkUserId(linkToken?: string): Promise<string | null> {
+    if (!linkToken) {
+      return null;
+    }
+
+    const env = parseApiEnv(process.env);
+    const parsed = resolveTelegramLinkToken(linkToken, env.API_JWT_SECRET);
+    if (!parsed) {
+      return null;
+    }
+
+    const user = await this.prisma.client.user.findUnique({
+      where: { id: parsed.userId },
+      select: { id: true }
+    });
+
+    return user?.id ?? null;
   }
 
   private async ensureUserCoupleCode(userId: string): Promise<string> {
@@ -231,10 +251,27 @@ export class AuthService {
     return {
       telegramId: BigInt(user.id),
       chatId: BigInt(chatId),
+      startParam: params.get("start_param") ?? null,
       username: user.username ?? null,
       firstName: user.first_name ?? null,
       lastName: user.last_name ?? null,
       photoUrl: user.photo_url ?? null
+    };
+  }
+
+  async createTelegramLinkToken(userId: string) {
+    const existingUser = await this.prisma.client.user.findUnique({
+      where: { id: userId },
+      select: { id: true }
+    });
+
+    if (!existingUser) {
+      throw new UnauthorizedException("Invalid token");
+    }
+
+    const env = parseApiEnv(process.env);
+    return {
+      startParam: createTelegramLinkTokenValue(userId, env.API_JWT_SECRET)
     };
   }
 
@@ -408,7 +445,7 @@ export class AuthService {
     const telegramId = BigInt(payload.telegramId);
     const chatId = payload.chatId ? BigInt(payload.chatId) : telegramId;
 
-    const authorizedUserId = this.resolveAuthorizedUserId(authorizationHeader);
+    const authorizedUserId = this.resolveAuthorizedUserId(authorizationHeader) ?? (await this.resolveTelegramLinkUserId(payload.linkToken));
 
     if (authorizedUserId) {
       const existingByTelegramId = await this.prisma.client.user.findUnique({
@@ -471,9 +508,9 @@ export class AuthService {
     });
   }
 
-  async loginFromTelegramWebApp(initData: string, authorizationHeader?: string) {
+  async loginFromTelegramWebApp(initData: string, authorizationHeader?: string, linkToken?: string) {
     const parsed = this.parseTelegramWebAppInitData(initData);
-    const authorizedUserId = this.resolveAuthorizedUserId(authorizationHeader);
+    const authorizedUserId = this.resolveAuthorizedUserId(authorizationHeader) ?? (await this.resolveTelegramLinkUserId(linkToken ?? parsed.startParam ?? undefined));
 
     if (authorizedUserId) {
       const existingByTelegramId = await this.prisma.client.user.findUnique({

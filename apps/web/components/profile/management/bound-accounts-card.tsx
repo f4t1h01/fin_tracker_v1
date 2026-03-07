@@ -11,6 +11,7 @@ type BoundAccountsCardProps = {
   workspaceCode: string;
   onTelegramLinked: () => Promise<void>;
   onLinkCurrentTelegramContext: () => Promise<boolean>;
+  telegramConnectUrl: string;
 };
 
 export function BoundAccountsCard(props: BoundAccountsCardProps) {
@@ -35,14 +36,17 @@ export function BoundAccountsCard(props: BoundAccountsCardProps) {
         </div>
         {!isTelegramLinked ? (
           <div className="space-y-3">
-            <p className="body-muted text-sm">If you opened this page from Telegram, link that current Telegram session first. Otherwise use the official Telegram sign-in below while staying signed into this website account.</p>
+            <p className="body-muted text-sm">Telegram mini apps and your normal browser do not share session storage. Use the connect link below to bind this exact website account inside Telegram, or use the widget if you are already in the same browser session.</p>
+            <Button variant="outline" asChild>
+              <a href={props.telegramConnectUrl} target="_blank" rel="noreferrer">Connect this account in Telegram</a>
+            </Button>
             <Button type="button" variant="outline" onClick={() => void props.onLinkCurrentTelegramContext()}>
               Link current Telegram session
             </Button>
             <TelegramLogin onSuccess={props.onTelegramLinked} />
           </div>
         ) : null}
-        <Button variant="outline" asChild><a href="https://t.me/coup_fin_trackerbot" target="_blank" rel="noreferrer">Open Telegram WebApp</a></Button>
+        <Button variant="outline" asChild><a href={props.telegramConnectUrl} target="_blank" rel="noreferrer">Open Telegram WebApp</a></Button>
       </CardContent>
     </Card>
   );

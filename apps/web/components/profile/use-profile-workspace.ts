@@ -86,6 +86,7 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
   const [bindMessage, setBindMessage] = useState<string | null>(null);
   const [bindError, setBindError] = useState<string | null>(null);
   const [isBinding, setIsBinding] = useState(false);
+  const [telegramConnectUrl, setTelegramConnectUrl] = useState(webEnv.botName ? `https://t.me/${webEnv.botName}` : "https://t.me/coup_fin_trackerbot");
 
   const [kind, setKind] = useState<"EXPENSE" | "INCOME">("EXPENSE");
   const [amount, setAmount] = useState("");
@@ -130,6 +131,7 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
     setDetailsFirstName("");
     setDetailsLastName("");
     setDetailsBirthday("");
+    setTelegramConnectUrl(webEnv.botName ? `https://t.me/${webEnv.botName}` : "https://t.me/coup_fin_trackerbot");
   }, []);
 
   const ensureCanonicalProfileUrl = useCallback((targetPath = canonicalProfilePath) => {
@@ -176,12 +178,13 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
           },
           body:
             context.kind === "telegram-webapp"
-              ? JSON.stringify({ initData: context.initData })
+              ? JSON.stringify({ initData: context.initData, linkToken: context.linkToken ?? undefined })
               : JSON.stringify({
                   telegramId: context.telegramId,
                   chatId: context.chatId,
                   timestamp: context.timestamp,
-                  signature: context.signature
+                  signature: context.signature,
+                  linkToken: context.linkToken ?? undefined
                 })
         }
       );
@@ -288,6 +291,36 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
 
     void fetchSnapshot(token);
   }, [fetchSnapshot, token]);
+
+  useEffect(() => {
+    if (!token || !webEnv.botName) {
+      return;
+    }
+
+    let isCancelled = false;
+
+    void fetch(`${webEnv.apiUrl}/auth/telegram/link-token`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    })
+      .then((response) => parseApiResponse<{ startParam: string }>(response))
+      .then((payload) => {
+        if (!isCancelled) {
+          setTelegramConnectUrl(`https://t.me/${webEnv.botName}?start=${encodeURIComponent(payload.startParam)}`);
+        }
+      })
+      .catch(() => {
+        if (!isCancelled) {
+          setTelegramConnectUrl(`https://t.me/${webEnv.botName}`);
+        }
+      });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [token]);
 
   useEffect(() => {
     if (!authMe) {
@@ -683,6 +716,7 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
     detailsBirthday,
     setDetailsBirthday,
     telegramUsername,
+    telegramConnectUrl,
     isSavingDetails,
     detailsMessage,
     detailsError,

@@ -4,6 +4,7 @@ export type PendingTelegramContext =
   | {
       kind: "telegram-webapp";
       initData: string;
+      linkToken: string | null;
     }
   | {
       kind: "bot-webapp";
@@ -11,6 +12,7 @@ export type PendingTelegramContext =
       chatId: string | null;
       timestamp: number;
       signature: string;
+      linkToken: string | null;
     };
 
 export function detectTelegramContextFromWindow(): PendingTelegramContext | null {
@@ -19,14 +21,17 @@ export function detectTelegramContextFromWindow(): PendingTelegramContext | null
   }
 
   const initData = window.Telegram?.WebApp?.initData?.trim();
+  const params = new URLSearchParams(window.location.search);
+  const linkToken = params.get("linkToken") ?? params.get("tgWebAppStartParam");
+
   if (initData) {
     return {
       kind: "telegram-webapp",
-      initData
+      initData,
+      linkToken
     };
   }
 
-  const params = new URLSearchParams(window.location.search);
   const telegramId = params.get("telegramId");
   const timestamp = params.get("timestamp");
   const signature = params.get("signature");
@@ -37,11 +42,12 @@ export function detectTelegramContextFromWindow(): PendingTelegramContext | null
 
   return {
     kind: "bot-webapp",
-    telegramId,
-    chatId: params.get("chatId"),
-    timestamp: Number(timestamp),
-    signature
-  };
+      telegramId,
+      chatId: params.get("chatId"),
+      timestamp: Number(timestamp),
+      signature,
+      linkToken
+    };
 }
 
 export function readPendingTelegramContext(): PendingTelegramContext | null {

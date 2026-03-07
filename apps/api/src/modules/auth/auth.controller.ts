@@ -22,7 +22,7 @@ export class AuthController {
 
   @Post("telegram-webapp")
   loginFromTelegramWebApp(@Body() payload: TelegramWebAppLoginDto, @Headers("authorization") authorizationHeader?: string) {
-    return this.authService.loginFromTelegramWebApp(payload.initData, authorizationHeader);
+    return this.authService.loginFromTelegramWebApp(payload.initData, authorizationHeader, payload.linkToken);
   }
 
   @Post("bot-webapp")
@@ -44,6 +44,12 @@ export class AuthController {
   @Post("password/setup")
   setupPassword(@CurrentUser() user: { id: string }, @Body() payload: PasswordSetupDto) {
     return this.authService.setupPassword(user.id, payload);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post("telegram/link-token")
+  createTelegramLinkToken(@CurrentUser() user: { id: string }) {
+    return this.authService.createTelegramLinkToken(user.id);
   }
 
   @UseGuards(JwtAuthGuard)

@@ -1,5 +1,5 @@
 import { Type } from "class-transformer";
-import { IsInt, IsNumberString, IsOptional, IsString, Length, Min } from "class-validator";
+import { IsInt, IsNumberString, IsOptional, IsString, Length, MaxLength, Min } from "class-validator";
 
 export class BotWebAppLoginDto {
   @Type(() => String)
@@ -19,4 +19,9 @@ export class BotWebAppLoginDto {
   @IsString()
   @Length(64, 64)
   signature!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  linkToken?: string;
 }
