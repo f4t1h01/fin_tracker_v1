@@ -4,6 +4,7 @@ import { CurrentUser } from "../auth/current-user.decorator";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { BindCoupleDto } from "./dto/bind-couple.dto";
 import { CreateProfileTransactionDto } from "./dto/create-profile-transaction.dto";
+import { UpdateProfileDetailsDto } from "./dto/update-profile-details.dto";
 import { UpdateProfileTransactionDto } from "./dto/update-profile-transaction.dto";
 import { ProfileService } from "./profile.service";
 
@@ -15,6 +16,11 @@ export class ProfileController {
   @Get("me")
   getMyProfile(@CurrentUser() user: { id: string }) {
     return this.profileService.getProfile(user.id);
+  }
+
+  @Patch("me/details")
+  updateMyDetails(@CurrentUser() user: { id: string }, @Body() dto: UpdateProfileDetailsDto) {
+    return this.profileService.updateDetails(user.id, dto);
   }
 
   @Get("me/snapshot")

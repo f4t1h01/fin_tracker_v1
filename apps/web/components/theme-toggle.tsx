@@ -10,12 +10,27 @@ type ThemeToggleProps = {
 };
 
 export function ThemeToggle({ onChange }: ThemeToggleProps) {
-  const [theme, setTheme] = useState<ThemeMode>("light");
+  const [theme, setTheme] = useState<ThemeMode>(() => {
+    if (typeof document !== "undefined") {
+      const fromDom = document.documentElement.getAttribute("data-theme");
+      if (fromDom === "light" || fromDom === "dark") {
+        return fromDom;
+      }
+    }
+
+    if (typeof window !== "undefined") {
+      return resolveThemePreference();
+    }
+
+    return "light";
+  });
 
   useEffect(() => {
     const initial = resolveThemePreference();
+    if (document.documentElement.getAttribute("data-theme") !== initial) {
+      applyTheme(initial);
+    }
     setTheme(initial);
-    applyTheme(initial);
 
     const media = window.matchMedia("(prefers-color-scheme: dark)");
     const listener = (event: MediaQueryListEvent) => {
@@ -31,7 +46,7 @@ export function ThemeToggle({ onChange }: ThemeToggleProps) {
 
     media.addEventListener("change", listener);
     return () => media.removeEventListener("change", listener);
-  }, []);
+  }, [onChange]);
 
   const toggleTheme = () => {
     const next = theme === "light" ? "dark" : "light";

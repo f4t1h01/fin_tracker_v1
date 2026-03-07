@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Cormorant_Garamond, DM_Sans } from "next/font/google";
 
 import "./globals.css";
+import { getThemeBootScript } from "@/lib/theme";
 
 const heading = Cormorant_Garamond({
   subsets: ["latin"],
@@ -24,6 +25,9 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: getThemeBootScript() }} />
+      </head>
       <body className={`${heading.variable} ${body.variable}`}>
         <div className="page-shell">{children}</div>
       </body>

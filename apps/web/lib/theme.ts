@@ -23,6 +23,19 @@ export function applyTheme(theme: ThemeMode) {
   document.documentElement.setAttribute("data-theme", theme);
 }
 
+export function getThemeBootScript() {
+  return `(() => {
+    try {
+      const saved = window.localStorage.getItem('${themeStorageKey}');
+      const system = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      const theme = saved === 'dark' || saved === 'light' ? saved : system;
+      document.documentElement.setAttribute('data-theme', theme);
+    } catch {
+      document.documentElement.setAttribute('data-theme', 'light');
+    }
+  })();`;
+}
+
 export function persistTheme(theme: ThemeMode) {
   window.localStorage.setItem(themeStorageKey, theme);
   applyTheme(theme);

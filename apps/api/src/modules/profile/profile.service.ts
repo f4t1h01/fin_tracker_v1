@@ -5,6 +5,7 @@ import { generateCoupleCodeCandidate, normalizeCoupleCode } from "../common/coup
 import { PrismaService } from "../prisma/prisma.service";
 import { BindCoupleDto } from "./dto/bind-couple.dto";
 import { CreateProfileTransactionDto } from "./dto/create-profile-transaction.dto";
+import { UpdateProfileDetailsDto } from "./dto/update-profile-details.dto";
 import { UpdateProfileTransactionDto } from "./dto/update-profile-transaction.dto";
 
 @Injectable()
@@ -223,6 +224,37 @@ export class ProfileService {
         : null,
       bind: user.coupleBind
     };
+  }
+
+  async updateDetails(userId: string, dto: UpdateProfileDetailsDto) {
+    const existing = await this.prisma.client.user.findUnique({
+      where: { id: userId },
+      select: { id: true }
+    });
+
+    if (!existing) {
+      throw new UnauthorizedException("Invalid token");
+    }
+
+    return this.prisma.client.user.update({
+      where: { id: userId },
+      data: {
+        firstName: dto.firstName?.trim() || null,
+        lastName: dto.lastName?.trim() || null,
+        username: dto.username?.trim() || null
+      },
+      select: {
+        id: true,
+        telegramId: true,
+        firstName: true,
+        lastName: true,
+        username: true,
+        coupleCode: true,
+        lastTelegramChatId: true,
+        email: true,
+        isDark: true
+      }
+    });
   }
 
   async snapshot(userId: string, month?: number, year?: number) {
