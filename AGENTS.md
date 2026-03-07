@@ -13,6 +13,7 @@
 - Local/source deploy uses `docker-compose.yml`.
 - Production domain is `cupfin.shaxin.uz`.
 - Telegram bot link: `https://t.me/coup_fin_trackerbot`.
+- Direct Postgres access command: `psql -h 127.0.0.1 -p 5432 -U postgres -d fin_tracker`
 
 ## GitHub and git workflow
 

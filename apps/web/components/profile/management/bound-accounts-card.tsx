@@ -14,6 +14,9 @@ type BoundAccountsCardProps = {
 };
 
 export function BoundAccountsCard(props: BoundAccountsCardProps) {
+  const hasRealTelegramUser = !props.telegramId.startsWith("-");
+  const isTelegramLinked = hasRealTelegramUser || Boolean(props.lastTelegramChatId) || props.telegramUsername !== "Not linked yet";
+
   return (
     <Card className="panel-soft">
       <CardHeader>
@@ -24,13 +27,13 @@ export function BoundAccountsCard(props: BoundAccountsCardProps) {
         <div className="detail-box space-y-2 text-sm">
           <p>Email account: {props.email ?? "Not set yet"}</p>
           <p>Website password: {props.hasPassword ? "Configured" : "Not configured"}</p>
-          <p>Telegram linked: {props.lastTelegramChatId ? "Yes" : "Not yet"}</p>
+          <p>Telegram linked: {isTelegramLinked ? "Yes" : "Not yet"}</p>
           <p>Telegram username: {props.telegramUsername}</p>
           <p>Telegram chat id: {props.lastTelegramChatId ?? "Unavailable"}</p>
-          <p>Telegram user id: {props.lastTelegramChatId ? props.telegramId : "Unavailable"}</p>
+          <p>Telegram user id: {hasRealTelegramUser ? props.telegramId : "Unavailable"}</p>
           <p>Workspace code: {props.workspaceCode}</p>
         </div>
-        {!props.lastTelegramChatId ? (
+        {!isTelegramLinked ? (
           <div className="space-y-3">
             <p className="body-muted text-sm">If you opened this page from Telegram, link that current Telegram session first. Otherwise use the official Telegram sign-in below while staying signed into this website account.</p>
             <Button type="button" variant="outline" onClick={() => void props.onLinkCurrentTelegramContext()}>

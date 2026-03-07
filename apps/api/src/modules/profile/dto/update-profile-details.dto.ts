@@ -1,4 +1,4 @@
-import { IsDateString, IsOptional, IsString, MaxLength } from "class-validator";
+import { IsOptional, IsString, Matches, MaxLength } from "class-validator";
 
 export class UpdateProfileDetailsDto {
   @IsOptional()
@@ -12,6 +12,6 @@ export class UpdateProfileDetailsDto {
   lastName?: string;
 
   @IsOptional()
-  @IsDateString()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/)
   birthday?: string | null;
 }

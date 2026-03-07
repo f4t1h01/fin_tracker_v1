@@ -979,6 +979,23 @@ html[data-theme="dark"] .form-select {
   box-shadow: none;
 }
 
+.form-date-input {
+  appearance: none;
+  -webkit-appearance: none;
+  text-align: left;
+  color: var(--ink);
+  -webkit-text-fill-color: var(--ink);
+}
+
+.form-date-input::-webkit-date-and-time-value {
+  text-align: left;
+}
+
+.form-date-input::-webkit-calendar-picker-indicator {
+  opacity: 0.75;
+  cursor: pointer;
+}
+
 .app-input:focus,
 .form-input:focus,
 .form-select:focus {

@@ -19,8 +19,14 @@ export class ProfileController {
   }
 
   @Patch("me/details")
-  updateMyDetails(@CurrentUser() user: { id: string }, @Body() dto: UpdateProfileDetailsDto) {
-    return this.profileService.updateDetails(user.id, dto);
+  async updateMyDetails(@CurrentUser() user: { id: string }, @Body() dto: UpdateProfileDetailsDto) {
+    const updated = await this.profileService.updateDetails(user.id, dto);
+    return {
+      ...updated,
+      telegramId: updated.telegramId.toString(),
+      lastTelegramChatId: updated.lastTelegramChatId ? updated.lastTelegramChatId.toString() : null,
+      birthday: updated.birthday ? updated.birthday.toISOString() : null
+    };
   }
 
   @Get("me/snapshot")

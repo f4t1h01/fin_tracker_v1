@@ -48,8 +48,6 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
   const [isAuthenticating, setIsAuthenticating] = useState(true);
   const [authMe, setAuthMe] = useState<AuthMeResponse | null>(null);
 
-  const [cachedSnapshot, setCachedSnapshot] = useState<ProfileSnapshotResponse | null>(null);
-
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
   const [isSubmittingLogin, setIsSubmittingLogin] = useState(false);
@@ -105,7 +103,6 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
 
   const applySnapshot = useCallback((snapshot: ProfileSnapshotResponse) => {
     writeProfileSnapshotCache(snapshot);
-    setCachedSnapshot(snapshot);
     setProfile(snapshot.profile);
     setSummary(snapshot.summary);
     setRecent(snapshot.recent);
@@ -130,7 +127,6 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
     setProfile(null);
     setSummary(null);
     setRecent([]);
-    setCachedSnapshot(null);
     setDetailsFirstName("");
     setDetailsLastName("");
     setDetailsBirthday("");
@@ -238,9 +234,9 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
 
   useEffect(() => {
     const bootstrap = async () => {
-      ensureCanonicalProfileUrl(routePath);
+      const telegramContext = detectTelegramContextFromWindow() ?? readPendingTelegramContext();
 
-      const telegramContext = detectTelegramContextFromWindow();
+      ensureCanonicalProfileUrl(routePath);
 
       if (telegramContext?.kind === "telegram-webapp") {
         try {
@@ -290,12 +286,8 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
       return;
     }
 
-    if (cachedSnapshot) {
-      applySnapshot(cachedSnapshot);
-    }
-
     void fetchSnapshot(token);
-  }, [applySnapshot, cachedSnapshot, fetchSnapshot, token]);
+  }, [fetchSnapshot, token]);
 
   useEffect(() => {
     if (!authMe) {

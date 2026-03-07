@@ -5,7 +5,7 @@ import { cn } from "@/lib/cn";
 export type DatePickerProps = React.InputHTMLAttributes<HTMLInputElement>;
 
 const DatePicker = React.forwardRef<HTMLInputElement, DatePickerProps>(({ className, ...props }, ref) => {
-  return <input ref={ref} type="date" className={cn("form-input", className)} {...props} />;
+  return <input ref={ref} type="date" className={cn("form-input form-date-input", className)} {...props} />;
 });
 
 DatePicker.displayName = "DatePicker";
