@@ -645,38 +645,9 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
   };
 
   const greeting = useMemo(() => getTashkentGreeting(authMe?.firstName ?? authMe?.username), [authMe?.firstName, authMe?.username]);
-  const telegramUsername = authMe?.username ? `@${authMe.username}` : "Not linked yet";
-  const refreshSnapshot = useCallback(async () => {
-    if (!token) {
-      return;
-    }
-
-    await fetchSnapshot(token);
-  }, [fetchSnapshot, token]);
-
-  const linkTelegramFromCurrentContext = useCallback(async () => {
-    if (!token) {
-      return false;
-    }
-
-    const pending = readPendingTelegramContext() ?? detectTelegramContextFromWindow();
-    if (!pending) {
-      setAuthError("No live Telegram session was detected on this page. Open the app from Telegram or use the Telegram sign-in widget below.");
-      return false;
-    }
-
-    try {
-      const accessToken = await authenticateTelegramContext(pending, token);
-      localStorage.setItem(tokenKey, accessToken);
-      setToken(accessToken);
-      await fetchSnapshot(accessToken);
-      return true;
-    } catch (error) {
-      setAuthError(error instanceof Error ? error.message : "Could not link current Telegram session");
-      return false;
-    }
-  }, [authenticateTelegramContext, fetchSnapshot, token]);
-
+  const hasRealTelegramIdentity = Boolean(authMe && !authMe.telegramId.startsWith("-"));
+  const telegramDisplayName = hasRealTelegramIdentity ? [authMe?.firstName, authMe?.lastName].filter(Boolean).join(" ") || "Not linked yet" : "Not linked yet";
+  const telegramUsername = hasRealTelegramIdentity && authMe?.username ? `@${authMe.username}` : "Not linked yet";
   return {
     token,
     authError,
@@ -715,6 +686,7 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
     setDetailsLastName,
     detailsBirthday,
     setDetailsBirthday,
+    telegramDisplayName,
     telegramUsername,
     telegramConnectUrl,
     isSavingDetails,
@@ -758,8 +730,6 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
     onSaveEdit,
     onDeleteTransaction,
     startEditing,
-    refreshSnapshot,
-    linkTelegramFromCurrentContext,
     onThemeChange,
     clearSession
   };

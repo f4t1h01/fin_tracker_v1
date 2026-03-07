@@ -47,6 +47,8 @@ export class ProfileService {
         firstName: true,
         lastName: true,
         ...(hasBirthdayColumn ? { birthday: true } : {}),
+        photoUrl: true,
+        telegramPhone: true,
         isAdmin: true,
         isDark: true
       }
@@ -68,6 +70,8 @@ export class ProfileService {
       firstName: user.firstName,
       lastName: user.lastName,
       birthday: hasBirthdayColumn ? ((user as { birthday?: Date | null }).birthday ?? null) : null,
+      photoUrl: user.photoUrl,
+      telegramPhone: user.telegramPhone,
       isAdmin: user.isAdmin,
       isDark: user.isDark
     };

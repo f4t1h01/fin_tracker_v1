@@ -4,18 +4,17 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 type BoundAccountsCardProps = {
   email: string | null;
   hasPassword: boolean;
-  lastTelegramChatId: string | null;
   telegramUsername: string;
   telegramId: string;
+  telegramDisplayName: string;
+  telegramPhone: string | null;
   workspaceCode: string;
-  onTelegramLinked: () => Promise<void>;
-  onLinkCurrentTelegramContext: () => Promise<boolean>;
   telegramConnectUrl: string;
 };
 
 export function BoundAccountsCard(props: BoundAccountsCardProps) {
   const hasRealTelegramUser = !props.telegramId.startsWith("-");
-  const isTelegramLinked = hasRealTelegramUser || Boolean(props.lastTelegramChatId) || props.telegramUsername !== "Not linked yet";
+  const isTelegramLinked = hasRealTelegramUser || props.telegramUsername !== "Not linked yet" || Boolean(props.telegramPhone) || props.telegramDisplayName !== "Not linked yet";
   const actionLabel = isTelegramLinked ? "Open Telegram WebApp" : "Connect this account in Telegram";
 
   return (
@@ -29,13 +28,14 @@ export function BoundAccountsCard(props: BoundAccountsCardProps) {
           <p>Email account: {props.email ?? "Not set yet"}</p>
           <p>Website password: {props.hasPassword ? "Configured" : "Not configured"}</p>
           <p>Telegram linked: {isTelegramLinked ? "Yes" : "Not yet"}</p>
+          <p>Telegram name: {props.telegramDisplayName}</p>
           <p>Telegram username: {props.telegramUsername}</p>
-          <p>Telegram chat id: {props.lastTelegramChatId ?? "Unavailable"}</p>
           <p>Telegram user id: {hasRealTelegramUser ? props.telegramId : "Unavailable"}</p>
+          <p>Telegram phone: {props.telegramPhone ?? "Not shared yet"}</p>
           <p>Workspace code: {props.workspaceCode}</p>
         </div>
         {!isTelegramLinked ? (
-          <p className="body-muted text-sm">Telegram mini apps and your normal browser do not share session storage. Use the button below to open Telegram with a signed link for this exact website account.</p>
+          <p className="body-muted text-sm">Use the button below to open Telegram with a signed link for this exact website account. Telegram can provide your user id, username, display name, and optional phone number after you share it.</p>
         ) : null}
         <Button variant="outline" asChild><a href={props.telegramConnectUrl} target="_blank" rel="noreferrer">{actionLabel}</a></Button>
       </CardContent>

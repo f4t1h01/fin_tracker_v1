@@ -56,7 +56,7 @@ export function ProfileManagementPage() {
 
       <section className="grid gap-5 lg:grid-cols-2">
         <ProfileDetailsCard detailsFirstName={workspace.detailsFirstName} setDetailsFirstName={workspace.setDetailsFirstName} detailsLastName={workspace.detailsLastName} setDetailsLastName={workspace.setDetailsLastName} detailsBirthday={workspace.detailsBirthday} setDetailsBirthday={workspace.setDetailsBirthday} telegramUsername={workspace.telegramUsername} isSavingDetails={workspace.isSavingDetails} detailsMessage={workspace.detailsMessage} detailsError={workspace.detailsError} onSaveDetails={workspace.onSaveDetails} />
-        <BoundAccountsCard email={workspace.authMe.email} hasPassword={workspace.authMe.hasPassword} lastTelegramChatId={workspace.authMe.lastTelegramChatId} telegramUsername={workspace.telegramUsername} telegramId={workspace.authMe.telegramId} workspaceCode={workspace.profile.user.coupleCode} onTelegramLinked={workspace.refreshSnapshot} onLinkCurrentTelegramContext={workspace.linkTelegramFromCurrentContext} telegramConnectUrl={workspace.telegramConnectUrl} />
+        <BoundAccountsCard email={workspace.authMe.email} hasPassword={workspace.authMe.hasPassword} telegramUsername={workspace.telegramUsername} telegramId={workspace.authMe.telegramId} telegramDisplayName={workspace.telegramDisplayName} telegramPhone={workspace.authMe.telegramPhone} workspaceCode={workspace.profile.user.coupleCode} telegramConnectUrl={workspace.telegramConnectUrl} />
       </section>
 
       {!workspace.authMe.hasPassword ? (

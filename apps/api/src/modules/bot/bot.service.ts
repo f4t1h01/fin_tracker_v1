@@ -1,10 +1,13 @@
-import { ForbiddenException, Injectable } from "@nestjs/common";
+import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { parseApiEnv } from "@repo/config";
 
+import { resolveTelegramLinkToken } from "../auth/telegram-link-token";
 import { convertToUzs, getLatestCurrencyRates, normalizeCurrency } from "../common/currency";
 import { generateCoupleCodeCandidate } from "../common/couple-code";
 import { PrismaService } from "../prisma/prisma.service";
+import { LinkTelegramProfileDto } from "./dto/link-telegram-profile.dto";
 import { QuickAddDto } from "./dto/quick-add.dto";
+import { StoreTelegramPhoneDto } from "./dto/store-telegram-phone.dto";
 
 @Injectable()
 export class BotService {
@@ -74,6 +77,201 @@ export class BotService {
     });
 
     return couple.id;
+  }
+
+  private resolveLinkTokenUserId(linkToken: string) {
+    const env = parseApiEnv(process.env);
+    const parsed = resolveTelegramLinkToken(linkToken, env.API_JWT_SECRET);
+
+    if (!parsed) {
+      throw new ForbiddenException("Telegram link token is invalid or expired");
+    }
+
+    return parsed.userId;
+  }
+
+  private async mergeTelegramStubIntoUser(sourceUserId: string, targetUserId: string) {
+    if (sourceUserId === targetUserId) {
+      return;
+    }
+
+    await this.prisma.client.$transaction(async (tx) => {
+      const [sourceUser, targetUser] = await Promise.all([
+        tx.user.findUnique({
+          where: { id: sourceUserId },
+          select: {
+            id: true,
+            coupleCode: true,
+            telegramPhone: true,
+            photoUrl: true
+          }
+        }),
+        tx.user.findUnique({
+          where: { id: targetUserId },
+          select: {
+            id: true,
+            coupleCode: true,
+            telegramPhone: true,
+            photoUrl: true
+          }
+        })
+      ]);
+
+      if (!sourceUser || !targetUser) {
+        throw new NotFoundException("Could not merge Telegram account");
+      }
+
+      const sourceMemberships = await tx.membership.findMany({
+        where: { userId: sourceUserId },
+        select: { id: true, coupleId: true }
+      });
+      const targetMemberships = await tx.membership.findMany({
+        where: { userId: targetUserId },
+        select: { coupleId: true }
+      });
+
+      const targetCoupleIds = new Set(targetMemberships.map((item) => item.coupleId));
+
+      for (const membership of sourceMemberships) {
+        if (targetCoupleIds.has(membership.coupleId)) {
+          await tx.membership.delete({ where: { id: membership.id } });
+          continue;
+        }
+
+        await tx.membership.update({
+          where: { id: membership.id },
+          data: { userId: targetUserId }
+        });
+        targetCoupleIds.add(membership.coupleId);
+      }
+
+      const [sourceBind, targetBind] = await Promise.all([
+        tx.coupleBind.findUnique({ where: { userId: sourceUserId }, select: { id: true } }),
+        tx.coupleBind.findUnique({ where: { userId: targetUserId }, select: { id: true } })
+      ]);
+
+      if (sourceBind) {
+        if (targetBind) {
+          await tx.coupleBind.delete({ where: { id: sourceBind.id } });
+        } else {
+          await tx.coupleBind.update({
+            where: { id: sourceBind.id },
+            data: { userId: targetUserId }
+          });
+        }
+      }
+
+      await Promise.all([
+        tx.transaction.updateMany({ where: { userId: sourceUserId }, data: { userId: targetUserId } }),
+        tx.category.updateMany({ where: { createdById: sourceUserId }, data: { createdById: targetUserId } }),
+        tx.couple.updateMany({ where: { createdById: sourceUserId }, data: { createdById: targetUserId } }),
+        tx.invite.updateMany({ where: { createdById: sourceUserId }, data: { createdById: targetUserId } })
+      ]);
+
+      await tx.user.update({
+        where: { id: targetUserId },
+        data: {
+          ...(targetUser.coupleCode ? {} : sourceUser.coupleCode ? { coupleCode: sourceUser.coupleCode } : {}),
+          ...(targetUser.telegramPhone ? {} : sourceUser.telegramPhone ? { telegramPhone: sourceUser.telegramPhone } : {}),
+          ...(targetUser.photoUrl ? {} : sourceUser.photoUrl ? { photoUrl: sourceUser.photoUrl } : {})
+        }
+      });
+
+      await tx.user.delete({ where: { id: sourceUserId } });
+    });
+  }
+
+  async linkTelegramProfile(dto: LinkTelegramProfileDto) {
+    const targetUserId = this.resolveLinkTokenUserId(dto.linkToken);
+    const telegramId = BigInt(dto.telegramId);
+    const chatId = dto.chatId ? BigInt(dto.chatId) : null;
+
+    const [targetUser, existingTelegramUser] = await Promise.all([
+      this.prisma.client.user.findUnique({
+        where: { id: targetUserId },
+        select: {
+          id: true,
+          email: true,
+          passwordHash: true
+        }
+      }),
+      this.prisma.client.user.findUnique({
+        where: { telegramId },
+        select: {
+          id: true,
+          email: true,
+          passwordHash: true
+        }
+      })
+    ]);
+
+    if (!targetUser) {
+      throw new NotFoundException("Website account was not found");
+    }
+
+    if (existingTelegramUser && existingTelegramUser.id !== targetUser.id) {
+      const canMergeStub = !existingTelegramUser.email && !existingTelegramUser.passwordHash;
+      if (!canMergeStub) {
+        throw new ForbiddenException("This Telegram account is already linked to another website account");
+      }
+
+      await this.mergeTelegramStubIntoUser(existingTelegramUser.id, targetUser.id);
+    }
+
+    const linkedUser = await this.prisma.client.user.update({
+      where: { id: targetUser.id },
+      data: {
+        telegramId,
+        ...(chatId ? { lastTelegramChatId: chatId } : {}),
+        ...(dto.username !== undefined ? { username: dto.username?.trim() || null } : {}),
+        ...(dto.firstName !== undefined ? { firstName: dto.firstName?.trim() || null } : {}),
+        ...(dto.lastName !== undefined ? { lastName: dto.lastName?.trim() || null } : {})
+      },
+      select: {
+        id: true,
+        telegramId: true,
+        username: true,
+        firstName: true,
+        lastName: true,
+        telegramPhone: true
+      }
+    });
+
+    await this.ensureUserCoupleCode(linkedUser.id);
+
+    return {
+      linked: true,
+      telegramId: linkedUser.telegramId.toString(),
+      username: linkedUser.username,
+      firstName: linkedUser.firstName,
+      lastName: linkedUser.lastName,
+      telegramPhone: linkedUser.telegramPhone
+    };
+  }
+
+  async storeTelegramPhone(dto: StoreTelegramPhoneDto) {
+    const telegramId = BigInt(dto.telegramId);
+    const normalizedPhone = dto.phoneNumber.trim();
+
+    const user = await this.prisma.client.user.findUnique({
+      where: { telegramId },
+      select: { id: true }
+    });
+
+    if (!user) {
+      throw new NotFoundException("Telegram account was not linked yet");
+    }
+
+    const updated = await this.prisma.client.user.update({
+      where: { id: user.id },
+      data: { telegramPhone: normalizedPhone },
+      select: { telegramPhone: true }
+    });
+
+    return {
+      saved: true,
+      telegramPhone: updated.telegramPhone
+    };
   }
 
   async quickAdd(dto: QuickAddDto) {

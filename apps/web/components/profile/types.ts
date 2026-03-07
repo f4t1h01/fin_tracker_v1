@@ -76,6 +76,8 @@ export type AuthMeResponse = {
   firstName: string | null;
   lastName: string | null;
   birthday: string | null;
+  photoUrl: string | null;
+  telegramPhone: string | null;
   isAdmin: boolean;
   isDark: boolean;
 };

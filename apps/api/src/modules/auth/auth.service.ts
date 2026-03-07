@@ -723,6 +723,8 @@ export class AuthService {
         username: true,
         firstName: true,
         lastName: true,
+        photoUrl: true,
+        telegramPhone: true,
         isAdmin: true,
         isDark: true
       }
@@ -743,6 +745,8 @@ export class AuthService {
       username: user.username,
       firstName: user.firstName,
       lastName: user.lastName,
+      photoUrl: user.photoUrl,
+      telegramPhone: user.telegramPhone,
       isAdmin: user.isAdmin,
       isDark: user.isDark
     };

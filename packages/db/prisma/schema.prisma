@@ -30,6 +30,7 @@ model User {
   lastName          String?
   birthday          DateTime?
   photoUrl          String?
+  telegramPhone     String?
   isAdmin           Boolean       @default(false)
   isDark            Boolean       @default(false)
   memberships       Membership[]
