@@ -12,6 +12,7 @@ import { persistTheme, type ThemeMode } from "@/lib/theme";
 
 const tokenKey = "cf_token";
 const canonicalProfilePath = "/profile/me";
+const authSourceKey = "cf_auth_source";
 const supportedCurrencies = ["UZS", "USD", "EUR", "RUB"] as const;
 type SupportedCurrency = (typeof supportedCurrencies)[number];
 
@@ -187,6 +188,7 @@ export function ProfileWorkspace() {
 
   const clearSession = useCallback(() => {
     localStorage.removeItem(tokenKey);
+    localStorage.removeItem(authSourceKey);
     setToken(null);
     setAuthMe(null);
     setProfile(null);
@@ -242,6 +244,15 @@ export function ProfileWorkspace() {
       const telegramWebApp = window.Telegram?.WebApp;
       const initData = telegramWebApp?.initData?.trim();
 
+      if (telegramWebApp) {
+        setIsTelegramWebAppContext(true);
+      }
+
+      const rememberedSource = localStorage.getItem(authSourceKey);
+      if (rememberedSource === "telegram") {
+        setIsTelegramWebAppContext(true);
+      }
+
       if (initData) {
         try {
           telegramWebApp?.ready?.();
@@ -258,6 +269,7 @@ export function ProfileWorkspace() {
 
           const payload = await parseApiResponse<{ accessToken: string }>(response);
           localStorage.setItem(tokenKey, payload.accessToken);
+          localStorage.setItem(authSourceKey, "telegram");
           setToken(payload.accessToken);
           setAuthError(null);
           setIsTelegramWebAppContext(true);
@@ -300,6 +312,7 @@ export function ProfileWorkspace() {
 
         const payload = await parseApiResponse<{ accessToken: string }>(response);
         localStorage.setItem(tokenKey, payload.accessToken);
+        localStorage.setItem(authSourceKey, "telegram");
         setToken(payload.accessToken);
         setAuthError(null);
         setIsTelegramWebAppContext(true);
@@ -372,6 +385,7 @@ export function ProfileWorkspace() {
 
       const payload = await parseApiResponse<{ accessToken: string }>(response);
       localStorage.setItem(tokenKey, payload.accessToken);
+      localStorage.setItem(authSourceKey, "website");
       setToken(payload.accessToken);
       setAuthError(null);
       setLoginMessage("Signed in successfully.");
@@ -417,6 +431,7 @@ export function ProfileWorkspace() {
 
       const payload = await parseApiResponse<{ accessToken: string }>(response);
       localStorage.setItem(tokenKey, payload.accessToken);
+      localStorage.setItem(authSourceKey, "website");
       setToken(payload.accessToken);
       setCreateAccountMessage("Account created successfully.");
       setCreateFirstName("");
@@ -601,13 +616,13 @@ export function ProfileWorkspace() {
   };
 
   const displayName = useMemo(() => {
-    if (isTelegramWebAppContext) {
+    if (isTelegramWebAppContext || authMe?.lastTelegramChatId) {
       const name = authMe?.firstName ?? authMe?.username;
       return name ? `Good day ${name}` : "Good day";
     }
 
     return "It is better to use WebApp inside Telegram.";
-  }, [authMe?.firstName, authMe?.username, isTelegramWebAppContext]);
+  }, [authMe?.firstName, authMe?.lastTelegramChatId, authMe?.username, isTelegramWebAppContext]);
 
   if (isAuthenticating) {
     return (
