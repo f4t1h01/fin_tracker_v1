@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, Injectable, NotFoundException, UnauthorizedException } from "@nestjs/common";
 
 import { convertFromUzs, convertToUzs, getLatestCurrencyRates, normalizeCurrency, SUPPORTED_CURRENCIES } from "../common/currency";
 import { generateCoupleCodeCandidate, normalizeCoupleCode } from "../common/couple-code";
@@ -12,7 +12,7 @@ export class ProfileService {
   constructor(private readonly prisma: PrismaService) {}
 
   private async getAuthState(userId: string) {
-    const user = await this.prisma.client.user.findUniqueOrThrow({
+    const user = await this.prisma.client.user.findUnique({
       where: { id: userId },
       select: {
         id: true,
@@ -29,6 +29,10 @@ export class ProfileService {
         isDark: true
       }
     });
+
+    if (!user) {
+      throw new UnauthorizedException("Invalid token");
+    }
 
     return {
       id: user.id,
@@ -146,7 +150,7 @@ export class ProfileService {
   }
 
   async getProfile(userId: string) {
-    const user = await this.prisma.client.user.findUniqueOrThrow({
+    const user = await this.prisma.client.user.findUnique({
       where: { id: userId },
       select: {
         id: true,
@@ -165,6 +169,10 @@ export class ProfileService {
         }
       }
     });
+
+    if (!user) {
+      throw new UnauthorizedException("Invalid token");
+    }
 
     const coupleCode = user.coupleCode ?? (await this.ensureUserCoupleCode(userId));
     const activeCoupleId = await this.resolveActiveCoupleId(userId, false);

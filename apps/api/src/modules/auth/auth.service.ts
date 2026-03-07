@@ -437,7 +437,7 @@ export class AuthService {
   }
 
   async me(userId: string) {
-    const user = await this.prisma.client.user.findUniqueOrThrow({
+    const user = await this.prisma.client.user.findUnique({
       where: { id: userId },
       select: {
         id: true,
@@ -454,6 +454,10 @@ export class AuthService {
         isDark: true
       }
     });
+
+    if (!user) {
+      throw new UnauthorizedException("Invalid token");
+    }
 
     return {
       id: user.id,
@@ -472,6 +476,15 @@ export class AuthService {
   }
 
   async setThemePreference(userId: string, isDark: boolean) {
+    const existingUser = await this.prisma.client.user.findUnique({
+      where: { id: userId },
+      select: { id: true }
+    });
+
+    if (!existingUser) {
+      throw new UnauthorizedException("Invalid token");
+    }
+
     const user = await this.prisma.client.user.update({
       where: { id: userId },
       data: { isDark },
