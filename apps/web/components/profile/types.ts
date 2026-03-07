@@ -12,6 +12,7 @@ export type ProfileResponse = {
     username: string | null;
     firstName: string | null;
     lastName: string | null;
+    birthday: string | null;
     coupleCode: string;
   };
   activeCouple: {
@@ -74,6 +75,7 @@ export type AuthMeResponse = {
   username: string | null;
   firstName: string | null;
   lastName: string | null;
+  birthday: string | null;
   isAdmin: boolean;
   isDark: boolean;
 };

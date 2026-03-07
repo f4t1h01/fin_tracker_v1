@@ -4,6 +4,7 @@ import { useEffect } from "react";
 
 import { BrandMark } from "@/components/marketing/brand-mark";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -54,7 +55,7 @@ export function ProfileManagementPage() {
         <Card className="panel-soft">
           <CardHeader>
             <CardTitle>Your details</CardTitle>
-            <CardDescription>Keep your profile name and handle up to date.</CardDescription>
+            <CardDescription>Keep your profile name and birthday up to date. Telegram username is shown as a linked identity.</CardDescription>
           </CardHeader>
           <CardContent>
             <form className="space-y-3" onSubmit={workspace.onSaveDetails}>
@@ -62,7 +63,10 @@ export function ProfileManagementPage() {
                 <label className="space-y-1 text-sm"><span className="field-label">First name</span><input value={workspace.detailsFirstName} onChange={(event) => workspace.setDetailsFirstName(event.target.value)} className="form-input" /></label>
                 <label className="space-y-1 text-sm"><span className="field-label">Last name</span><input value={workspace.detailsLastName} onChange={(event) => workspace.setDetailsLastName(event.target.value)} className="form-input" /></label>
               </div>
-              <label className="space-y-1 text-sm"><span className="field-label">Username</span><input value={workspace.detailsUsername} onChange={(event) => workspace.setDetailsUsername(event.target.value)} className="form-input" /></label>
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                <label className="space-y-1 text-sm"><span className="field-label">Birthday</span><DatePicker value={workspace.detailsBirthday} onChange={(event) => workspace.setDetailsBirthday(event.target.value)} max="9999-12-31" /></label>
+                <label className="space-y-1 text-sm"><span className="field-label">Telegram username</span><input value={workspace.telegramUsername} readOnly className="form-input opacity-80" /></label>
+              </div>
               <div className="flex flex-wrap items-center gap-3"><Button type="submit" disabled={workspace.isSavingDetails}>{workspace.isSavingDetails ? "Saving..." : "Save details"}</Button>{workspace.detailsMessage ? <p className="status-success text-sm">{workspace.detailsMessage}</p> : null}{workspace.detailsError ? <p className="status-error text-sm">{workspace.detailsError}</p> : null}</div>
             </form>
           </CardContent>
@@ -78,6 +82,7 @@ export function ProfileManagementPage() {
               <p>Email account: {workspace.authMe.email ?? "Not set yet"}</p>
               <p>Website password: {workspace.authMe.hasPassword ? "Configured" : "Not configured"}</p>
               <p>Telegram linked: {workspace.authMe.lastTelegramChatId ? "Yes" : "Not yet"}</p>
+              <p>Telegram username: {workspace.telegramUsername}</p>
               <p>Telegram chat id: {workspace.authMe.lastTelegramChatId ?? "Unavailable"}</p>
               <p>Workspace code: {workspace.profile.user.coupleCode}</p>
             </div>

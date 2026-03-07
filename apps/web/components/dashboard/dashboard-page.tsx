@@ -4,12 +4,12 @@ import { useEffect, useMemo, useState } from "react";
 import { Loader2 } from "lucide-react";
 
 import { BrandMark } from "@/components/marketing/brand-mark";
-import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { webEnv } from "@/lib/env";
 
 import { parseApiResponse } from "@/components/profile/api";
+import { clearDashboardCache, clearProfileSnapshotCache, readDashboardCache, writeDashboardCache } from "@/components/profile/cache";
 import { DashboardResponse, tokenKey, type SupportedCurrency } from "@/components/profile/types";
 
 import { DashboardMetrics } from "./dashboard-metrics";
@@ -24,9 +24,10 @@ function convertAmount(amountInUzs: number, rate: number) {
 }
 
 export function DashboardPage() {
-  const [data, setData] = useState<DashboardResponse | null>(null);
+  const [data, setData] = useState<DashboardResponse | null>(() => readDashboardCache());
   const [displayCurrency, setDisplayCurrency] = useState<SupportedCurrency>("UZS");
   const [error, setError] = useState<string | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   useEffect(() => {
     const token = localStorage.getItem(tokenKey);
@@ -35,14 +36,31 @@ export function DashboardPage() {
       return;
     }
 
+    setIsRefreshing(true);
     void fetch(`${webEnv.apiUrl}/profile/me/dashboard`, {
       headers: {
         Authorization: `Bearer ${token}`
       }
     })
       .then((response) => parseApiResponse<DashboardResponse>(response))
-      .then((payload) => setData(payload))
-      .catch((err) => setError(err instanceof Error ? err.message : "Could not load dashboard"));
+      .then((payload) => {
+        writeDashboardCache(payload);
+        setData(payload);
+        setError(null);
+      })
+      .catch((err) => {
+        const message = err instanceof Error ? err.message : "Could not load dashboard";
+        if (message === "Invalid token" || message === "Missing bearer token") {
+          localStorage.removeItem(tokenKey);
+          clearDashboardCache();
+          clearProfileSnapshotCache();
+          window.location.replace("/profile/me");
+          return;
+        }
+
+        setError(message);
+      })
+      .finally(() => setIsRefreshing(false));
   }, []);
 
   const summary = useMemo(() => {
@@ -99,7 +117,7 @@ export function DashboardPage() {
               {data.supportedCurrencies.map((item) => <option key={item} value={item}>{item}</option>)}
             </select>
           </label>
-          <ThemeToggle />
+          {isRefreshing ? <span className="body-muted text-xs uppercase tracking-[0.16em]">Refreshing</span> : null}
           <Button variant="outline" asChild><a href="/profile/me">Back to profile</a></Button>
         </div>
       </header>

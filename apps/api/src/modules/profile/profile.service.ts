@@ -26,6 +26,7 @@ export class ProfileService {
         username: true,
         firstName: true,
         lastName: true,
+        birthday: true,
         isAdmin: true,
         isDark: true
       }
@@ -46,6 +47,7 @@ export class ProfileService {
       username: user.username,
       firstName: user.firstName,
       lastName: user.lastName,
+      birthday: user.birthday,
       isAdmin: user.isAdmin,
       isDark: user.isDark
     };
@@ -159,6 +161,7 @@ export class ProfileService {
         firstName: true,
         lastName: true,
         username: true,
+        birthday: true,
         coupleCode: true,
         coupleBind: {
           select: {
@@ -186,6 +189,7 @@ export class ProfileService {
           username: user.username,
           firstName: user.firstName,
           lastName: user.lastName,
+          birthday: user.birthday,
           coupleCode
         },
         activeCouple: null,
@@ -213,6 +217,7 @@ export class ProfileService {
         username: user.username,
         firstName: user.firstName,
         lastName: user.lastName,
+        birthday: user.birthday,
         coupleCode
       },
       activeCouple: activeCouple
@@ -241,7 +246,8 @@ export class ProfileService {
       data: {
         firstName: dto.firstName?.trim() || null,
         lastName: dto.lastName?.trim() || null,
-        username: dto.username?.trim() || null
+        birthday:
+          dto.birthday === undefined ? undefined : dto.birthday ? new Date(`${dto.birthday}T00:00:00.000Z`) : null
       },
       select: {
         id: true,
@@ -249,6 +255,7 @@ export class ProfileService {
         firstName: true,
         lastName: true,
         username: true,
+        birthday: true,
         coupleCode: true,
         lastTelegramChatId: true,
         email: true,

@@ -6,6 +6,7 @@ import { webEnv } from "@/lib/env";
 import { persistTheme, type ThemeMode } from "@/lib/theme";
 
 import { parseApiResponse } from "./api";
+import { clearDashboardCache, clearProfileSnapshotCache, readProfileSnapshotCache, writeProfileSnapshotCache } from "./cache";
 import { getTashkentGreeting } from "./greeting";
 import {
   authSourceKey,
@@ -39,10 +40,12 @@ type UseProfileWorkspaceOptions = {
 
 export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
   const routePath = options?.routePath ?? canonicalProfilePath;
-  const [token, setToken] = useState<string | null>(null);
+  const [token, setToken] = useState<string | null>(() => (typeof window === "undefined" ? null : localStorage.getItem(tokenKey)));
   const [authError, setAuthError] = useState<string | null>(null);
-  const [isAuthenticating, setIsAuthenticating] = useState(true);
-  const [authMe, setAuthMe] = useState<AuthMeResponse | null>(null);
+  const [isAuthenticating, setIsAuthenticating] = useState(typeof window === "undefined");
+  const [authMe, setAuthMe] = useState<AuthMeResponse | null>(() => readProfileSnapshotCache()?.auth ?? null);
+
+  const [cachedSnapshot, setCachedSnapshot] = useState<ProfileSnapshotResponse | null>(() => readProfileSnapshotCache());
 
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
@@ -61,7 +64,7 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
 
   const [detailsFirstName, setDetailsFirstName] = useState("");
   const [detailsLastName, setDetailsLastName] = useState("");
-  const [detailsUsername, setDetailsUsername] = useState("");
+  const [detailsBirthday, setDetailsBirthday] = useState("");
   const [isSavingDetails, setIsSavingDetails] = useState(false);
   const [detailsMessage, setDetailsMessage] = useState<string | null>(null);
   const [detailsError, setDetailsError] = useState<string | null>(null);
@@ -73,9 +76,9 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
   const [setupMessage, setSetupMessage] = useState<string | null>(null);
   const [setupError, setSetupError] = useState<string | null>(null);
 
-  const [profile, setProfile] = useState<ProfileResponse | null>(null);
-  const [summary, setSummary] = useState<MonthlySummary | null>(null);
-  const [recent, setRecent] = useState<RecentTransaction[]>([]);
+  const [profile, setProfile] = useState<ProfileResponse | null>(() => cachedSnapshot?.profile ?? null);
+  const [summary, setSummary] = useState<MonthlySummary | null>(() => cachedSnapshot?.summary ?? null);
+  const [recent, setRecent] = useState<RecentTransaction[]>(() => cachedSnapshot?.recent ?? []);
   const [isLoadingData, setIsLoadingData] = useState(false);
 
   const [bindCode, setBindCode] = useState("");
@@ -97,14 +100,36 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
 
   const today = useMemo(() => new Date(), []);
 
+  const applySnapshot = useCallback((snapshot: ProfileSnapshotResponse) => {
+    writeProfileSnapshotCache(snapshot);
+    setCachedSnapshot(snapshot);
+    setProfile(snapshot.profile);
+    setSummary(snapshot.summary);
+    setRecent(snapshot.recent);
+    setAuthMe(snapshot.auth);
+    setDetailsFirstName(snapshot.auth.firstName ?? "");
+    setDetailsLastName(snapshot.auth.lastName ?? "");
+    setDetailsBirthday(snapshot.auth.birthday?.slice(0, 10) ?? "");
+
+    if (snapshot.auth.email) {
+      setSetupEmail((current) => current || snapshot.auth.email || "");
+    }
+  }, []);
+
   const clearSession = useCallback(() => {
     localStorage.removeItem(tokenKey);
     localStorage.removeItem(authSourceKey);
+    clearProfileSnapshotCache();
+    clearDashboardCache();
     setToken(null);
     setAuthMe(null);
     setProfile(null);
     setSummary(null);
     setRecent([]);
+    setCachedSnapshot(null);
+    setDetailsFirstName("");
+    setDetailsLastName("");
+    setDetailsBirthday("");
   }, []);
 
   const ensureCanonicalProfileUrl = useCallback((targetPath = canonicalProfilePath) => {
@@ -125,17 +150,7 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
           }
         }).then((response) => parseApiResponse<ProfileSnapshotResponse>(response));
 
-        setProfile(snapshot.profile);
-        setSummary(snapshot.summary);
-        setRecent(snapshot.recent);
-        setAuthMe(snapshot.auth);
-        setDetailsFirstName(snapshot.auth.firstName ?? "");
-        setDetailsLastName(snapshot.auth.lastName ?? "");
-        setDetailsUsername(snapshot.auth.username ?? "");
-
-        if (snapshot.auth.email) {
-          setSetupEmail((current) => current || snapshot.auth.email || "");
-        }
+        applySnapshot(snapshot);
       } catch (error) {
         const message = error instanceof Error ? error.message : "Could not load profile data";
         if (message === "Invalid token" || message === "Missing bearer token") {
@@ -146,7 +161,7 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
         setIsLoadingData(false);
       }
     },
-    [clearSession, today]
+    [applySnapshot, clearSession, today]
   );
 
   useEffect(() => {
@@ -217,20 +232,28 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
       const existing = localStorage.getItem(tokenKey);
       if (existing) {
         setToken(existing);
+        const snapshot = readProfileSnapshotCache();
+        if (snapshot) {
+          applySnapshot(snapshot);
+        }
       }
       setIsAuthenticating(false);
     };
 
     void bootstrap();
-  }, [ensureCanonicalProfileUrl, routePath]);
+  }, [applySnapshot, ensureCanonicalProfileUrl, routePath]);
 
   useEffect(() => {
     if (!token) {
       return;
     }
 
+    if (cachedSnapshot) {
+      applySnapshot(cachedSnapshot);
+    }
+
     void fetchSnapshot(token);
-  }, [fetchSnapshot, token]);
+  }, [applySnapshot, cachedSnapshot, fetchSnapshot, token]);
 
   useEffect(() => {
     if (!authMe) {
@@ -246,7 +269,17 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
       return;
     }
 
-    setAuthMe((current) => (current ? { ...current, isDark: theme === "dark" } : current));
+    setAuthMe((current) => {
+      if (!current) {
+        return current;
+      }
+
+      const nextAuth = { ...current, isDark: theme === "dark" };
+      if (profile && summary) {
+        writeProfileSnapshotCache({ profile, summary, recent, auth: nextAuth });
+      }
+      return nextAuth;
+    });
 
     try {
       const response = await fetch(`${webEnv.apiUrl}/auth/preferences/theme`, {
@@ -358,7 +391,7 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
         body: JSON.stringify({
           firstName: detailsFirstName || undefined,
           lastName: detailsLastName || undefined,
-          username: detailsUsername || undefined
+          birthday: detailsBirthday || null
         })
       });
 
@@ -542,6 +575,7 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
   };
 
   const greeting = useMemo(() => getTashkentGreeting(authMe?.firstName ?? authMe?.username), [authMe?.firstName, authMe?.username]);
+  const telegramUsername = authMe?.username ? `@${authMe.username}` : "Not linked yet";
 
   return {
     token,
@@ -579,8 +613,9 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
     setDetailsFirstName,
     detailsLastName,
     setDetailsLastName,
-    detailsUsername,
-    setDetailsUsername,
+    detailsBirthday,
+    setDetailsBirthday,
+    telegramUsername,
     isSavingDetails,
     detailsMessage,
     detailsError,
