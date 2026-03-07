@@ -9,12 +9,11 @@ export type SupportedCurrency = (typeof SUPPORTED_CURRENCIES)[number];
 
 const SUPPORTED_CURRENCY_SET = new Set<string>(SUPPORTED_CURRENCIES);
 const CBU_RATES_URL = "https://cbu.uz/uz/arkhiv-kursov-valyut/json/";
-const CACHE_TTL_MS = 1000 * 60 * 60 * 6;
 
 let cachedRates:
   | {
-      expiresAt: number;
       values: Record<SupportedCurrency, number>;
+      fetchedAt: string;
     }
   | null = null;
 
@@ -31,10 +30,8 @@ export function normalizeCurrency(value?: string | null): SupportedCurrency {
   return "UZS";
 }
 
-export async function getLatestCurrencyRates(): Promise<Record<SupportedCurrency, number>> {
-  const now = Date.now();
-
-  if (cachedRates && cachedRates.expiresAt > now) {
+export async function getLatestCurrencyRates(options?: { forceRefresh?: boolean }): Promise<Record<SupportedCurrency, number>> {
+  if (cachedRates && !options?.forceRefresh) {
     return cachedRates.values;
   }
 
@@ -86,10 +83,18 @@ export async function getLatestCurrencyRates(): Promise<Record<SupportedCurrency
 
   cachedRates = {
     values,
-    expiresAt: now + CACHE_TTL_MS
+    fetchedAt: new Date().toISOString()
   };
 
   return values;
+}
+
+export function getCachedCurrencyRates() {
+  return cachedRates;
+}
+
+export function formatCurrencyRatesLog(rates: Record<SupportedCurrency, number>) {
+  return SUPPORTED_CURRENCIES.map((currency) => `${currency}=${rates[currency]}`).join(", ");
 }
 
 export function convertToUzs(amount: number, exchangeRate: number): number {
