@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { Loader2 } from "lucide-react";
 
 import { BrandMark } from "@/components/marketing/brand-mark";
@@ -15,6 +15,8 @@ import { DashboardResponse, tokenKey, type SupportedCurrency } from "@/component
 import { DashboardMetrics } from "./dashboard-metrics";
 import { DashboardRecents } from "./dashboard-recents";
 
+const useClientLayoutEffect = typeof window === "undefined" ? useEffect : useLayoutEffect;
+
 function convertAmount(amountInUzs: number, rate: number) {
   if (rate <= 0) {
     return 0;
@@ -24,10 +26,17 @@ function convertAmount(amountInUzs: number, rate: number) {
 }
 
 export function DashboardPage() {
-  const [data, setData] = useState<DashboardResponse | null>(() => readDashboardCache());
+  const [data, setData] = useState<DashboardResponse | null>(null);
   const [displayCurrency, setDisplayCurrency] = useState<SupportedCurrency>("UZS");
   const [error, setError] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  useClientLayoutEffect(() => {
+    const cached = readDashboardCache();
+    if (cached) {
+      setData(cached);
+    }
+  }, []);
 
   useEffect(() => {
     const token = localStorage.getItem(tokenKey);

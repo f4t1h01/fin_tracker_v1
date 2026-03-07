@@ -60,7 +60,9 @@
   - tell user when to pull on server
   - include explicit git commands with branch name based on the current repo state
   - prefer `git add .` in user-facing command examples
+  - when a Prisma schema change is part of the batch, explicitly tell the user to run the matching production migration step on the server before or during rebuild
   - include docker restart and verification commands
+  - those messages must be added as a code blocks so it is easy for the user to copy and paste it.
 
 ## Reliability requirements
 

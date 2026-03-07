@@ -8,12 +8,14 @@ const heading = Cormorant_Garamond({
   subsets: ["latin"],
   weight: ["300", "400", "600"],
   style: ["normal", "italic"],
+  preload: false,
   variable: "--font-heading"
 });
 
 const body = DM_Sans({
   subsets: ["latin"],
   weight: ["300", "400", "500"],
+  preload: false,
   variable: "--font-body"
 });
 

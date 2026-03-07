@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { FormEvent, useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
 
 import { webEnv } from "@/lib/env";
 import { persistTheme, type ThemeMode } from "@/lib/theme";
@@ -38,14 +38,16 @@ type UseProfileWorkspaceOptions = {
   routePath?: string;
 };
 
+const useClientLayoutEffect = typeof window === "undefined" ? useEffect : useLayoutEffect;
+
 export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
   const routePath = options?.routePath ?? canonicalProfilePath;
-  const [token, setToken] = useState<string | null>(() => (typeof window === "undefined" ? null : localStorage.getItem(tokenKey)));
+  const [token, setToken] = useState<string | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
-  const [isAuthenticating, setIsAuthenticating] = useState(typeof window === "undefined");
-  const [authMe, setAuthMe] = useState<AuthMeResponse | null>(() => readProfileSnapshotCache()?.auth ?? null);
+  const [isAuthenticating, setIsAuthenticating] = useState(true);
+  const [authMe, setAuthMe] = useState<AuthMeResponse | null>(null);
 
-  const [cachedSnapshot, setCachedSnapshot] = useState<ProfileSnapshotResponse | null>(() => readProfileSnapshotCache());
+  const [cachedSnapshot, setCachedSnapshot] = useState<ProfileSnapshotResponse | null>(null);
 
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
@@ -76,9 +78,9 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
   const [setupMessage, setSetupMessage] = useState<string | null>(null);
   const [setupError, setSetupError] = useState<string | null>(null);
 
-  const [profile, setProfile] = useState<ProfileResponse | null>(() => cachedSnapshot?.profile ?? null);
-  const [summary, setSummary] = useState<MonthlySummary | null>(() => cachedSnapshot?.summary ?? null);
-  const [recent, setRecent] = useState<RecentTransaction[]>(() => cachedSnapshot?.recent ?? []);
+  const [profile, setProfile] = useState<ProfileResponse | null>(null);
+  const [summary, setSummary] = useState<MonthlySummary | null>(null);
+  const [recent, setRecent] = useState<RecentTransaction[]>([]);
   const [isLoadingData, setIsLoadingData] = useState(false);
 
   const [bindCode, setBindCode] = useState("");
@@ -164,6 +166,27 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
     [applySnapshot, clearSession, today]
   );
 
+  useClientLayoutEffect(() => {
+    const existing = localStorage.getItem(tokenKey);
+    const snapshot = readProfileSnapshotCache();
+    const telegramWebApp = window.Telegram?.WebApp;
+    const initData = telegramWebApp?.initData?.trim();
+    const params = new URLSearchParams(window.location.search);
+    const hasTelegramQuery = Boolean(params.get("telegramId") && params.get("timestamp") && params.get("signature"));
+
+    if (snapshot) {
+      applySnapshot(snapshot);
+    }
+
+    if (existing) {
+      setToken(existing);
+    }
+
+    if (!initData && !hasTelegramQuery) {
+      setIsAuthenticating(false);
+    }
+  }, [applySnapshot]);
+
   useEffect(() => {
     const bootstrap = async () => {
       ensureCanonicalProfileUrl(routePath);
@@ -229,14 +252,6 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
         return;
       }
 
-      const existing = localStorage.getItem(tokenKey);
-      if (existing) {
-        setToken(existing);
-        const snapshot = readProfileSnapshotCache();
-        if (snapshot) {
-          applySnapshot(snapshot);
-        }
-      }
       setIsAuthenticating(false);
     };
 

@@ -10,9 +10,29 @@ import { UpdateProfileTransactionDto } from "./dto/update-profile-transaction.dt
 
 @Injectable()
 export class ProfileService {
+  private birthdayColumnExists: boolean | null = null;
+
   constructor(private readonly prisma: PrismaService) {}
 
+  private async hasBirthdayColumn() {
+    if (this.birthdayColumnExists !== null) {
+      return this.birthdayColumnExists;
+    }
+
+    const result = await this.prisma.client.$queryRawUnsafe<Array<{ exists: boolean }>>(
+      `SELECT EXISTS (
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_name = 'User' AND column_name = 'birthday'
+      ) AS "exists"`
+    );
+
+    this.birthdayColumnExists = Boolean(result[0]?.exists);
+    return this.birthdayColumnExists;
+  }
+
   private async getAuthState(userId: string) {
+    const hasBirthdayColumn = await this.hasBirthdayColumn();
     const user = await this.prisma.client.user.findUnique({
       where: { id: userId },
       select: {
@@ -26,7 +46,7 @@ export class ProfileService {
         username: true,
         firstName: true,
         lastName: true,
-        birthday: true,
+        ...(hasBirthdayColumn ? { birthday: true } : {}),
         isAdmin: true,
         isDark: true
       }
@@ -47,7 +67,7 @@ export class ProfileService {
       username: user.username,
       firstName: user.firstName,
       lastName: user.lastName,
-      birthday: user.birthday,
+      birthday: hasBirthdayColumn ? ((user as { birthday?: Date | null }).birthday ?? null) : null,
       isAdmin: user.isAdmin,
       isDark: user.isDark
     };
@@ -153,6 +173,7 @@ export class ProfileService {
   }
 
   async getProfile(userId: string) {
+    const hasBirthdayColumn = await this.hasBirthdayColumn();
     const user = await this.prisma.client.user.findUnique({
       where: { id: userId },
       select: {
@@ -161,7 +182,7 @@ export class ProfileService {
         firstName: true,
         lastName: true,
         username: true,
-        birthday: true,
+        ...(hasBirthdayColumn ? { birthday: true } : {}),
         coupleCode: true,
         coupleBind: {
           select: {
@@ -189,7 +210,7 @@ export class ProfileService {
           username: user.username,
           firstName: user.firstName,
           lastName: user.lastName,
-          birthday: user.birthday,
+          birthday: hasBirthdayColumn ? ((user as { birthday?: Date | null }).birthday ?? null) : null,
           coupleCode
         },
         activeCouple: null,
@@ -217,7 +238,7 @@ export class ProfileService {
         username: user.username,
         firstName: user.firstName,
         lastName: user.lastName,
-        birthday: user.birthday,
+        birthday: hasBirthdayColumn ? ((user as { birthday?: Date | null }).birthday ?? null) : null,
         coupleCode
       },
       activeCouple: activeCouple
@@ -232,6 +253,7 @@ export class ProfileService {
   }
 
   async updateDetails(userId: string, dto: UpdateProfileDetailsDto) {
+    const hasBirthdayColumn = await this.hasBirthdayColumn();
     const existing = await this.prisma.client.user.findUnique({
       where: { id: userId },
       select: { id: true }
@@ -246,8 +268,12 @@ export class ProfileService {
       data: {
         firstName: dto.firstName?.trim() || null,
         lastName: dto.lastName?.trim() || null,
-        birthday:
-          dto.birthday === undefined ? undefined : dto.birthday ? new Date(`${dto.birthday}T00:00:00.000Z`) : null
+        ...(hasBirthdayColumn
+          ? {
+              birthday:
+                dto.birthday === undefined ? undefined : dto.birthday ? new Date(`${dto.birthday}T00:00:00.000Z`) : null
+            }
+          : {})
       },
       select: {
         id: true,
@@ -255,7 +281,7 @@ export class ProfileService {
         firstName: true,
         lastName: true,
         username: true,
-        birthday: true,
+        ...(hasBirthdayColumn ? { birthday: true } : {}),
         coupleCode: true,
         lastTelegramChatId: true,
         email: true,
