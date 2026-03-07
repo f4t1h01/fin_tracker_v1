@@ -33,7 +33,12 @@ declare global {
   }
 }
 
-export function useProfileWorkspace() {
+type UseProfileWorkspaceOptions = {
+  routePath?: string;
+};
+
+export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
+  const routePath = options?.routePath ?? canonicalProfilePath;
   const [token, setToken] = useState<string | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
   const [isAuthenticating, setIsAuthenticating] = useState(true);
@@ -102,9 +107,9 @@ export function useProfileWorkspace() {
     setRecent([]);
   }, []);
 
-  const ensureCanonicalProfileUrl = useCallback(() => {
-    if (window.location.pathname !== canonicalProfilePath) {
-      window.history.replaceState({}, "", canonicalProfilePath);
+  const ensureCanonicalProfileUrl = useCallback((targetPath = canonicalProfilePath) => {
+    if (window.location.pathname !== targetPath) {
+      window.history.replaceState({}, "", targetPath);
     }
   }, []);
 
@@ -146,7 +151,7 @@ export function useProfileWorkspace() {
 
   useEffect(() => {
     const bootstrap = async () => {
-      ensureCanonicalProfileUrl();
+      ensureCanonicalProfileUrl(routePath);
 
       const telegramWebApp = window.Telegram?.WebApp;
       const initData = telegramWebApp?.initData?.trim();
@@ -217,7 +222,7 @@ export function useProfileWorkspace() {
     };
 
     void bootstrap();
-  }, [ensureCanonicalProfileUrl]);
+  }, [ensureCanonicalProfileUrl, routePath]);
 
   useEffect(() => {
     if (!token) {

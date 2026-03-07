@@ -11,7 +11,7 @@ import { ProfileLoadingState } from "./profile-loading-state";
 import { useProfileWorkspace } from "./use-profile-workspace";
 
 export function ProfileManagementPage() {
-  const workspace = useProfileWorkspace();
+  const workspace = useProfileWorkspace({ routePath: "/profile/me/manage" });
 
   useEffect(() => {
     if (!workspace.isAuthenticating && (!workspace.token || !workspace.profile || !workspace.authMe)) {

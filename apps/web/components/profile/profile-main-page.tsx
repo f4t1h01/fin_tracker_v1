@@ -12,7 +12,7 @@ import { TransactionEntry } from "./transaction-entry";
 import { useProfileWorkspace } from "./use-profile-workspace";
 
 export function ProfileMainPage() {
-  const workspace = useProfileWorkspace();
+  const workspace = useProfileWorkspace({ routePath: "/profile/me" });
 
   if (workspace.isAuthenticating) {
     return <ProfileLoadingState title="Preparing your profile" description="Checking saved access and loading your workspace..." />;
