@@ -10,6 +10,7 @@ type BoundAccountsCardProps = {
   telegramId: string;
   workspaceCode: string;
   onTelegramLinked: () => Promise<void>;
+  onLinkCurrentTelegramContext: () => Promise<boolean>;
 };
 
 export function BoundAccountsCard(props: BoundAccountsCardProps) {
@@ -31,7 +32,10 @@ export function BoundAccountsCard(props: BoundAccountsCardProps) {
         </div>
         {!props.lastTelegramChatId ? (
           <div className="space-y-3">
-            <p className="body-muted text-sm">If Telegram is not linked yet, use the official Telegram sign-in below while you are already signed into this website account.</p>
+            <p className="body-muted text-sm">If you opened this page from Telegram, link that current Telegram session first. Otherwise use the official Telegram sign-in below while staying signed into this website account.</p>
+            <Button type="button" variant="outline" onClick={() => void props.onLinkCurrentTelegramContext()}>
+              Link current Telegram session
+            </Button>
             <TelegramLogin onSuccess={props.onTelegramLinked} />
           </div>
         ) : null}

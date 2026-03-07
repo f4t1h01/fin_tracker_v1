@@ -1,8 +1,9 @@
-import { Pencil, Trash2, WalletCards, X } from "lucide-react";
+import { Pencil, WalletCards, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
+import { RecentTransactionRow } from "./recent-transaction-row";
 import { type EditableTransaction, type RecentTransaction, supportedCurrencies, type SupportedCurrency } from "./types";
 
 type RecentTransactionsProps = {
@@ -23,36 +24,20 @@ export function RecentTransactions(props: RecentTransactionsProps) {
       <section className="mt-6">
         <Card className="panel-soft">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2"><WalletCards className="size-5 text-pop" />Recent activity</CardTitle>
+            <div className="flex items-center justify-between gap-3">
+              <CardTitle className="flex items-center gap-2"><WalletCards className="size-5 text-pop" />Recent activity</CardTitle>
+              {props.isLoadingData && props.recent.length > 0 ? <span className="body-muted text-xs uppercase tracking-[0.16em]">Refreshing</span> : null}
+            </div>
             <CardDescription>Latest 20 transactions from your active workspace.</CardDescription>
           </CardHeader>
           <CardContent>
-            {props.isLoadingData ? (
+            {props.isLoadingData && props.recent.length === 0 ? (
               <p className="body-muted text-sm">Refreshing...</p>
             ) : props.recent.length === 0 ? (
               <p className="body-muted text-sm">No transactions yet.</p>
             ) : (
               <div className="space-y-2">
-                {props.recent.map((item) => {
-                  const amountNumber = Number(item.amount);
-                  const amountClass = item.kind === "INCOME" ? "text-emerald-700 dark:text-emerald-200" : "text-rose-700 dark:text-rose-200";
-                  const actor = item.user.firstName ?? item.user.username ?? "Member";
-                  return (
-                    <div key={item.id} className="detail-box px-3 py-3 text-sm">
-                      <div>
-                        <div className="flex items-center justify-between gap-3">
-                          <p className="font-medium">{item.category.name}</p>
-                          <p className={`font-semibold ${amountClass}`}>{item.kind === "INCOME" ? "+" : "-"}{amountNumber.toLocaleString()} {item.currency}</p>
-                        </div>
-                        <p className="body-muted text-xs">{actor} - {item.note ?? "No note"} - {new Date(item.happenedAt).toLocaleString()}</p>
-                      </div>
-                      <div className="mt-3 flex items-center gap-2">
-                        <Button type="button" size="sm" variant="outline" onClick={() => props.onStartEditing(item)}><Pencil className="size-3.5" />Edit</Button>
-                        <Button type="button" size="sm" variant="ghost" disabled={props.isDeletingId === item.id} onClick={() => void props.onDeleteTransaction(item.id)}><Trash2 className="size-3.5" />{props.isDeletingId === item.id ? "Deleting..." : "Delete"}</Button>
-                      </div>
-                    </div>
-                  );
-                })}
+                {props.recent.map((item) => <RecentTransactionRow key={item.id} item={item} isDeleting={props.isDeletingId === item.id} onStartEditing={props.onStartEditing} onDeleteTransaction={props.onDeleteTransaction} />)}
               </div>
             )}
           </CardContent>

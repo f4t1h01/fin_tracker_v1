@@ -8,6 +8,7 @@ import { persistTheme, type ThemeMode } from "@/lib/theme";
 import { parseApiResponse } from "./api";
 import { clearDashboardCache, clearProfileSnapshotCache, readProfileSnapshotCache, writeProfileSnapshotCache } from "./cache";
 import { getTashkentGreeting } from "./greeting";
+import { clearPendingTelegramContext, detectTelegramContextFromWindow, readPendingTelegramContext, writePendingTelegramContext, type PendingTelegramContext } from "./telegram-context";
 import {
   authSourceKey,
   canonicalProfilePath,
@@ -123,6 +124,7 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
     localStorage.removeItem(authSourceKey);
     clearProfileSnapshotCache();
     clearDashboardCache();
+    clearPendingTelegramContext();
     setToken(null);
     setAuthMe(null);
     setProfile(null);
@@ -166,13 +168,56 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
     [applySnapshot, clearSession, today]
   );
 
+  const authenticateTelegramContext = useCallback(
+    async (context: PendingTelegramContext, authToken?: string) => {
+      const response = await fetch(
+        `${webEnv.apiUrl}/${context.kind === "telegram-webapp" ? "auth/telegram-webapp" : "auth/bot-webapp"}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(authToken ? { Authorization: `Bearer ${authToken}` } : {})
+          },
+          body:
+            context.kind === "telegram-webapp"
+              ? JSON.stringify({ initData: context.initData })
+              : JSON.stringify({
+                  telegramId: context.telegramId,
+                  chatId: context.chatId,
+                  timestamp: context.timestamp,
+                  signature: context.signature
+                })
+        }
+      );
+
+      const payload = await parseApiResponse<{ accessToken: string }>(response);
+      clearPendingTelegramContext();
+      return payload.accessToken;
+    },
+    []
+  );
+
+  const attachPendingTelegramContext = useCallback(
+    async (authToken: string) => {
+      const pending = readPendingTelegramContext() ?? detectTelegramContextFromWindow();
+      if (!pending) {
+        return authToken;
+      }
+
+      try {
+        return await authenticateTelegramContext(pending, authToken);
+      } catch (error) {
+        setAuthError(error instanceof Error ? error.message : "Could not link Telegram to this account");
+        return authToken;
+      }
+    },
+    [authenticateTelegramContext]
+  );
+
   useClientLayoutEffect(() => {
     const existing = localStorage.getItem(tokenKey);
     const snapshot = readProfileSnapshotCache();
-    const telegramWebApp = window.Telegram?.WebApp;
-    const initData = telegramWebApp?.initData?.trim();
-    const params = new URLSearchParams(window.location.search);
-    const hasTelegramQuery = Boolean(params.get("telegramId") && params.get("timestamp") && params.get("signature"));
+    const telegramContext = detectTelegramContextFromWindow();
 
     if (snapshot) {
       applySnapshot(snapshot);
@@ -182,7 +227,11 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
       setToken(existing);
     }
 
-    if (!initData && !hasTelegramQuery) {
+    if (telegramContext) {
+      writePendingTelegramContext(telegramContext);
+    }
+
+    if (!telegramContext) {
       setIsAuthenticating(false);
     }
   }, [applySnapshot]);
@@ -191,27 +240,19 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
     const bootstrap = async () => {
       ensureCanonicalProfileUrl(routePath);
 
-      const telegramWebApp = window.Telegram?.WebApp;
-      const initData = telegramWebApp?.initData?.trim();
+      const telegramContext = detectTelegramContextFromWindow();
 
-      if (initData) {
+      if (telegramContext?.kind === "telegram-webapp") {
         try {
+          const telegramWebApp = window.Telegram?.WebApp;
           telegramWebApp?.ready?.();
           telegramWebApp?.expand?.();
+          writePendingTelegramContext(telegramContext);
           const existingToken = localStorage.getItem(tokenKey);
-          const response = await fetch(`${webEnv.apiUrl}/auth/telegram-webapp`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              ...(existingToken ? { Authorization: `Bearer ${existingToken}` } : {})
-            },
-            body: JSON.stringify({ initData })
-          });
-
-          const payload = await parseApiResponse<{ accessToken: string }>(response);
-          localStorage.setItem(tokenKey, payload.accessToken);
+          const accessToken = await authenticateTelegramContext(telegramContext, existingToken ?? undefined);
+          localStorage.setItem(tokenKey, accessToken);
           localStorage.setItem(authSourceKey, "telegram");
-          setToken(payload.accessToken);
+          setToken(accessToken);
         } catch (error) {
           setAuthError(error instanceof Error ? error.message : "Could not sign in from Telegram WebApp");
         } finally {
@@ -221,28 +262,14 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
         return;
       }
 
-      const params = new URLSearchParams(window.location.search);
-      const telegramId = params.get("telegramId");
-      const chatId = params.get("chatId");
-      const timestamp = params.get("timestamp");
-      const signature = params.get("signature");
-
-      if (telegramId && timestamp && signature) {
+      if (telegramContext?.kind === "bot-webapp") {
         try {
+          writePendingTelegramContext(telegramContext);
           const existingToken = localStorage.getItem(tokenKey);
-          const response = await fetch(`${webEnv.apiUrl}/auth/bot-webapp`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              ...(existingToken ? { Authorization: `Bearer ${existingToken}` } : {})
-            },
-            body: JSON.stringify({ telegramId, chatId, timestamp: Number(timestamp), signature })
-          });
-
-          const payload = await parseApiResponse<{ accessToken: string }>(response);
-          localStorage.setItem(tokenKey, payload.accessToken);
+          const accessToken = await authenticateTelegramContext(telegramContext, existingToken ?? undefined);
+          localStorage.setItem(tokenKey, accessToken);
           localStorage.setItem(authSourceKey, "telegram");
-          setToken(payload.accessToken);
+          setToken(accessToken);
         } catch (error) {
           setAuthError(error instanceof Error ? error.message : "Could not sign in from Telegram");
         } finally {
@@ -256,7 +283,7 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
     };
 
     void bootstrap();
-  }, [applySnapshot, ensureCanonicalProfileUrl, routePath]);
+  }, [authenticateTelegramContext, ensureCanonicalProfileUrl, routePath]);
 
   useEffect(() => {
     if (!token) {
@@ -329,9 +356,10 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
       });
 
       const payload = await parseApiResponse<{ accessToken: string }>(response);
-      localStorage.setItem(tokenKey, payload.accessToken);
+      const accessToken = await attachPendingTelegramContext(payload.accessToken);
+      localStorage.setItem(tokenKey, accessToken);
       localStorage.setItem(authSourceKey, "website");
-      setToken(payload.accessToken);
+      setToken(accessToken);
       setLoginMessage("Signed in successfully.");
       setLoginPassword("");
       ensureCanonicalProfileUrl();
@@ -373,9 +401,10 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
       });
 
       const payload = await parseApiResponse<{ accessToken: string }>(response);
-      localStorage.setItem(tokenKey, payload.accessToken);
+      const accessToken = await attachPendingTelegramContext(payload.accessToken);
+      localStorage.setItem(tokenKey, accessToken);
       localStorage.setItem(authSourceKey, "website");
-      setToken(payload.accessToken);
+      setToken(accessToken);
       setCreateAccountMessage("Account created successfully.");
       setCreateFirstName("");
       setCreateEmail("");
@@ -502,12 +531,13 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
       });
 
       const payload = await parseApiResponse<{ accessToken: string }>(response);
-      localStorage.setItem(tokenKey, payload.accessToken);
-      setToken(payload.accessToken);
+      const accessToken = await attachPendingTelegramContext(payload.accessToken);
+      localStorage.setItem(tokenKey, accessToken);
+      setToken(accessToken);
       setSetupPassword("");
       setSetupConfirmPassword("");
       setSetupMessage("Email login is ready. You can now sign in from browser.");
-      await fetchSnapshot(payload.accessToken);
+      await fetchSnapshot(accessToken);
     } catch (error) {
       setSetupError(error instanceof Error ? error.message : "Could not setup web credentials");
     } finally {
@@ -599,6 +629,29 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
     await fetchSnapshot(token);
   }, [fetchSnapshot, token]);
 
+  const linkTelegramFromCurrentContext = useCallback(async () => {
+    if (!token) {
+      return false;
+    }
+
+    const pending = readPendingTelegramContext() ?? detectTelegramContextFromWindow();
+    if (!pending) {
+      setAuthError("No live Telegram session was detected on this page. Open the app from Telegram or use the Telegram sign-in widget below.");
+      return false;
+    }
+
+    try {
+      const accessToken = await authenticateTelegramContext(pending, token);
+      localStorage.setItem(tokenKey, accessToken);
+      setToken(accessToken);
+      await fetchSnapshot(accessToken);
+      return true;
+    } catch (error) {
+      setAuthError(error instanceof Error ? error.message : "Could not link current Telegram session");
+      return false;
+    }
+  }, [authenticateTelegramContext, fetchSnapshot, token]);
+
   return {
     token,
     authError,
@@ -680,6 +733,7 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
     onDeleteTransaction,
     startEditing,
     refreshSnapshot,
+    linkTelegramFromCurrentContext,
     onThemeChange,
     clearSession
   };
