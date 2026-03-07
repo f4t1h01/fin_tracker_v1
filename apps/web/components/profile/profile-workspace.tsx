@@ -115,11 +115,30 @@ async function parseApiResponse<T>(response: Response): Promise<T> {
   throw new Error(errorMessage);
 }
 
+declare global {
+  interface Window {
+    Telegram?: {
+      WebApp?: {
+        initData?: string;
+        initDataUnsafe?: {
+          user?: {
+            first_name?: string;
+            username?: string;
+          };
+        };
+        ready?: () => void;
+        expand?: () => void;
+      };
+    };
+  }
+}
+
 export function ProfileWorkspace() {
   const [token, setToken] = useState<string | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
   const [isAuthenticating, setIsAuthenticating] = useState(true);
   const [authMe, setAuthMe] = useState<AuthMeResponse | null>(null);
+  const [isTelegramWebAppContext, setIsTelegramWebAppContext] = useState(false);
 
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
@@ -220,6 +239,38 @@ export function ProfileWorkspace() {
     const bootstrap = async () => {
       ensureCanonicalProfileUrl();
 
+      const telegramWebApp = window.Telegram?.WebApp;
+      const initData = telegramWebApp?.initData?.trim();
+
+      if (initData) {
+        try {
+          telegramWebApp?.ready?.();
+          telegramWebApp?.expand?.();
+          const existingToken = localStorage.getItem(tokenKey);
+          const response = await fetch(`${webEnv.apiUrl}/auth/telegram-webapp`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              ...(existingToken ? { Authorization: `Bearer ${existingToken}` } : {})
+            },
+            body: JSON.stringify({ initData })
+          });
+
+          const payload = await parseApiResponse<{ accessToken: string }>(response);
+          localStorage.setItem(tokenKey, payload.accessToken);
+          setToken(payload.accessToken);
+          setAuthError(null);
+          setIsTelegramWebAppContext(true);
+          ensureCanonicalProfileUrl();
+        } catch (error) {
+          setAuthError(error instanceof Error ? error.message : "Could not sign in from Telegram WebApp");
+        } finally {
+          setIsAuthenticating(false);
+        }
+
+        return;
+      }
+
       const params = new URLSearchParams(window.location.search);
       const telegramId = params.get("telegramId");
       const chatId = params.get("chatId");
@@ -251,6 +302,7 @@ export function ProfileWorkspace() {
         localStorage.setItem(tokenKey, payload.accessToken);
         setToken(payload.accessToken);
         setAuthError(null);
+        setIsTelegramWebAppContext(true);
         ensureCanonicalProfileUrl();
       } catch (error) {
         setAuthError(error instanceof Error ? error.message : "Could not sign in from Telegram");
@@ -548,7 +600,14 @@ export function ProfileWorkspace() {
     }
   };
 
-  const displayName = useMemo(() => "It is better to use WebApp inside Telegram.", []);
+  const displayName = useMemo(() => {
+    if (isTelegramWebAppContext) {
+      const name = authMe?.firstName ?? authMe?.username;
+      return name ? `Good day ${name}` : "Good day";
+    }
+
+    return "It is better to use WebApp inside Telegram.";
+  }, [authMe?.firstName, authMe?.username, isTelegramWebAppContext]);
 
   if (isAuthenticating) {
     return (

@@ -7,6 +7,7 @@ import { PasswordLoginDto } from "./dto/password-login.dto";
 import { PasswordRegisterDto } from "./dto/password-register.dto";
 import { PasswordSetupDto } from "./dto/password-setup.dto";
 import { TelegramLoginDto } from "./dto/telegram-login.dto";
+import { TelegramWebAppLoginDto } from "./dto/telegram-webapp-login.dto";
 import { UpdateThemePreferenceDto } from "./dto/update-theme-preference.dto";
 import { JwtAuthGuard } from "./jwt-auth.guard";
 
@@ -17,6 +18,11 @@ export class AuthController {
   @Post("telegram")
   loginWithTelegram(@Body() payload: TelegramLoginDto, @Headers("authorization") authorizationHeader?: string) {
     return this.authService.loginWithTelegram(payload, authorizationHeader);
+  }
+
+  @Post("telegram-webapp")
+  loginFromTelegramWebApp(@Body() payload: TelegramWebAppLoginDto, @Headers("authorization") authorizationHeader?: string) {
+    return this.authService.loginFromTelegramWebApp(payload.initData, authorizationHeader);
   }
 
   @Post("bot-webapp")

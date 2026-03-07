@@ -183,6 +183,61 @@ export class AuthService {
     return timingSafeEqual(digest, incomingHash);
   }
 
+  private parseTelegramWebAppInitData(initData: string) {
+    const params = new URLSearchParams(initData);
+    const hash = params.get("hash");
+    const authDate = params.get("auth_date");
+    const userRaw = params.get("user");
+    const receiverRaw = params.get("receiver");
+    const chatRaw = params.get("chat");
+
+    if (!hash || !authDate || !userRaw) {
+      throw new UnauthorizedException("Telegram WebApp payload is incomplete");
+    }
+
+    const entries = [...params.entries()]
+      .filter(([key]) => key !== "hash")
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([key, value]) => `${key}=${value}`)
+      .join("\n");
+
+    const env = parseApiEnv(process.env);
+    const secret = createHmac("sha256", "WebAppData").update(env.TELEGRAM_BOT_TOKEN).digest();
+    const digest = createHmac("sha256", secret).update(entries).digest();
+    const incomingHash = Buffer.from(hash, "hex");
+
+    if (incomingHash.length !== digest.length || !timingSafeEqual(digest, incomingHash)) {
+      throw new UnauthorizedException("Telegram WebApp payload is invalid");
+    }
+
+    const authTimestamp = Number(authDate);
+    const now = Math.floor(Date.now() / 1000);
+    if (!Number.isFinite(authTimestamp) || Math.abs(now - authTimestamp) > 600) {
+      throw new UnauthorizedException("Telegram WebApp payload expired");
+    }
+
+    const user = JSON.parse(userRaw) as {
+      id: number;
+      first_name?: string;
+      last_name?: string;
+      username?: string;
+      photo_url?: string;
+    };
+    const receiver = receiverRaw ? (JSON.parse(receiverRaw) as { id?: number }) : null;
+    const chat = chatRaw ? (JSON.parse(chatRaw) as { id?: number }) : null;
+
+    const chatId = chat?.id ?? receiver?.id ?? user.id;
+
+    return {
+      telegramId: BigInt(user.id),
+      chatId: BigInt(chatId),
+      username: user.username ?? null,
+      firstName: user.first_name ?? null,
+      lastName: user.last_name ?? null,
+      photoUrl: user.photo_url ?? null
+    };
+  }
+
   private verifyBotWebAppSignature(payload: BotWebAppLoginDto): boolean {
     const env = parseApiEnv(process.env);
     const now = Math.floor(Date.now() / 1000);
@@ -413,6 +468,81 @@ export class AuthService {
         coupleCode,
         email: user.email,
         hasPassword: Boolean(user.passwordHash)
+    });
+  }
+
+  async loginFromTelegramWebApp(initData: string, authorizationHeader?: string) {
+    const parsed = this.parseTelegramWebAppInitData(initData);
+    const authorizedUserId = this.resolveAuthorizedUserId(authorizationHeader);
+
+    if (authorizedUserId) {
+      const existingByTelegramId = await this.prisma.client.user.findUnique({
+        where: { telegramId: parsed.telegramId },
+        select: { id: true }
+      });
+
+      if (existingByTelegramId && existingByTelegramId.id !== authorizedUserId) {
+        throw new ConflictException("This Telegram account is already linked to another user");
+      }
+
+      const linkedUser = await this.prisma.client.user.update({
+        where: { id: authorizedUserId },
+        data: {
+          telegramId: parsed.telegramId,
+          lastTelegramChatId: parsed.chatId,
+          username: parsed.username,
+          firstName: parsed.firstName,
+          lastName: parsed.lastName,
+          photoUrl: parsed.photoUrl
+        }
+      });
+
+      const linkedCoupleCode = await this.ensureUserCoupleCode(linkedUser.id);
+      return this.buildAuthPayload({
+        id: linkedUser.id,
+        telegramId: linkedUser.telegramId,
+        username: linkedUser.username,
+        firstName: linkedUser.firstName,
+        lastName: linkedUser.lastName,
+        isAdmin: linkedUser.isAdmin,
+        isDark: linkedUser.isDark,
+        coupleCode: linkedCoupleCode,
+        email: linkedUser.email,
+        hasPassword: Boolean(linkedUser.passwordHash)
+      });
+    }
+
+    const user = await this.prisma.client.user.upsert({
+      where: { telegramId: parsed.telegramId },
+      create: {
+        telegramId: parsed.telegramId,
+        lastTelegramChatId: parsed.chatId,
+        username: parsed.username,
+        firstName: parsed.firstName,
+        lastName: parsed.lastName,
+        photoUrl: parsed.photoUrl
+      },
+      update: {
+        lastTelegramChatId: parsed.chatId,
+        username: parsed.username,
+        firstName: parsed.firstName,
+        lastName: parsed.lastName,
+        photoUrl: parsed.photoUrl
+      }
+    });
+
+    const coupleCode = await this.ensureUserCoupleCode(user.id);
+    return this.buildAuthPayload({
+      id: user.id,
+      telegramId: user.telegramId,
+      username: user.username,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      isAdmin: user.isAdmin,
+      isDark: user.isDark,
+      coupleCode,
+      email: user.email,
+      hasPassword: Boolean(user.passwordHash)
     });
   }
 
