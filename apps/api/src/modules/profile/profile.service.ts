@@ -254,6 +254,11 @@ export class ProfileService {
 
   async updateDetails(userId: string, dto: UpdateProfileDetailsDto) {
     const hasBirthdayColumn = await this.hasBirthdayColumn();
+
+    if (!hasBirthdayColumn && dto.birthday !== undefined) {
+      throw new BadRequestException("Birthday is not available yet on this deployment. Run the latest database migration first.");
+    }
+
     const existing = await this.prisma.client.user.findUnique({
       where: { id: userId },
       select: { id: true }

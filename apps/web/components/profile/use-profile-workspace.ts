@@ -591,6 +591,13 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
 
   const greeting = useMemo(() => getTashkentGreeting(authMe?.firstName ?? authMe?.username), [authMe?.firstName, authMe?.username]);
   const telegramUsername = authMe?.username ? `@${authMe.username}` : "Not linked yet";
+  const refreshSnapshot = useCallback(async () => {
+    if (!token) {
+      return;
+    }
+
+    await fetchSnapshot(token);
+  }, [fetchSnapshot, token]);
 
   return {
     token,
@@ -672,6 +679,7 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
     onSaveEdit,
     onDeleteTransaction,
     startEditing,
+    refreshSnapshot,
     onThemeChange,
     clearSession
   };

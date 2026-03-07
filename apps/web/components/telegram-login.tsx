@@ -2,8 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 
-import { Button } from "@/components/ui/button";
 import { webEnv } from "@/lib/env";
+import { tokenKey } from "@/components/profile/types";
 
 type TelegramUser = {
   id: number;
@@ -39,10 +39,12 @@ export function TelegramLogin({ onSuccess }: TelegramLoginProps) {
       setStatus("loading");
       setErrorMessage(null);
       try {
+        const token = localStorage.getItem(tokenKey);
         const response = await fetch(`${webEnv.apiUrl}/auth/telegram`, {
           method: "POST",
           headers: {
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {})
           },
           body: JSON.stringify(user)
         });
@@ -61,7 +63,7 @@ export function TelegramLogin({ onSuccess }: TelegramLoginProps) {
         }
 
         const data = (await response.json()) as { accessToken: string };
-        localStorage.setItem("cf_token", data.accessToken);
+        localStorage.setItem(tokenKey, data.accessToken);
         setStatus("done");
         onSuccess?.();
       } catch (error) {
@@ -103,7 +105,7 @@ export function TelegramLogin({ onSuccess }: TelegramLoginProps) {
       <p className="body-muted text-sm">
         {status === "idle" && "Login using your Telegram account."}
         {status === "loading" && "Verifying Telegram account..."}
-        {status === "done" && "Done. Redirecting to your profile..."}
+        {status === "done" && "Telegram account linked successfully."}
         {status === "error" && (errorMessage ?? "Failed to authenticate. Please try again.")}
       </p>
     </div>
