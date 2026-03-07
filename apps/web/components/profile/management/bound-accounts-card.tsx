@@ -1,4 +1,3 @@
-import { TelegramLogin } from "@/components/telegram-login";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -17,6 +16,7 @@ type BoundAccountsCardProps = {
 export function BoundAccountsCard(props: BoundAccountsCardProps) {
   const hasRealTelegramUser = !props.telegramId.startsWith("-");
   const isTelegramLinked = hasRealTelegramUser || Boolean(props.lastTelegramChatId) || props.telegramUsername !== "Not linked yet";
+  const actionLabel = isTelegramLinked ? "Open Telegram WebApp" : "Connect this account in Telegram";
 
   return (
     <Card className="panel-soft">
@@ -35,18 +35,9 @@ export function BoundAccountsCard(props: BoundAccountsCardProps) {
           <p>Workspace code: {props.workspaceCode}</p>
         </div>
         {!isTelegramLinked ? (
-          <div className="space-y-3">
-            <p className="body-muted text-sm">Telegram mini apps and your normal browser do not share session storage. Use the connect link below to bind this exact website account inside Telegram, or use the widget if you are already in the same browser session.</p>
-            <Button variant="outline" asChild>
-              <a href={props.telegramConnectUrl} target="_blank" rel="noreferrer">Connect this account in Telegram</a>
-            </Button>
-            <Button type="button" variant="outline" onClick={() => void props.onLinkCurrentTelegramContext()}>
-              Link current Telegram session
-            </Button>
-            <TelegramLogin onSuccess={props.onTelegramLinked} />
-          </div>
+          <p className="body-muted text-sm">Telegram mini apps and your normal browser do not share session storage. Use the button below to open Telegram with a signed link for this exact website account.</p>
         ) : null}
-        <Button variant="outline" asChild><a href={props.telegramConnectUrl} target="_blank" rel="noreferrer">Open Telegram WebApp</a></Button>
+        <Button variant="outline" asChild><a href={props.telegramConnectUrl} target="_blank" rel="noreferrer">{actionLabel}</a></Button>
       </CardContent>
     </Card>
   );
