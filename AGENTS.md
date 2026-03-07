@@ -14,6 +14,29 @@
 - Production domain is `cupfin.shaxin.uz`.
 - Telegram bot link: `https://t.me/coup_fin_trackerbot`.
 
+## GitHub and git workflow
+
+- GitHub repo: `https://github.com/f4t1h01/fin_tracker_v1`
+- GitHub slug: `f4t1h01/fin_tracker_v1`
+- Git remote: `origin`
+- Default branch: `main`
+- Current local branch at last check: `main`
+- Before giving push/pull instructions, re-check current branch and tracking info so commands match the real branch state.
+- When telling the user how to stage changes, always prefer `git add .` because the repo `.gitignore` is already configured for the user's workflow.
+- When telling the user how to push from local, include the branch explicitly, usually `git push origin main` when the current branch is `main`.
+- When telling the user how to pull on the Ubuntu server, include the matching branch explicitly, usually `git pull origin main` when deploys track `main`.
+- User prefers deploy instructions in this exact compact shape:
+  - `Deploy this fix:`
+  - `git add .`
+  - `git commit -m "..."`
+  - `git push origin HEAD`
+  - `Server:`
+  - `git pull`
+  - `docker compose up -d --build`
+  - `docker compose restart nginx`
+  - `docker compose logs web nginx --since=10m`
+  - `curl http://127.0.0.1:71/api/health`
+
 ## Planning workflow
 
 - Use `version#1.md` as the active execution tracker.
@@ -35,6 +58,8 @@
   - run checks
   - tell user when to push
   - tell user when to pull on server
+  - include explicit git commands with branch name based on the current repo state
+  - prefer `git add .` in user-facing command examples
   - include docker restart and verification commands
 
 ## Reliability requirements
