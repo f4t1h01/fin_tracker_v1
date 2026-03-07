@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 
+import { convertFromUzs, convertToUzs, getLatestCurrencyRates, normalizeCurrency, SUPPORTED_CURRENCIES } from "../common/currency";
 import { generateCoupleCodeCandidate, normalizeCoupleCode } from "../common/couple-code";
 import { PrismaService } from "../prisma/prisma.service";
 import { BindCoupleDto } from "./dto/bind-couple.dto";
@@ -232,6 +233,23 @@ export class ProfileService {
     };
   }
 
+  async dashboard(userId: string, month?: number, year?: number) {
+    const [profile, summary, recent, rates] = await Promise.all([
+      this.getProfile(userId),
+      this.summary(userId, month, year, "UZS"),
+      this.recentTransactions(userId),
+      getLatestCurrencyRates()
+    ]);
+
+    return {
+      profile,
+      summary,
+      recent,
+      rates,
+      supportedCurrencies: [...SUPPORTED_CURRENCIES]
+    };
+  }
+
   async bindByCode(userId: string, dto: BindCoupleDto) {
     const enteredCode = normalizeCoupleCode(dto.code);
     const ownCode = await this.ensureUserCoupleCode(userId);
@@ -367,6 +385,10 @@ export class ProfileService {
     await this.assertMembership(userId, coupleId);
 
     const categoryName = dto.categoryName.trim();
+    const currency = normalizeCurrency(dto.currency);
+    const rates = await getLatestCurrencyRates();
+    const exchangeRate = rates[currency];
+    const amountInUzs = convertToUzs(dto.amount, exchangeRate);
 
     const category =
       (await this.prisma.client.category.findFirst({
@@ -395,6 +417,9 @@ export class ProfileService {
         categoryId: category.id,
         kind: dto.kind,
         amount: dto.amount.toFixed(2),
+        currency,
+        exchangeRate: exchangeRate.toFixed(6),
+        amountInUzs: amountInUzs.toFixed(2),
         note: dto.note,
         happenedAt: new Date()
       },
@@ -418,7 +443,9 @@ export class ProfileService {
         userId: true,
         coupleId: true,
         kind: true,
-        categoryId: true
+        categoryId: true,
+        amount: true,
+        currency: true
       }
     });
 
@@ -433,6 +460,7 @@ export class ProfileService {
     await this.assertMembership(userId, transaction.coupleId);
 
     const nextKind = dto.kind ?? transaction.kind;
+    const nextCurrency = normalizeCurrency(dto.currency ?? transaction.currency);
     let nextCategoryId = transaction.categoryId;
 
     if (dto.categoryName || dto.kind) {
@@ -498,12 +526,20 @@ export class ProfileService {
       }
     }
 
+    const nextAmount = dto.amount ?? Number(transaction.amount);
+    const rates = await getLatestCurrencyRates();
+    const exchangeRate = rates[nextCurrency];
+    const amountInUzs = convertToUzs(nextAmount, exchangeRate);
+
     return this.prisma.client.transaction.update({
       where: { id: transactionId },
       data: {
         kind: nextKind,
         categoryId: nextCategoryId,
-        amount: dto.amount?.toFixed(2),
+        amount: nextAmount.toFixed(2),
+        currency: nextCurrency,
+        exchangeRate: exchangeRate.toFixed(6),
+        amountInUzs: amountInUzs.toFixed(2),
         note: dto.note ?? undefined
       },
       include: {
@@ -575,10 +611,11 @@ export class ProfileService {
     });
   }
 
-  async summary(userId: string, month?: number, year?: number) {
+  async summary(userId: string, month?: number, year?: number, displayCurrencyRaw?: string) {
     const now = new Date();
     const normalizedMonth = month ?? now.getMonth() + 1;
     const normalizedYear = year ?? now.getFullYear();
+    const displayCurrency = normalizeCurrency(displayCurrencyRaw);
 
     if (!Number.isInteger(normalizedMonth) || normalizedMonth < 1 || normalizedMonth > 12) {
       throw new BadRequestException("month must be between 1 and 12");
@@ -593,6 +630,7 @@ export class ProfileService {
       return {
         month: normalizedMonth,
         year: normalizedYear,
+        currency: displayCurrency,
         totalIncome: 0,
         totalExpense: 0,
         balance: 0
@@ -611,7 +649,7 @@ export class ProfileService {
           kind: "INCOME",
           happenedAt: { gte: start, lt: end }
         },
-        _sum: { amount: true }
+        _sum: { amountInUzs: true }
       }),
       this.prisma.client.transaction.aggregate({
         where: {
@@ -619,16 +657,19 @@ export class ProfileService {
           kind: "EXPENSE",
           happenedAt: { gte: start, lt: end }
         },
-        _sum: { amount: true }
+        _sum: { amountInUzs: true }
       })
     ]);
 
-    const totalIncome = Number(income._sum.amount ?? 0);
-    const totalExpense = Number(expense._sum.amount ?? 0);
+    const rates = await getLatestCurrencyRates();
+    const displayRate = rates[displayCurrency];
+    const totalIncome = convertFromUzs(Number(income._sum.amountInUzs ?? 0), displayRate);
+    const totalExpense = convertFromUzs(Number(expense._sum.amountInUzs ?? 0), displayRate);
 
     return {
       month: normalizedMonth,
       year: normalizedYear,
+      currency: displayCurrency,
       totalIncome,
       totalExpense,
       balance: totalIncome - totalExpense

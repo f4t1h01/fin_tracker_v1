@@ -1,6 +1,8 @@
 import { Type } from "class-transformer";
 import { IsDateString, IsIn, IsOptional, IsString, IsUUID, MaxLength, Min } from "class-validator";
 
+import { SUPPORTED_CURRENCIES } from "../../common/currency";
+
 const transactionKinds = ["EXPENSE", "INCOME"] as const;
 
 export class CreateTransactionDto {
@@ -22,6 +24,10 @@ export class CreateTransactionDto {
   @IsString()
   @MaxLength(160)
   note?: string;
+
+  @IsOptional()
+  @IsIn(SUPPORTED_CURRENCIES)
+  currency?: (typeof SUPPORTED_CURRENCIES)[number];
 
   @IsDateString()
   happenedAt!: string;

@@ -35,3 +35,10 @@
   - tell user when to push
   - tell user when to pull on server
   - include docker restart and verification commands
+
+## Reliability requirements
+
+- Keep security, stability, and runtime efficiency in scope for every batch.
+- Prefer cached or single-snapshot loading patterns over repeated parallel client fetches when the same page can be served with one efficient payload.
+- Avoid heavy browser-side work when server-side aggregation or cached conversion can do the job more safely.
+- When external data is needed, prefer bounded caching and graceful fallback behavior over chatty live requests.

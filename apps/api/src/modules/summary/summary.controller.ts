@@ -14,8 +14,9 @@ export class SummaryController {
     @CurrentUser() user: { id: string },
     @Query("coupleId") coupleId: string,
     @Query("month", ParseIntPipe) month: number,
-    @Query("year", ParseIntPipe) year: number
+    @Query("year", ParseIntPipe) year: number,
+    @Query("displayCurrency") displayCurrency?: string
   ) {
-    return this.summaryService.monthly(user.id, coupleId, month, year);
+    return this.summaryService.monthly(user.id, coupleId, month, year, displayCurrency);
   }
 }

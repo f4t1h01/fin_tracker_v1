@@ -1,6 +1,7 @@
 import { ForbiddenException, Injectable } from "@nestjs/common";
 import { parseApiEnv } from "@repo/config";
 
+import { convertToUzs, getLatestCurrencyRates, normalizeCurrency } from "../common/currency";
 import { generateCoupleCodeCandidate } from "../common/couple-code";
 import { PrismaService } from "../prisma/prisma.service";
 import { QuickAddDto } from "./dto/quick-add.dto";
@@ -91,6 +92,10 @@ export class BotService {
     await this.ensureUserCoupleCode(user.id);
 
     const coupleId = await this.resolveCoupleForUser(user.id);
+    const currency = normalizeCurrency(dto.currency);
+    const rates = await getLatestCurrencyRates();
+    const exchangeRate = rates[currency];
+    const amountInUzs = convertToUzs(dto.amount, exchangeRate);
 
     const categoryName = dto.category.trim();
 
@@ -120,6 +125,9 @@ export class BotService {
         coupleId,
         categoryId: category.id,
         amount: dto.amount.toFixed(2),
+        currency,
+        exchangeRate: exchangeRate.toFixed(6),
+        amountInUzs: amountInUzs.toFixed(2),
         kind: dto.kind,
         note: dto.note,
         happenedAt: new Date()
@@ -137,6 +145,7 @@ export class BotService {
       return {
         month,
         year,
+        currency: "UZS",
         totalIncome: 0,
         totalExpense: 0,
         balance: 0
@@ -152,6 +161,7 @@ export class BotService {
       return {
         month,
         year,
+        currency: "UZS",
         totalIncome: 0,
         totalExpense: 0,
         balance: 0
@@ -168,7 +178,7 @@ export class BotService {
           kind: "INCOME",
           happenedAt: { gte: start, lt: end }
         },
-        _sum: { amount: true }
+        _sum: { amountInUzs: true }
       }),
       this.prisma.client.transaction.aggregate({
         where: {
@@ -176,16 +186,17 @@ export class BotService {
           kind: "EXPENSE",
           happenedAt: { gte: start, lt: end }
         },
-        _sum: { amount: true }
+        _sum: { amountInUzs: true }
       })
     ]);
 
-    const totalIncome = Number(income._sum.amount ?? 0);
-    const totalExpense = Number(expense._sum.amount ?? 0);
+    const totalIncome = Number(income._sum.amountInUzs ?? 0);
+    const totalExpense = Number(expense._sum.amountInUzs ?? 0);
 
     return {
       month,
       year,
+      currency: "UZS",
       totalIncome,
       totalExpense,
       balance: totalIncome - totalExpense

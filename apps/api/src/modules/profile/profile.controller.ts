@@ -24,6 +24,13 @@ export class ProfileController {
     return this.profileService.snapshot(user.id, monthNumber, yearNumber);
   }
 
+  @Get("me/dashboard")
+  myDashboard(@CurrentUser() user: { id: string }, @Query("month") month?: string, @Query("year") year?: string) {
+    const monthNumber = month ? Number(month) : undefined;
+    const yearNumber = year ? Number(year) : undefined;
+    return this.profileService.dashboard(user.id, monthNumber, yearNumber);
+  }
+
   @Post("me/bind")
   bindMe(@CurrentUser() user: { id: string }, @Body() dto: BindCoupleDto) {
     return this.profileService.bindByCode(user.id, dto);
@@ -50,9 +57,9 @@ export class ProfileController {
   }
 
   @Get("me/summary")
-  mySummary(@CurrentUser() user: { id: string }, @Query("month") month?: string, @Query("year") year?: string) {
+  mySummary(@CurrentUser() user: { id: string }, @Query("month") month?: string, @Query("year") year?: string, @Query("displayCurrency") displayCurrency?: string) {
     const monthNumber = month ? Number(month) : undefined;
     const yearNumber = year ? Number(year) : undefined;
-    return this.profileService.summary(user.id, monthNumber, yearNumber);
+    return this.profileService.summary(user.id, monthNumber, yearNumber, displayCurrency);
   }
 }

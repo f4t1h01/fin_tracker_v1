@@ -1,5 +1,6 @@
 import { ForbiddenException, Injectable } from "@nestjs/common";
 
+import { convertToUzs, getLatestCurrencyRates, normalizeCurrency } from "../common/currency";
 import { PrismaService } from "../prisma/prisma.service";
 import { CreateTransactionDto } from "./dto/create-transaction.dto";
 
@@ -26,6 +27,10 @@ export class TransactionsService {
     await this.assertMembership(userId, dto.coupleId);
 
     const normalizedCategoryName = dto.categoryName.trim();
+    const currency = normalizeCurrency(dto.currency);
+    const rates = await getLatestCurrencyRates();
+    const exchangeRate = rates[currency];
+    const amountInUzs = convertToUzs(dto.amount, exchangeRate);
 
     const category =
       (await this.prisma.client.category.findFirst({
@@ -54,6 +59,9 @@ export class TransactionsService {
         categoryId: category.id,
         kind: dto.kind,
         amount: dto.amount.toFixed(2),
+        currency,
+        exchangeRate: exchangeRate.toFixed(6),
+        amountInUzs: amountInUzs.toFixed(2),
         note: dto.note,
         happenedAt: new Date(dto.happenedAt)
       },

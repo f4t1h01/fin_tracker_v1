@@ -1,6 +1,8 @@
 import { Type } from "class-transformer";
 import { IsIn, IsOptional, IsString, MaxLength, Min } from "class-validator";
 
+import { SUPPORTED_CURRENCIES } from "../../common/currency";
+
 const transactionKinds = ["EXPENSE", "INCOME"] as const;
 
 export class CreateProfileTransactionDto {
@@ -19,4 +21,8 @@ export class CreateProfileTransactionDto {
   @IsString()
   @MaxLength(160)
   note?: string;
+
+  @IsOptional()
+  @IsIn(SUPPORTED_CURRENCIES)
+  currency?: (typeof SUPPORTED_CURRENCIES)[number];
 }

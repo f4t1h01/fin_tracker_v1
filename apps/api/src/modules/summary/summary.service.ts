@@ -1,5 +1,6 @@
 import { ForbiddenException, Injectable } from "@nestjs/common";
 
+import { convertFromUzs, getLatestCurrencyRates, normalizeCurrency } from "../common/currency";
 import { PrismaService } from "../prisma/prisma.service";
 
 @Injectable()
@@ -21,8 +22,9 @@ export class SummaryService {
     }
   }
 
-  async monthly(userId: string, coupleId: string, month: number, year: number) {
+  async monthly(userId: string, coupleId: string, month: number, year: number, displayCurrencyRaw?: string) {
     await this.assertMembership(userId, coupleId);
+    const displayCurrency = normalizeCurrency(displayCurrencyRaw);
 
     const start = new Date(Date.UTC(year, month - 1, 1));
     const end = new Date(Date.UTC(year, month, 1));
@@ -34,7 +36,7 @@ export class SummaryService {
           kind: "INCOME",
           happenedAt: { gte: start, lt: end }
         },
-        _sum: { amount: true }
+        _sum: { amountInUzs: true }
       }),
       this.prisma.client.transaction.aggregate({
         where: {
@@ -42,7 +44,7 @@ export class SummaryService {
           kind: "EXPENSE",
           happenedAt: { gte: start, lt: end }
         },
-        _sum: { amount: true }
+        _sum: { amountInUzs: true }
       }),
       this.prisma.client.transaction.groupBy({
         by: ["categoryId"],
@@ -51,11 +53,11 @@ export class SummaryService {
           happenedAt: { gte: start, lt: end }
         },
         _sum: {
-          amount: true
+          amountInUzs: true
         },
         orderBy: {
           _sum: {
-            amount: "desc"
+            amountInUzs: "desc"
           }
         }
       })
@@ -75,12 +77,15 @@ export class SummaryService {
     });
 
     const categoryMap = new Map(categories.map((category) => [category.id, category]));
-    const totalIncome = Number(income._sum.amount ?? 0);
-    const totalExpense = Number(expense._sum.amount ?? 0);
+    const rates = await getLatestCurrencyRates();
+    const displayRate = rates[displayCurrency];
+    const totalIncome = convertFromUzs(Number(income._sum.amountInUzs ?? 0), displayRate);
+    const totalExpense = convertFromUzs(Number(expense._sum.amountInUzs ?? 0), displayRate);
 
     return {
       month,
       year,
+      currency: displayCurrency,
       totalIncome,
       totalExpense,
       balance: totalIncome - totalExpense,
@@ -88,7 +93,7 @@ export class SummaryService {
         categoryId: entry.categoryId,
         name: categoryMap.get(entry.categoryId)?.name ?? "Unknown",
         kind: categoryMap.get(entry.categoryId)?.kind ?? "EXPENSE",
-        amount: Number(entry._sum.amount ?? 0)
+        amount: convertFromUzs(Number(entry._sum.amountInUzs ?? 0), displayRate)
       }))
     };
   }
