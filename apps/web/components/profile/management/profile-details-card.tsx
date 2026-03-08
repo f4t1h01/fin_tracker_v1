@@ -31,7 +31,7 @@ export function ProfileDetailsCard(props: ProfileDetailsCardProps) {
             <label className="space-y-1 text-sm"><span className="field-label">Last name</span><TextField value={props.detailsLastName} onChange={(event) => props.setDetailsLastName(event.target.value)} /></label>
           </div>
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-            <label className="space-y-1 text-sm"><span className="field-label">Birthday</span><DatePicker value={props.detailsBirthday} onChange={(event) => props.setDetailsBirthday(event.target.value)} max="9999-12-31" placeholder="YYYY-MM-DD" /></label>
+            <label className="space-y-1 text-sm"><span className="field-label">Birthday</span><DatePicker value={props.detailsBirthday} onChange={props.setDetailsBirthday} max="9999-12-31" placeholder="DD/MM/YYYY" /></label>
             <label className="space-y-1 text-sm"><span className="field-label">Telegram username</span><TextField value={props.telegramUsername} readOnly /></label>
           </div>
           <div className="flex flex-wrap items-center gap-3"><Button type="submit" disabled={props.isSavingDetails}>{props.isSavingDetails ? "Saving..." : "Save details"}</Button>{props.detailsMessage ? <p className="status-success text-sm">{props.detailsMessage}</p> : null}{props.detailsError ? <p className="status-error text-sm">{props.detailsError}</p> : null}</div>

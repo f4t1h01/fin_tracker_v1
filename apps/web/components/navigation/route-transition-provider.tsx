@@ -1,8 +1,9 @@
 "use client";
 
-import { Loader2 } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+
+const minimumTransitionMs = 200;
 
 type RouteTransitionContextValue = {
   beginTransition: (href: string) => void;
@@ -19,25 +20,39 @@ export function normalizeInternalPath(href: string) {
 
 export function RouteTransitionProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const loadingTimerRef = useRef<number | null>(null);
+  const completionTimerRef = useRef<number | null>(null);
+  const transitionStartedAtRef = useRef<number | null>(null);
   const startedFromPathRef = useRef(pathname);
   const [isTransitioning, setIsTransitioning] = useState(false);
-  const [showLoading, setShowLoading] = useState(false);
   const [pendingPath, setPendingPath] = useState<string | null>(null);
 
-  const clearLoadingTimer = useCallback(() => {
-    if (loadingTimerRef.current !== null) {
-      window.clearTimeout(loadingTimerRef.current);
-      loadingTimerRef.current = null;
+  const clearCompletionTimer = useCallback(() => {
+    if (completionTimerRef.current !== null) {
+      window.clearTimeout(completionTimerRef.current);
+      completionTimerRef.current = null;
     }
   }, []);
 
-  const completeTransition = useCallback(() => {
-    clearLoadingTimer();
-    setShowLoading(false);
+  const finishTransition = useCallback(() => {
+    clearCompletionTimer();
+    transitionStartedAtRef.current = null;
     setIsTransitioning(false);
     setPendingPath(null);
-  }, [clearLoadingTimer]);
+  }, [clearCompletionTimer]);
+
+  const completeTransition = useCallback(() => {
+    const elapsed = transitionStartedAtRef.current === null ? minimumTransitionMs : window.performance.now() - transitionStartedAtRef.current;
+    const remaining = Math.max(0, minimumTransitionMs - elapsed);
+
+    clearCompletionTimer();
+
+    if (remaining === 0) {
+      finishTransition();
+      return;
+    }
+
+    completionTimerRef.current = window.setTimeout(finishTransition, remaining);
+  }, [clearCompletionTimer, finishTransition]);
 
   const beginTransition = useCallback(
     (href: string) => {
@@ -46,14 +61,13 @@ export function RouteTransitionProvider({ children }: { children: React.ReactNod
         return;
       }
 
-      clearLoadingTimer();
+      clearCompletionTimer();
       startedFromPathRef.current = pathname;
+      transitionStartedAtRef.current = window.performance.now();
       setPendingPath(nextPath);
-      setShowLoading(false);
       setIsTransitioning(true);
-      loadingTimerRef.current = window.setTimeout(() => setShowLoading(true), 1500);
     },
-    [clearLoadingTimer, pathname]
+    [clearCompletionTimer, pathname]
   );
 
   useEffect(() => {
@@ -65,8 +79,8 @@ export function RouteTransitionProvider({ children }: { children: React.ReactNod
   }, [isTransitioning, pathname, pendingPath]);
 
   useEffect(() => {
-    return () => clearLoadingTimer();
-  }, [clearLoadingTimer]);
+    return () => clearCompletionTimer();
+  }, [clearCompletionTimer]);
 
   const value = useMemo<RouteTransitionContextValue>(
     () => ({ beginTransition, completeTransition, isTransitioning, pendingPath }),
@@ -75,18 +89,9 @@ export function RouteTransitionProvider({ children }: { children: React.ReactNod
 
   return (
     <RouteTransitionContext.Provider value={value}>
-      <div className="page-shell">{children}</div>
-      <div className={`route-transition-layer${isTransitioning ? " is-active" : ""}${showLoading ? " is-loading" : ""}`} aria-hidden={!isTransitioning}>
+      <div className={`page-shell${isTransitioning ? " page-shell--transitioning" : ""}`}>{children}</div>
+      <div className={`route-transition-layer${isTransitioning ? " is-active" : ""}`} aria-hidden={!isTransitioning}>
         <div className="route-transition-backdrop" />
-        {showLoading ? (
-          <div className="route-transition-panel">
-            <Loader2 className="size-5 animate-spin text-pop" />
-            <div>
-              <p className="route-transition-title">Loading next view</p>
-              <p className="route-transition-copy">Keeping your context warm while the route finishes preparing.</p>
-            </div>
-          </div>
-        ) : null}
       </div>
     </RouteTransitionContext.Provider>
   );

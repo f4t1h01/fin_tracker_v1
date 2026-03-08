@@ -125,6 +125,14 @@ select {
 
 .page-shell {
   position: relative;
+  transition: filter 200ms ease, opacity 200ms ease, transform 200ms ease;
+  will-change: filter, opacity, transform;
+}
+
+.page-shell--transitioning {
+  filter: blur(18px);
+  opacity: 0.78;
+  transform: scale(1.008);
 }
 
 .container-shell {
@@ -1034,15 +1042,8 @@ html[data-theme="dark"] .field-control {
   text-align: left;
   color: var(--ink);
   -webkit-text-fill-color: var(--ink);
-}
-
-.form-date-input::-webkit-date-and-time-value {
-  text-align: left;
-}
-
-.form-date-input::-webkit-calendar-picker-indicator {
-  opacity: 0.75;
-  cursor: pointer;
+  letter-spacing: 0.04em;
+  font-variant-numeric: tabular-nums;
 }
 
 .app-input:focus,
@@ -1074,48 +1075,18 @@ html[data-theme="dark"] .field-control {
   z-index: 120;
   pointer-events: none;
   opacity: 0;
-  transition: opacity 180ms ease;
+  transition: opacity 200ms ease;
 }
 
 .route-transition-layer.is-active {
   opacity: 1;
-  pointer-events: auto;
 }
 
 .route-transition-backdrop {
   position: absolute;
   inset: 0;
-  background: color-mix(in srgb, var(--bg) 68%, transparent);
-  backdrop-filter: blur(14px);
-}
-
-.route-transition-panel {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  display: flex;
-  width: min(420px, calc(100% - 40px));
-  align-items: center;
-  gap: 14px;
-  transform: translate(-50%, -50%);
-  border: 1px solid rgba(201, 168, 76, 0.16);
-  border-radius: 18px;
-  background: color-mix(in srgb, var(--card-bg) 92%, transparent);
-  box-shadow: 0 18px 48px rgba(19, 17, 12, 0.14);
-  padding: 18px 20px;
-}
-
-.route-transition-title {
-  color: var(--ink);
-  font-size: 14px;
-  font-weight: 500;
-}
-
-.route-transition-copy {
-  margin-top: 2px;
-  color: var(--ink-soft);
-  font-size: 12px;
-  line-height: 1.5;
+  background: linear-gradient(180deg, rgba(250, 247, 242, 0.12), rgba(18, 16, 14, 0.08));
+  backdrop-filter: blur(2px);
 }
 
 .panel-soft,
