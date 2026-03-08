@@ -1052,6 +1052,14 @@ html[data-theme="dark"] .field-control {
   cursor: pointer;
 }
 
+.picker-date-input::-webkit-date-and-time-value {
+  text-align: left;
+}
+
+.picker-date-input::-webkit-datetime-edit {
+  padding: 0;
+}
+
 .picker-date-input::-webkit-calendar-picker-indicator {
   position: absolute;
   inset: 0;
