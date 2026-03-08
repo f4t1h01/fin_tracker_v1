@@ -7,47 +7,71 @@ export function MarketingEffects() {
   const [cursorHover, setCursorHover] = useState(false);
 
   useEffect(() => {
-    document.body.classList.add("landing-page-active");
+    const body = document.body;
+    const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const supportsFinePointer = window.matchMedia("(hover: hover) and (pointer: fine)");
+    const enableCursorEffects = supportsFinePointer.matches && !prefersReducedMotion.matches;
 
     const revealNodes = Array.from(document.querySelectorAll<HTMLElement>("[data-reveal]"));
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            entry.target.classList.add("visible");
-          }
-        });
-      },
-      { threshold: 0.15 }
-    );
+    const observer = prefersReducedMotion.matches
+      ? null
+      : new IntersectionObserver(
+          (entries) => {
+            entries.forEach((entry) => {
+              if (entry.isIntersecting) {
+                entry.target.classList.add("visible");
+              }
+            });
+          },
+          { threshold: 0.15 }
+        );
 
-    revealNodes.forEach((node) => observer.observe(node));
+    if (observer) {
+      revealNodes.forEach((node) => observer.observe(node));
+    } else {
+      revealNodes.forEach((node) => node.classList.add("visible"));
+    }
 
     let x = window.innerWidth / 2;
     let y = window.innerHeight / 2;
+    let frame = 0;
+    let hasShownCursor = false;
 
     const orbit = document.getElementById("cursor-orbit");
 
-    if (orbit) {
-      orbit.style.transform = `translate(${x}px, ${y}px)`;
+    const syncPointerEffects = () => {
+      frame = 0;
+
+      if (orbit) {
+        orbit.style.transform = `translate3d(${x}px, ${y}px, 0)`;
+      }
+
+      body.style.setProperty("--mouse-x", `${(x / window.innerWidth - 0.5) * 30}px`);
+      body.style.setProperty("--mouse-y", `${(y / window.innerHeight - 0.5) * 20}px`);
+    };
+
+    if (enableCursorEffects) {
+      body.classList.add("landing-page-active");
+      syncPointerEffects();
     }
 
     const onPointerMove = (event: PointerEvent) => {
       x = event.clientX;
       y = event.clientY;
-      setCursorVisible(true);
 
-      if (orbit) {
-        orbit.style.transform = `translate(${x}px, ${y}px)`;
+      if (!hasShownCursor) {
+        hasShownCursor = true;
+        setCursorVisible(true);
       }
 
-      const xRatio = event.clientX / window.innerWidth - 0.5;
-      const yRatio = event.clientY / window.innerHeight - 0.5;
-      document.documentElement.style.setProperty("--mouse-x", `${xRatio * 30}px`);
-      document.documentElement.style.setProperty("--mouse-y", `${yRatio * 20}px`);
+      if (!frame) {
+        frame = window.requestAnimationFrame(syncPointerEffects);
+      }
     };
 
-    const hoverables = Array.from(document.querySelectorAll<HTMLElement>("a, button, [data-cursor='hover']"));
+    const hoverables = enableCursorEffects
+      ? Array.from(document.querySelectorAll<HTMLElement>("a, button, [data-cursor='hover']"))
+      : [];
     const onEnter = () => setCursorHover(true);
     const onLeave = () => setCursorHover(false);
     hoverables.forEach((element) => {
@@ -55,11 +79,20 @@ export function MarketingEffects() {
       element.addEventListener("mouseleave", onLeave);
     });
 
-    window.addEventListener("pointermove", onPointerMove);
+    if (enableCursorEffects) {
+      window.addEventListener("pointermove", onPointerMove, { passive: true });
+    }
 
     return () => {
-      document.body.classList.remove("landing-page-active");
-      observer.disconnect();
+      body.classList.remove("landing-page-active");
+      body.style.removeProperty("--mouse-x");
+      body.style.removeProperty("--mouse-y");
+      observer?.disconnect();
+
+      if (frame) {
+        window.cancelAnimationFrame(frame);
+      }
+
       window.removeEventListener("pointermove", onPointerMove);
       hoverables.forEach((element) => {
         element.removeEventListener("mouseenter", onEnter);
@@ -75,10 +108,32 @@ export function NavShell({ children }: { children: React.ReactNode }) {
   const [isScrolled, setIsScrolled] = useState(false);
 
   useEffect(() => {
-    const onScroll = () => setIsScrolled(window.scrollY > 50);
-    onScroll();
-    window.addEventListener("scroll", onScroll);
-    return () => window.removeEventListener("scroll", onScroll);
+    let frame = 0;
+
+    const syncScrollState = () => {
+      frame = 0;
+      const next = window.scrollY > 50;
+      setIsScrolled((current) => (current === next ? current : next));
+    };
+
+    const onScroll = () => {
+      if (frame) {
+        return;
+      }
+
+      frame = window.requestAnimationFrame(syncScrollState);
+    };
+
+    syncScrollState();
+    window.addEventListener("scroll", onScroll, { passive: true });
+
+    return () => {
+      if (frame) {
+        window.cancelAnimationFrame(frame);
+      }
+
+      window.removeEventListener("scroll", onScroll);
+    };
   }, []);
 
   return <div className={`nav-shell${isScrolled ? " is-scrolled" : ""}`}>{children}</div>;

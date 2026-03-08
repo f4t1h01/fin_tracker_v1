@@ -3,7 +3,7 @@
 import { Moon, SunMedium } from "lucide-react";
 import { useEffect, useState } from "react";
 
-import { applyTheme, getSystemTheme, persistTheme, resolveThemePreference, type ThemeMode, themeStorageKey } from "@/lib/theme";
+import { applyTheme, persistTheme, resolveThemePreference, type ThemeMode, themeStorageKey } from "@/lib/theme";
 
 type ThemeToggleProps = {
   onChange?: (theme: ThemeMode) => void;
@@ -40,7 +40,7 @@ export function ThemeToggle({ onChange }: ThemeToggleProps) {
 
       const next: ThemeMode = event.matches ? "dark" : "light";
       setTheme(next);
-      applyTheme(next);
+      applyTheme(next, { animate: true });
       onChange?.(next);
     };
 
@@ -51,7 +51,7 @@ export function ThemeToggle({ onChange }: ThemeToggleProps) {
   const toggleTheme = () => {
     const next = theme === "light" ? "dark" : "light";
     setTheme(next);
-    persistTheme(next);
+    persistTheme(next, { animate: true });
     onChange?.(next);
   };
 

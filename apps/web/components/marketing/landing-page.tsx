@@ -213,10 +213,7 @@ export function LandingPage() {
                     18.4<span>m</span> UZS
                   </div>
                   <div className="phone-summary">
-                    <p
-                      className="phone-label"
-                      style={{ color: "rgba(245,240,232,0.55)" }}
-                    >
+                    <p className="phone-label phone-summary-muted">
                       Shared balance
                     </p>
                     <div
@@ -236,12 +233,7 @@ export function LandingPage() {
                       >
                         +2.1m
                       </strong>
-                      <span
-                        style={{
-                          color: "rgba(245,240,232,0.55)",
-                          fontSize: 12,
-                        }}
-                      >
+                      <span className="phone-summary-meta">
                         this month
                       </span>
                     </div>
@@ -378,7 +370,7 @@ export function LandingPage() {
           <div className="container-shell">
             <div style={{ textAlign: "center", marginBottom: 72 }} data-reveal>
               <Eyebrow className="justify-center">How it works</Eyebrow>
-              <h2 className="section-title" style={{ color: "var(--cream)" }}>
+              <h2 className="section-title section-title--contrast">
                 Four quiet steps to shared financial <em>clarity</em>.
               </h2>
             </div>
