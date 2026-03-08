@@ -1040,7 +1040,7 @@ html[data-theme="dark"] .field-control {
   position: relative;
 }
 
-.picker-display-input {
+.picker-date-input {
   appearance: none;
   -webkit-appearance: none;
   text-align: left;
@@ -1052,16 +1052,17 @@ html[data-theme="dark"] .field-control {
   cursor: pointer;
 }
 
-.picker-native-input {
+.picker-date-input::-webkit-calendar-picker-indicator {
   position: absolute;
-  inset: auto 8px 8px auto;
-  width: 28px;
-  height: 28px;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
   opacity: 0;
-  pointer-events: none;
+  cursor: pointer;
 }
 
-.picker-trigger {
+.picker-icon {
   position: absolute;
   top: 50%;
   right: 10px;
@@ -1070,16 +1071,14 @@ html[data-theme="dark"] .field-control {
   justify-content: center;
   width: 24px;
   height: 24px;
-  border: 0;
-  background: transparent;
   color: var(--ink-soft);
+  pointer-events: none;
   transform: translateY(-50%);
   transition: color 180ms ease, transform 180ms ease;
 }
 
-.picker-trigger:hover {
+.picker-shell:focus-within .picker-icon {
   color: var(--ink);
-  transform: translateY(calc(-50% - 1px));
 }
 
 .app-input:focus,
