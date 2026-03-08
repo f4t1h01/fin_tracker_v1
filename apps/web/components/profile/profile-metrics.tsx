@@ -8,10 +8,16 @@ type ProfileMetricsProps = {
 
 export function ProfileMetrics({ summary }: ProfileMetricsProps) {
   return (
-    <section className="mb-6 grid gap-4 md:grid-cols-3">
-      <Card className="metric-income"><CardHeader><CardTitle>Income</CardTitle></CardHeader><CardContent className="text-2xl font-semibold text-emerald-700 dark:text-emerald-200">{summary ? `${summary.totalIncome.toLocaleString()} ${summary.currency}` : "-"}</CardContent></Card>
-      <Card className="metric-expense"><CardHeader><CardTitle>Expense</CardTitle></CardHeader><CardContent className="text-2xl font-semibold text-rose-700 dark:text-rose-200">{summary ? `${summary.totalExpense.toLocaleString()} ${summary.currency}` : "-"}</CardContent></Card>
-      <Card className="metric-balance"><CardHeader><CardTitle>Balance</CardTitle></CardHeader><CardContent className="text-2xl font-semibold">{summary ? `${summary.balance.toLocaleString()} ${summary.currency}` : "-"}</CardContent></Card>
+    <section className="mb-6">
+      <Card className="metric-balance">
+        <CardHeader>
+          <CardTitle>Your balance</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-3xl font-semibold">{summary ? `${summary.personalBalance.toLocaleString()} ${summary.currency}` : "-"}</div>
+          <p className="body-muted mt-2 text-sm">This card stays personal, even when you are connected to a partner workspace.</p>
+        </CardContent>
+      </Card>
     </section>
   );
 }

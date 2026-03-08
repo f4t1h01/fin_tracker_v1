@@ -715,7 +715,10 @@ export class ProfileService {
         currency: displayCurrency,
         totalIncome: 0,
         totalExpense: 0,
-        balance: 0
+        balance: 0,
+        personalIncome: 0,
+        personalExpense: 0,
+        personalBalance: 0
       };
     }
 
@@ -724,7 +727,7 @@ export class ProfileService {
     const start = new Date(Date.UTC(normalizedYear, normalizedMonth - 1, 1));
     const end = new Date(Date.UTC(normalizedYear, normalizedMonth, 1));
 
-    const [income, expense] = await Promise.all([
+    const [income, expense, personalIncome, personalExpense] = await Promise.all([
       this.prisma.client.transaction.aggregate({
         where: {
           coupleId,
@@ -740,6 +743,24 @@ export class ProfileService {
           happenedAt: { gte: start, lt: end }
         },
         _sum: { amountInUzs: true }
+      }),
+      this.prisma.client.transaction.aggregate({
+        where: {
+          coupleId,
+          userId,
+          kind: "INCOME",
+          happenedAt: { gte: start, lt: end }
+        },
+        _sum: { amountInUzs: true }
+      }),
+      this.prisma.client.transaction.aggregate({
+        where: {
+          coupleId,
+          userId,
+          kind: "EXPENSE",
+          happenedAt: { gte: start, lt: end }
+        },
+        _sum: { amountInUzs: true }
       })
     ]);
 
@@ -747,6 +768,8 @@ export class ProfileService {
     const displayRate = rates[displayCurrency];
     const totalIncome = convertFromUzs(Number(income._sum.amountInUzs ?? 0), displayRate);
     const totalExpense = convertFromUzs(Number(expense._sum.amountInUzs ?? 0), displayRate);
+    const normalizedPersonalIncome = convertFromUzs(Number(personalIncome._sum.amountInUzs ?? 0), displayRate);
+    const normalizedPersonalExpense = convertFromUzs(Number(personalExpense._sum.amountInUzs ?? 0), displayRate);
 
     return {
       month: normalizedMonth,
@@ -754,7 +777,10 @@ export class ProfileService {
       currency: displayCurrency,
       totalIncome,
       totalExpense,
-      balance: totalIncome - totalExpense
+      balance: totalIncome - totalExpense,
+      personalIncome: normalizedPersonalIncome,
+      personalExpense: normalizedPersonalExpense,
+      personalBalance: normalizedPersonalIncome - normalizedPersonalExpense
     };
   }
 }

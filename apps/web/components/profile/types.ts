@@ -35,6 +35,9 @@ export type MonthlySummary = {
   totalIncome: number;
   totalExpense: number;
   balance: number;
+  personalIncome: number;
+  personalExpense: number;
+  personalBalance: number;
 };
 
 export type RecentTransaction = {
