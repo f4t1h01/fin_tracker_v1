@@ -3,7 +3,7 @@
 import { usePathname } from "next/navigation";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 
-const minimumTransitionMs = 200;
+const minimumTransitionMs = 300;
 
 type RouteTransitionContextValue = {
   beginTransition: (href: string) => void;

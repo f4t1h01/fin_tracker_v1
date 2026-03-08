@@ -1,5 +1,6 @@
 "use client";
 
+import { CalendarDays } from "lucide-react";
 import * as React from "react";
 
 import { cn } from "@/lib/cn";
@@ -58,48 +59,83 @@ function parseDisplayDate(value: string) {
 
 const DatePicker = React.forwardRef<HTMLInputElement, DatePickerProps>(({ className, max, min, onBlur, onChange, placeholder, value = "", ...props }, ref) => {
   const [displayValue, setDisplayValue] = React.useState(() => formatDateForDisplay(value));
+  const nativeInputRef = React.useRef<HTMLInputElement | null>(null);
 
   React.useEffect(() => {
     setDisplayValue(formatDateForDisplay(value));
   }, [value]);
 
   return (
-    <input
-      {...props}
-      ref={ref}
-      type="text"
-      inputMode="numeric"
-      autoComplete="bday"
-      maxLength={10}
-      placeholder={placeholder ?? "DD/MM/YYYY"}
-      value={displayValue}
-      className={cn("field-control field-input form-date-input", className)}
-      onChange={(event) => {
-        const nextDisplayValue = maskDateInput(event.target.value);
-        const parsedValue = parseDisplayDate(nextDisplayValue);
+    <div className={cn("date-picker-shell", className)}>
+      <input
+        {...props}
+        ref={ref}
+        type="text"
+        inputMode="numeric"
+        autoComplete="bday"
+        maxLength={10}
+        placeholder={placeholder ?? "DD/MM/YYYY"}
+        value={displayValue}
+        className="field-control field-input form-date-input"
+        onChange={(event) => {
+          const nextDisplayValue = maskDateInput(event.target.value);
+          const parsedValue = parseDisplayDate(nextDisplayValue);
 
-        setDisplayValue(nextDisplayValue);
+          setDisplayValue(nextDisplayValue);
 
-        if (!nextDisplayValue) {
-          onChange?.("");
-          return;
-        }
+          if (!nextDisplayValue) {
+            onChange?.("");
+            return;
+          }
 
-        if (!parsedValue) {
-          return;
-        }
+          if (!parsedValue) {
+            return;
+          }
 
-        if ((min && parsedValue < min) || (max && parsedValue > max)) {
-          return;
-        }
+          if ((min && parsedValue < min) || (max && parsedValue > max)) {
+            return;
+          }
 
-        onChange?.(parsedValue);
-      }}
-      onBlur={(event) => {
-        setDisplayValue(formatDateForDisplay(value));
-        onBlur?.(event);
-      }}
-    />
+          onChange?.(parsedValue);
+        }}
+        onBlur={(event) => {
+          setDisplayValue(formatDateForDisplay(value));
+          onBlur?.(event);
+        }}
+      />
+      <input
+        ref={nativeInputRef}
+        tabIndex={-1}
+        aria-hidden="true"
+        type="date"
+        className="date-picker-native"
+        value={value}
+        min={min}
+        max={max}
+        onChange={(event) => onChange?.(event.target.value)}
+      />
+      <button
+        type="button"
+        className="date-picker-trigger"
+        aria-label="Open date picker"
+        onClick={() => {
+          const input = nativeInputRef.current;
+          if (!input) {
+            return;
+          }
+
+          if (typeof input.showPicker === "function") {
+            input.showPicker();
+            return;
+          }
+
+          input.focus();
+          input.click();
+        }}
+      >
+        <CalendarDays className="size-4" />
+      </button>
+    </div>
   );
 });
 

@@ -125,14 +125,14 @@ select {
 
 .page-shell {
   position: relative;
-  transition: filter 200ms ease, opacity 200ms ease, transform 200ms ease;
+  transition: filter 300ms ease, opacity 300ms ease, transform 300ms ease;
   will-change: filter, opacity, transform;
 }
 
 .page-shell--transitioning {
-  filter: blur(18px);
-  opacity: 0.78;
-  transform: scale(1.008);
+  filter: blur(12px);
+  opacity: 0.84;
+  transform: scale(1.004);
 }
 
 .container-shell {
@@ -1036,6 +1036,10 @@ html[data-theme="dark"] .field-control {
   resize: vertical;
 }
 
+.date-picker-shell {
+  position: relative;
+}
+
 .form-date-input {
   appearance: none;
   -webkit-appearance: none;
@@ -1044,6 +1048,37 @@ html[data-theme="dark"] .field-control {
   -webkit-text-fill-color: var(--ink);
   letter-spacing: 0.04em;
   font-variant-numeric: tabular-nums;
+  padding-right: 42px;
+}
+
+.date-picker-native {
+  position: absolute;
+  inset: auto 8px 8px auto;
+  width: 28px;
+  height: 28px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.date-picker-trigger {
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: 0;
+  background: transparent;
+  color: var(--ink-soft);
+  transform: translateY(-50%);
+  transition: color 180ms ease, transform 180ms ease;
+}
+
+.date-picker-trigger:hover {
+  color: var(--ink);
+  transform: translateY(calc(-50% - 1px));
 }
 
 .app-input:focus,
@@ -1075,7 +1110,7 @@ html[data-theme="dark"] .field-control {
   z-index: 120;
   pointer-events: none;
   opacity: 0;
-  transition: opacity 200ms ease;
+  transition: opacity 300ms ease;
 }
 
 .route-transition-layer.is-active {
@@ -1085,8 +1120,8 @@ html[data-theme="dark"] .field-control {
 .route-transition-backdrop {
   position: absolute;
   inset: 0;
-  background: linear-gradient(180deg, rgba(250, 247, 242, 0.12), rgba(18, 16, 14, 0.08));
-  backdrop-filter: blur(2px);
+  background: linear-gradient(180deg, rgba(250, 247, 242, 0.08), rgba(18, 16, 14, 0.05));
+  backdrop-filter: blur(1px);
 }
 
 .panel-soft,
