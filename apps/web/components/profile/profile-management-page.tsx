@@ -3,6 +3,8 @@
 import { useEffect } from "react";
 
 import { BrandMark } from "@/components/marketing/brand-mark";
+import { AppLink } from "@/components/navigation/app-link";
+import { useRouteTransitionPageReady } from "@/components/navigation/route-transition-provider";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -16,6 +18,9 @@ import { useProfileWorkspace } from "./use-profile-workspace";
 
 export function ProfileManagementPage() {
   const workspace = useProfileWorkspace({ routePath: "/profile/me/manage" });
+  const isPageReady = !workspace.isAuthenticating && (!workspace.token || Boolean(workspace.authError || (workspace.profile && workspace.authMe)));
+
+  useRouteTransitionPageReady(isPageReady);
 
   useEffect(() => {
     if (!workspace.isAuthenticating && !workspace.token) {
@@ -48,7 +53,7 @@ export function ProfileManagementPage() {
         </div>
         <div className="flex items-center gap-3">
           <ThemeToggle onChange={(theme) => void workspace.onThemeChange(theme)} />
-          <Button variant="outline" asChild><a href="/profile/me">Back to profile</a></Button>
+          <Button variant="outline" asChild><AppLink href="/profile/me">Back to profile</AppLink></Button>
         </div>
       </header>
 

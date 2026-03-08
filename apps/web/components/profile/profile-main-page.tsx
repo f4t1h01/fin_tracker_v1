@@ -1,6 +1,8 @@
 "use client";
 
 import { BrandMark } from "@/components/marketing/brand-mark";
+import { AppLink } from "@/components/navigation/app-link";
+import { useRouteTransitionPageReady } from "@/components/navigation/route-transition-provider";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -13,6 +15,9 @@ import { useProfileWorkspace } from "./use-profile-workspace";
 
 export function ProfileMainPage() {
   const workspace = useProfileWorkspace({ routePath: "/profile/me" });
+  const isPageReady = !workspace.isAuthenticating && (!workspace.token || Boolean(workspace.authError || (workspace.profile && workspace.authMe)));
+
+  useRouteTransitionPageReady(isPageReady);
 
   if (workspace.isAuthenticating) {
     return <ProfileLoadingState title="Preparing your profile" description="Checking saved access and loading your workspace..." />;
@@ -38,8 +43,8 @@ export function ProfileMainPage() {
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <Button variant="outline" asChild><a href="/dashboard">View dashboard</a></Button>
-          <Button variant="outline" asChild><a href="/profile/me/manage">Profile management</a></Button>
+          <Button variant="outline" asChild><AppLink href="/dashboard">View dashboard</AppLink></Button>
+          <Button variant="outline" asChild><AppLink href="/profile/me/manage">Profile management</AppLink></Button>
         </div>
       </header>
 

@@ -1,7 +1,9 @@
+import { AppLink } from "@/components/navigation/app-link";
 import { BrandMark } from "@/components/marketing/brand-mark";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { TextField } from "@/components/ui/text-field";
 
 type ProfileAuthGatewayProps = {
   authError: string | null;
@@ -59,8 +61,8 @@ export function ProfileAuthGateway(props: ProfileAuthGatewayProps) {
           </CardHeader>
           <CardContent className="space-y-4">
             <form className="space-y-3" onSubmit={props.onSubmitLogin}>
-              <label className="space-y-1 text-sm"><span className="field-label">Email</span><input required type="email" value={props.loginEmail} onChange={(event) => props.setLoginEmail(event.target.value)} placeholder="you@example.com" className="form-input" /></label>
-              <label className="space-y-1 text-sm"><span className="field-label">Password</span><input required type="password" value={props.loginPassword} onChange={(event) => props.setLoginPassword(event.target.value)} placeholder="Your password" className="form-input" /></label>
+              <label className="space-y-1 text-sm"><span className="field-label">Email</span><TextField required type="email" value={props.loginEmail} onChange={(event) => props.setLoginEmail(event.target.value)} placeholder="you@example.com" /></label>
+              <label className="space-y-1 text-sm"><span className="field-label">Password</span><TextField required type="password" value={props.loginPassword} onChange={(event) => props.setLoginPassword(event.target.value)} placeholder="Your password" /></label>
               <div className="flex flex-wrap items-center gap-3">
                 <Button type="submit" disabled={props.isSubmittingLogin}>{props.isSubmittingLogin ? "Signing in..." : "Sign in"}</Button>
                 {props.loginMessage ? <p className="status-success text-sm">{props.loginMessage}</p> : null}
@@ -78,10 +80,10 @@ export function ProfileAuthGateway(props: ProfileAuthGatewayProps) {
           </CardHeader>
           <CardContent className="space-y-4">
             <form className="space-y-3" onSubmit={props.onCreateAccount}>
-              <label className="space-y-1 text-sm"><span className="field-label">Name (optional)</span><input type="text" value={props.createFirstName} onChange={(event) => props.setCreateFirstName(event.target.value)} placeholder="Fatih" className="form-input" /></label>
-              <label className="space-y-1 text-sm"><span className="field-label">Email</span><input required type="email" value={props.createEmail} onChange={(event) => props.setCreateEmail(event.target.value)} placeholder="you@example.com" className="form-input" /></label>
-              <label className="space-y-1 text-sm"><span className="field-label">Password</span><input required type="password" minLength={8} value={props.createPassword} onChange={(event) => props.setCreatePassword(event.target.value)} placeholder="At least 8 characters" className="form-input" /></label>
-              <label className="space-y-1 text-sm"><span className="field-label">Confirm password</span><input required type="password" minLength={8} value={props.createConfirmPassword} onChange={(event) => props.setCreateConfirmPassword(event.target.value)} placeholder="Repeat password" className="form-input" /></label>
+              <label className="space-y-1 text-sm"><span className="field-label">Name (optional)</span><TextField value={props.createFirstName} onChange={(event) => props.setCreateFirstName(event.target.value)} placeholder="Fatih" /></label>
+              <label className="space-y-1 text-sm"><span className="field-label">Email</span><TextField required type="email" value={props.createEmail} onChange={(event) => props.setCreateEmail(event.target.value)} placeholder="you@example.com" /></label>
+              <label className="space-y-1 text-sm"><span className="field-label">Password</span><TextField required type="password" minLength={8} value={props.createPassword} onChange={(event) => props.setCreatePassword(event.target.value)} placeholder="At least 8 characters" /></label>
+              <label className="space-y-1 text-sm"><span className="field-label">Confirm password</span><TextField required type="password" minLength={8} value={props.createConfirmPassword} onChange={(event) => props.setCreateConfirmPassword(event.target.value)} placeholder="Repeat password" /></label>
               <div className="flex flex-wrap items-center gap-3">
                 <Button type="submit" disabled={props.isCreatingAccount}>{props.isCreatingAccount ? "Creating..." : "Create account"}</Button>
                 {props.createAccountMessage ? <p className="status-success text-sm">{props.createAccountMessage}</p> : null}
@@ -93,7 +95,7 @@ export function ProfileAuthGateway(props: ProfileAuthGatewayProps) {
               <p>2. Open your profile workspace right away.</p>
               <p>3. Link Telegram later if you want in-chat access.</p>
             </div>
-            <Button variant="outline" asChild><a href="/">Back to overview</a></Button>
+            <Button variant="outline" asChild><AppLink href="/">Back to overview</AppLink></Button>
           </CardContent>
         </Card>
       </section>

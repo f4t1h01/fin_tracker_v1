@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 
+import { AppLink } from "@/components/navigation/app-link";
+import { useRouteTransitionPageReady } from "@/components/navigation/route-transition-provider";
 import { BrandMark } from "@/components/marketing/brand-mark";
 import { Eyebrow } from "@/components/marketing/eyebrow";
 import {
@@ -102,9 +104,9 @@ function PrimaryLink({
   children: React.ReactNode;
 }) {
   return (
-    <Link className="primary-button" href={href}>
+    <AppLink className="primary-button" href={href}>
       <span>{children}</span>
-    </Link>
+    </AppLink>
   );
 }
 
@@ -116,14 +118,16 @@ function SecondaryLink({
   children: React.ReactNode;
 }) {
   return (
-    <Link className="secondary-link" href={href}>
+    <AppLink className="secondary-link" href={href}>
       <span>{children}</span>
       <span aria-hidden>→</span>
-    </Link>
+    </AppLink>
   );
 }
 
 export function LandingPage() {
+  useRouteTransitionPageReady(true);
+
   const doubledTicker = [...tickerItems, ...tickerItems];
 
   return (

@@ -2,6 +2,8 @@ import { Pencil, WalletCards, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { SelectField } from "@/components/ui/select-field";
+import { TextField } from "@/components/ui/text-field";
 
 import { RecentTransactionRow } from "./recent-transaction-row";
 import { type EditableTransaction, type RecentTransaction, supportedCurrencies, type SupportedCurrency } from "./types";
@@ -51,12 +53,12 @@ export function RecentTransactions(props: RecentTransactionsProps) {
             <CardContent>
               <form className="space-y-3" onSubmit={props.onSaveEdit}>
                 <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-                  <label className="space-y-1 text-sm"><span className="field-label">Type</span><select value={props.editingTransaction.kind} onChange={(event) => props.setEditingTransaction({ ...props.editingTransaction!, kind: event.target.value as "EXPENSE" | "INCOME" })} className="form-select"><option value="EXPENSE">Expense</option><option value="INCOME">Income</option></select></label>
-                  <label className="space-y-1 text-sm"><span className="field-label">Amount</span><input required inputMode="decimal" min="0.01" step="0.01" value={props.editingTransaction.amount} onChange={(event) => props.setEditingTransaction({ ...props.editingTransaction!, amount: event.target.value })} className="form-input" /></label>
-                  <label className="space-y-1 text-sm"><span className="field-label">Currency</span><select value={props.editingTransaction.currency} onChange={(event) => props.setEditingTransaction({ ...props.editingTransaction!, currency: event.target.value as SupportedCurrency })} className="form-select">{supportedCurrencies.map((item) => <option key={item} value={item}>{item}</option>)}</select></label>
+                  <label className="space-y-1 text-sm"><span className="field-label">Type</span><SelectField value={props.editingTransaction.kind} onChange={(event) => props.setEditingTransaction({ ...props.editingTransaction!, kind: event.target.value as "EXPENSE" | "INCOME" })}><option value="EXPENSE">Expense</option><option value="INCOME">Income</option></SelectField></label>
+                  <label className="space-y-1 text-sm"><span className="field-label">Amount</span><TextField required inputMode="decimal" min="0.01" step="0.01" value={props.editingTransaction.amount} onChange={(event) => props.setEditingTransaction({ ...props.editingTransaction!, amount: event.target.value })} /></label>
+                  <label className="space-y-1 text-sm"><span className="field-label">Currency</span><SelectField value={props.editingTransaction.currency} onChange={(event) => props.setEditingTransaction({ ...props.editingTransaction!, currency: event.target.value as SupportedCurrency })}>{supportedCurrencies.map((item) => <option key={item} value={item}>{item}</option>)}</SelectField></label>
                 </div>
-                <label className="space-y-1 text-sm"><span className="field-label">Category</span><input required value={props.editingTransaction.categoryName} onChange={(event) => props.setEditingTransaction({ ...props.editingTransaction!, categoryName: event.target.value })} className="form-input" /></label>
-                <label className="space-y-1 text-sm"><span className="field-label">Note</span><input value={props.editingTransaction.note} onChange={(event) => props.setEditingTransaction({ ...props.editingTransaction!, note: event.target.value })} className="form-input" /></label>
+                <label className="space-y-1 text-sm"><span className="field-label">Category</span><TextField required value={props.editingTransaction.categoryName} onChange={(event) => props.setEditingTransaction({ ...props.editingTransaction!, categoryName: event.target.value })} /></label>
+                <label className="space-y-1 text-sm"><span className="field-label">Note</span><TextField value={props.editingTransaction.note} onChange={(event) => props.setEditingTransaction({ ...props.editingTransaction!, note: event.target.value })} /></label>
                 <div className="flex items-center gap-3"><Button type="submit" disabled={props.isSavingEdit}>{props.isSavingEdit ? "Saving..." : "Save changes"}</Button><Button type="button" variant="outline" onClick={() => props.setEditingTransaction(null)}><X className="size-4" />Cancel</Button></div>
               </form>
             </CardContent>

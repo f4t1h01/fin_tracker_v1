@@ -4,8 +4,11 @@ import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { Loader2 } from "lucide-react";
 
 import { BrandMark } from "@/components/marketing/brand-mark";
+import { AppLink } from "@/components/navigation/app-link";
+import { useRouteTransitionPageReady } from "@/components/navigation/route-transition-provider";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { SelectField } from "@/components/ui/select-field";
 import { webEnv } from "@/lib/env";
 
 import { parseApiResponse } from "@/components/profile/api";
@@ -85,6 +88,8 @@ export function DashboardPage() {
     };
   }, [data, displayCurrency]);
 
+  useRouteTransitionPageReady(Boolean(data || error));
+
   if (!data && !error) {
     return (
       <main className="mx-auto flex min-h-[60vh] max-w-3xl items-center justify-center px-5 py-16 sm:px-8">
@@ -122,12 +127,12 @@ export function DashboardPage() {
         <div className="flex items-center gap-3">
           <label className="space-y-1 text-sm">
             <span className="field-label">Display currency</span>
-            <select value={displayCurrency} onChange={(event) => setDisplayCurrency(event.target.value as SupportedCurrency)} className="form-select min-w-[112px]">
+            <SelectField value={displayCurrency} onChange={(event) => setDisplayCurrency(event.target.value as SupportedCurrency)} className="min-w-[112px]">
               {data.supportedCurrencies.map((item) => <option key={item} value={item}>{item}</option>)}
-            </select>
+            </SelectField>
           </label>
           {isRefreshing ? <span className="body-muted text-xs uppercase tracking-[0.16em]">Refreshing</span> : null}
-          <Button variant="outline" asChild><a href="/profile/me">Back to profile</a></Button>
+          <Button variant="outline" asChild><AppLink href="/profile/me">Back to profile</AppLink></Button>
         </div>
       </header>
 

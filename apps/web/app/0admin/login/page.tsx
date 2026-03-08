@@ -4,8 +4,10 @@ import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { BrandMark } from "@/components/marketing/brand-mark";
+import { useRouteTransitionPageReady } from "@/components/navigation/route-transition-provider";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { TextField } from "@/components/ui/text-field";
 import { webEnv } from "@/lib/env";
 
 const adminTokenKey = "cf_admin_token";
@@ -35,6 +37,8 @@ export default function AdminLoginPage() {
   const [password, setPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  useRouteTransitionPageReady(true);
 
   useEffect(() => {
     const token = localStorage.getItem(adminTokenKey);
@@ -101,12 +105,12 @@ export default function AdminLoginPage() {
           <form className="space-y-3" onSubmit={onSubmit}>
             <label className="space-y-1 text-sm">
               <span className="field-label">Email</span>
-              <input required type="email" value={email} onChange={(event) => setEmail(event.target.value)} className="form-input" />
+              <TextField required type="email" value={email} onChange={(event) => setEmail(event.target.value)} />
             </label>
 
             <label className="space-y-1 text-sm">
               <span className="field-label">Password</span>
-              <input required type="password" value={password} onChange={(event) => setPassword(event.target.value)} className="form-input" />
+              <TextField required type="password" value={password} onChange={(event) => setPassword(event.target.value)} />
             </label>
 
             <div className="flex flex-wrap items-center gap-3">

@@ -991,27 +991,41 @@ html[data-theme="dark"] .floating-card {
 
 .app-input,
 .form-input,
-.form-select {
+.form-select,
+.field-control {
   width: 100%;
   border: 1px solid rgba(201, 168, 76, 0.18);
   background: color-mix(in srgb, var(--warm-white) 86%, transparent);
   color: var(--ink);
   outline: none;
+  font-size: 14px;
+  touch-action: manipulation;
 }
 
 html[data-theme="dark"] .app-input,
 html[data-theme="dark"] .form-input,
-html[data-theme="dark"] .form-select {
+html[data-theme="dark"] .form-select,
+html[data-theme="dark"] .field-control {
   background: color-mix(in srgb, var(--warm-white) 72%, transparent);
 }
 
 .app-input,
 .form-input,
-.form-select {
+.form-select,
+.field-input,
+.field-select {
   height: 42px;
   padding: 0 12px;
   border-radius: 12px;
   box-shadow: none;
+}
+
+.field-textarea {
+  min-height: 108px;
+  padding: 12px;
+  border-radius: 12px;
+  box-shadow: none;
+  resize: vertical;
 }
 
 .form-date-input {
@@ -1033,15 +1047,75 @@ html[data-theme="dark"] .form-select {
 
 .app-input:focus,
 .form-input:focus,
-.form-select:focus {
+.form-select:focus,
+.field-control:focus {
   border-color: var(--gold);
   box-shadow: 0 0 0 2px var(--ring);
+}
+
+@media (max-width: 820px) {
+  .app-input,
+  .form-input,
+  .form-select,
+  .field-control {
+    font-size: 16px;
+  }
 }
 
 .field-label,
 .eyebrow,
 .body-muted {
   color: var(--ink-soft);
+}
+
+.route-transition-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 180ms ease;
+}
+
+.route-transition-layer.is-active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.route-transition-backdrop {
+  position: absolute;
+  inset: 0;
+  background: color-mix(in srgb, var(--bg) 68%, transparent);
+  backdrop-filter: blur(14px);
+}
+
+.route-transition-panel {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: flex;
+  width: min(420px, calc(100% - 40px));
+  align-items: center;
+  gap: 14px;
+  transform: translate(-50%, -50%);
+  border: 1px solid rgba(201, 168, 76, 0.16);
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--card-bg) 92%, transparent);
+  box-shadow: 0 18px 48px rgba(19, 17, 12, 0.14);
+  padding: 18px 20px;
+}
+
+.route-transition-title {
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.route-transition-copy {
+  margin-top: 2px;
+  color: var(--ink-soft);
+  font-size: 12px;
+  line-height: 1.5;
 }
 
 .panel-soft,

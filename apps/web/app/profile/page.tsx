@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 
 import { BrandMark } from "@/components/marketing/brand-mark";
+import { AppLink } from "@/components/navigation/app-link";
+import { useRouteTransitionPageReady } from "@/components/navigation/route-transition-provider";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -41,6 +43,8 @@ async function parseApiResponse<T>(response: Response): Promise<T> {
 export default function ProfileEntryPage() {
   const [auth, setAuth] = useState<AuthMeResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  useRouteTransitionPageReady(!isLoading);
 
   useEffect(() => {
     const token = localStorage.getItem(tokenKey);
@@ -107,10 +111,10 @@ export default function ProfileEntryPage() {
 
           <div className="flex flex-wrap items-center gap-3">
             <Button asChild>
-              <a href="/profile/me">{auth ? "Open my workspace" : "Continue to profile"}</a>
+              <AppLink href="/profile/me">{auth ? "Open my workspace" : "Continue to profile"}</AppLink>
             </Button>
             <Button variant="outline" asChild>
-              <a href="/">Back to overview</a>
+              <AppLink href="/">Back to overview</AppLink>
             </Button>
           </div>
         </CardContent>

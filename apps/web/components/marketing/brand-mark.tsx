@@ -1,5 +1,4 @@
-import Link from "next/link";
-
+import { AppLink } from "@/components/navigation/app-link";
 import { cn } from "@/lib/cn";
 
 type BrandMarkProps = {
@@ -18,9 +17,9 @@ export function BrandMark({ className, href = "/", label = "Duet" }: BrandMarkPr
 
   if (href) {
     return (
-      <Link className={cn("logo-mark", className)} href={href}>
+      <AppLink className={cn("logo-mark", className)} href={href}>
         {content}
-      </Link>
+      </AppLink>
     );
   }
 

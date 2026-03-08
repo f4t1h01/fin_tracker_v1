@@ -1,7 +1,8 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Cormorant_Garamond, DM_Sans } from "next/font/google";
 
 import "./globals.css";
+import { RouteTransitionProvider } from "@/components/navigation/route-transition-provider";
 import { getThemeBootScript } from "@/lib/theme";
 
 const heading = Cormorant_Garamond({
@@ -24,6 +25,14 @@ export const metadata: Metadata = {
   description: "Warm editorial couple finance experience for web and Telegram"
 };
 
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: "cover"
+};
+
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" suppressHydrationWarning>
@@ -31,7 +40,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <script dangerouslySetInnerHTML={{ __html: getThemeBootScript() }} />
       </head>
       <body className={`${heading.variable} ${body.variable}`}>
-        <div className="page-shell">{children}</div>
+        <RouteTransitionProvider>{children}</RouteTransitionProvider>
       </body>
     </html>
   );
