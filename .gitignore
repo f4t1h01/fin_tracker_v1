@@ -10,6 +10,10 @@ pnpm-debug.log*
 *.tsbuildinfo
 apps/**/node_modules
 packages/**/node_modules
+apps/android/.gradle
+apps/android/local.properties
+apps/android/**/build
+*.iml
 
 #useless md files
 starter.md

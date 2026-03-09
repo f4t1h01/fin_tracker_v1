@@ -3,7 +3,7 @@
 import { usePathname } from "next/navigation";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 
-const minimumTransitionMs = 300;
+import { routeTransitionDurationCssValue, routeTransitionMinimumVisibleMs } from "./route-transition-config";
 
 type RouteTransitionContextValue = {
   beginTransition: (href: string) => void;
@@ -41,8 +41,8 @@ export function RouteTransitionProvider({ children }: { children: React.ReactNod
   }, [clearCompletionTimer]);
 
   const completeTransition = useCallback(() => {
-    const elapsed = transitionStartedAtRef.current === null ? minimumTransitionMs : window.performance.now() - transitionStartedAtRef.current;
-    const remaining = Math.max(0, minimumTransitionMs - elapsed);
+    const elapsed = transitionStartedAtRef.current === null ? routeTransitionMinimumVisibleMs : window.performance.now() - transitionStartedAtRef.current;
+    const remaining = Math.max(0, routeTransitionMinimumVisibleMs - elapsed);
 
     clearCompletionTimer();
 
@@ -89,8 +89,8 @@ export function RouteTransitionProvider({ children }: { children: React.ReactNod
 
   return (
     <RouteTransitionContext.Provider value={value}>
-      <div className={`page-shell${isTransitioning ? " page-shell--transitioning" : ""}`}>{children}</div>
-      <div className={`route-transition-layer${isTransitioning ? " is-active" : ""}`} aria-hidden={!isTransitioning}>
+      <div className={`page-shell${isTransitioning ? " page-shell--transitioning" : ""}`} style={{ "--route-transition-duration": routeTransitionDurationCssValue } as React.CSSProperties}>{children}</div>
+      <div className={`route-transition-layer${isTransitioning ? " is-active" : ""}`} style={{ "--route-transition-duration": routeTransitionDurationCssValue } as React.CSSProperties} aria-hidden={!isTransitioning}>
         <div className="route-transition-backdrop" />
       </div>
     </RouteTransitionContext.Provider>

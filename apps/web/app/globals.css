@@ -125,7 +125,7 @@ select {
 
 .page-shell {
   position: relative;
-  transition: filter 300ms ease, opacity 300ms ease, transform 300ms ease;
+  transition: filter var(--route-transition-duration, 300ms) ease, opacity var(--route-transition-duration, 300ms) ease, transform var(--route-transition-duration, 300ms) ease;
 }
 
 .page-shell--transitioning {
@@ -1118,7 +1118,7 @@ html[data-theme="dark"] .field-control {
   z-index: 120;
   pointer-events: none;
   opacity: 0;
-  transition: opacity 300ms ease;
+  transition: opacity var(--route-transition-duration, 300ms) ease;
 }
 
 .route-transition-layer.is-active {

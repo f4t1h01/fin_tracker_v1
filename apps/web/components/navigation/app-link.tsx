@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import * as React from "react";
 
+import { routeTransitionNavigationDelayMs } from "./route-transition-config";
 import { useRouteTransition } from "./route-transition-provider";
 
 type AppLinkProps = Omit<React.AnchorHTMLAttributes<HTMLAnchorElement>, "href"> & {
@@ -21,7 +22,17 @@ const AppLink = React.forwardRef<HTMLAnchorElement, AppLinkProps>(
     const router = useRouter();
     const pathname = usePathname();
     const { beginTransition } = useRouteTransition();
+    const navigationTimerRef = React.useRef<number | null>(null);
     const isInternal = href.startsWith("/");
+
+    React.useEffect(
+      () => () => {
+        if (navigationTimerRef.current !== null) {
+          window.clearTimeout(navigationTimerRef.current);
+        }
+      },
+      []
+    );
 
     const handleClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
       onClick?.(event);
@@ -37,7 +48,14 @@ const AppLink = React.forwardRef<HTMLAnchorElement, AppLinkProps>(
 
       event.preventDefault();
       beginTransition(href);
-      router.push(href);
+
+      if (navigationTimerRef.current !== null) {
+        window.clearTimeout(navigationTimerRef.current);
+      }
+
+      navigationTimerRef.current = window.setTimeout(() => {
+        router.push(href);
+      }, routeTransitionNavigationDelayMs);
     };
 
     const handleMouseEnter = (event: React.MouseEvent<HTMLAnchorElement>) => {
