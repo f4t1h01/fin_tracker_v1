@@ -126,10 +126,10 @@ select {
 .page-shell {
   position: relative;
   transition: filter 300ms ease, opacity 300ms ease, transform 300ms ease;
-  will-change: filter, opacity, transform;
 }
 
 .page-shell--transitioning {
+  will-change: filter, opacity, transform;
   filter: blur(12px);
   opacity: 0.84;
   transform: scale(1.004);

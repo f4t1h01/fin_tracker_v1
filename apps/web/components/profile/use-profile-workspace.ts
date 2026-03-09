@@ -41,6 +41,29 @@ type UseProfileWorkspaceOptions = {
 
 const useClientLayoutEffect = typeof window === "undefined" ? useEffect : useLayoutEffect;
 
+function normalizeMonthlySummary(summary: Partial<MonthlySummary> | null | undefined): MonthlySummary {
+  const today = new Date();
+  const month = Number(summary?.month);
+  const year = Number(summary?.year);
+  const totalIncome = Number(summary?.totalIncome ?? 0);
+  const totalExpense = Number(summary?.totalExpense ?? 0);
+  const balance = Number.isFinite(Number(summary?.balance)) ? Number(summary?.balance) : totalIncome - totalExpense;
+  const personalIncome = Number(summary?.personalIncome ?? 0);
+  const personalExpense = Number(summary?.personalExpense ?? 0);
+
+  return {
+    month: Number.isInteger(month) && month >= 1 && month <= 12 ? month : today.getMonth() + 1,
+    year: Number.isInteger(year) && year >= 2000 ? year : today.getFullYear(),
+    currency: summary?.currency && supportedCurrencies.includes(summary.currency) ? summary.currency : "UZS",
+    totalIncome,
+    totalExpense,
+    balance,
+    personalIncome,
+    personalExpense,
+    personalBalance: Number.isFinite(Number(summary?.personalBalance)) ? Number(summary?.personalBalance) : personalIncome - personalExpense
+  };
+}
+
 export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
   const routePath = options?.routePath ?? canonicalProfilePath;
   const [token, setToken] = useState<string | null>(null);
@@ -103,17 +126,22 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
   const today = useMemo(() => new Date(), []);
 
   const applySnapshot = useCallback((snapshot: ProfileSnapshotResponse) => {
-    writeProfileSnapshotCache(snapshot);
-    setProfile(snapshot.profile);
-    setSummary(snapshot.summary);
-    setRecent(snapshot.recent);
-    setAuthMe(snapshot.auth);
-    setDetailsFirstName(snapshot.auth.firstName ?? "");
-    setDetailsLastName(snapshot.auth.lastName ?? "");
-    setDetailsBirthday(snapshot.auth.birthday?.slice(0, 10) ?? "");
+    const normalizedSnapshot: ProfileSnapshotResponse = {
+      ...snapshot,
+      summary: normalizeMonthlySummary(snapshot.summary)
+    };
 
-    if (snapshot.auth.email) {
-      setSetupEmail((current) => current || snapshot.auth.email || "");
+    writeProfileSnapshotCache(normalizedSnapshot);
+    setProfile(normalizedSnapshot.profile);
+    setSummary(normalizedSnapshot.summary);
+    setRecent(normalizedSnapshot.recent);
+    setAuthMe(normalizedSnapshot.auth);
+    setDetailsFirstName(normalizedSnapshot.auth.firstName ?? "");
+    setDetailsLastName(normalizedSnapshot.auth.lastName ?? "");
+    setDetailsBirthday(normalizedSnapshot.auth.birthday?.slice(0, 10) ?? "");
+
+    if (normalizedSnapshot.auth.email) {
+      setSetupEmail((current) => current || normalizedSnapshot.auth.email || "");
     }
   }, []);
 

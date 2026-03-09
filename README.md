@@ -1,6 +1,6 @@
-# Couple Finance Tracker
+# Duet
 
-Node.js monorepo for a Telegram-first finance tracker for couples.
+Node.js monorepo for Duet, a web-based shared finance application for couples with Telegram companion integration.
 
 ## Stack
 

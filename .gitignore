@@ -14,3 +14,4 @@ packages/**/node_modules
 #useless md files
 starter.md
 version#1.md
+proposal.md
