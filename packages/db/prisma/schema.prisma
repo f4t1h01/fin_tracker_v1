@@ -33,6 +33,7 @@ model User {
   telegramPhone     String?
   isAdmin           Boolean       @default(false)
   isDark            Boolean       @default(false)
+  weekStartsOn      String        @default("MONDAY") @map("week_starts_on")
   memberships       Membership[]
   coupleBind        CoupleBind?
   transactions      Transaction[]

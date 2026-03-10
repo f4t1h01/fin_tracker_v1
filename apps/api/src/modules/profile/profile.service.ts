@@ -5,34 +5,194 @@ import { generateCoupleCodeCandidate, normalizeCoupleCode } from "../common/coup
 import { PrismaService } from "../prisma/prisma.service";
 import { BindCoupleDto } from "./dto/bind-couple.dto";
 import { CreateProfileTransactionDto } from "./dto/create-profile-transaction.dto";
+import { DashboardQueryDto, type DashboardRangePreset } from "./dto/dashboard-query.dto";
+import { type UpdateAnalyticsPreferencesDto, type WeekStartDay, weekStartDays } from "./dto/update-analytics-preferences.dto";
 import { UpdateProfileDetailsDto } from "./dto/update-profile-details.dto";
 import { UpdateProfileTransactionDto } from "./dto/update-profile-transaction.dto";
 
+type SummaryRange = {
+  start: Date;
+  endExclusive: Date;
+  month: number;
+  year: number;
+};
+
+type DashboardDateRange = SummaryRange & {
+  preset: DashboardRangePreset;
+  from: string | null;
+  to: string | null;
+  label: string;
+};
+
+const defaultWeekStartsOn: WeekStartDay = "MONDAY";
+const dashboardViewModes = ["COUPLE", "PERSONAL"] as const;
+
+function isWeekStartDay(value: string | null | undefined): value is WeekStartDay {
+  return Boolean(value && weekStartDays.includes(value as WeekStartDay));
+}
+
+function startOfUtcDay(value: Date) {
+  return new Date(Date.UTC(value.getUTCFullYear(), value.getUTCMonth(), value.getUTCDate()));
+}
+
+function addUtcDays(value: Date, amount: number) {
+  return new Date(Date.UTC(value.getUTCFullYear(), value.getUTCMonth(), value.getUTCDate() + amount));
+}
+
+function formatUtcDate(value: Date) {
+  return value.toISOString().slice(0, 10);
+}
+
+function parseDateOnly(value: string) {
+  const [yearText, monthText, dayText] = value.split("-");
+  const year = Number(yearText);
+  const month = Number(monthText);
+  const day = Number(dayText);
+  const parsed = new Date(Date.UTC(year, month - 1, day));
+
+  if (parsed.getUTCFullYear() !== year || parsed.getUTCMonth() !== month - 1 || parsed.getUTCDate() !== day) {
+    throw new BadRequestException("Date filter is invalid");
+  }
+
+  return parsed;
+}
+
+function resolveWeekStartOffset(dayOfWeek: number, weekStartsOn: WeekStartDay) {
+  const startIndex = weekStartDays.indexOf(weekStartsOn);
+  const normalizedDay = (dayOfWeek + 6) % 7;
+  return (normalizedDay - startIndex + 7) % 7;
+}
+
 @Injectable()
 export class ProfileService {
-  private birthdayColumnExists: boolean | null = null;
+  private userColumnExistsCache = new Map<string, boolean>();
 
   constructor(private readonly prisma: PrismaService) {}
 
-  private async hasBirthdayColumn() {
-    if (this.birthdayColumnExists !== null) {
-      return this.birthdayColumnExists;
+  private async hasUserColumn(columnName: string) {
+    if (this.userColumnExistsCache.has(columnName)) {
+      return this.userColumnExistsCache.get(columnName) ?? false;
     }
 
     const result = await this.prisma.client.$queryRawUnsafe<Array<{ exists: boolean }>>(
       `SELECT EXISTS (
         SELECT 1
         FROM information_schema.columns
-        WHERE table_name = 'User' AND column_name = 'birthday'
+        WHERE table_name = 'User' AND column_name = '${columnName}'
       ) AS "exists"`
     );
 
-    this.birthdayColumnExists = Boolean(result[0]?.exists);
-    return this.birthdayColumnExists;
+    const exists = Boolean(result[0]?.exists);
+    this.userColumnExistsCache.set(columnName, exists);
+    return exists;
+  }
+
+  private hasBirthdayColumn() {
+    return this.hasUserColumn("birthday");
+  }
+
+  private hasWeekStartsOnColumn() {
+    return this.hasUserColumn("week_starts_on");
+  }
+
+  private async getWeekStartsOnPreference(userId: string) {
+    const hasWeekStartsOnColumn = await this.hasWeekStartsOnColumn();
+    if (!hasWeekStartsOnColumn) {
+      return defaultWeekStartsOn;
+    }
+
+    const user = await this.prisma.client.user.findUnique({
+      where: { id: userId },
+      select: { id: true, weekStartsOn: true }
+    });
+
+    if (!user) {
+      throw new UnauthorizedException("Invalid token");
+    }
+
+    return isWeekStartDay(user.weekStartsOn) ? user.weekStartsOn : defaultWeekStartsOn;
+  }
+
+  private resolveMonthRange(month?: number, year?: number): SummaryRange {
+    const now = new Date();
+    const normalizedMonth = month ?? now.getMonth() + 1;
+    const normalizedYear = year ?? now.getFullYear();
+
+    if (!Number.isInteger(normalizedMonth) || normalizedMonth < 1 || normalizedMonth > 12) {
+      throw new BadRequestException("month must be between 1 and 12");
+    }
+
+    if (!Number.isInteger(normalizedYear) || normalizedYear < 2000 || normalizedYear > 2200) {
+      throw new BadRequestException("year is out of accepted range");
+    }
+
+    return {
+      start: new Date(Date.UTC(normalizedYear, normalizedMonth - 1, 1)),
+      endExclusive: new Date(Date.UTC(normalizedYear, normalizedMonth, 1)),
+      month: normalizedMonth,
+      year: normalizedYear
+    };
+  }
+
+  private resolveDashboardRange(query: DashboardQueryDto | undefined, weekStartsOn: WeekStartDay): DashboardDateRange {
+    const preset = query?.rangePreset ?? "THIS_WEEK";
+    const today = startOfUtcDay(new Date());
+    const tomorrow = addUtcDays(today, 1);
+
+    if (preset === "THIS_MONTH") {
+      return {
+        preset,
+        start: new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1)),
+        endExclusive: tomorrow,
+        month: today.getUTCMonth() + 1,
+        year: today.getUTCFullYear(),
+        from: null,
+        to: null,
+        label: "This month"
+      };
+    }
+
+    if (preset === "CUSTOM") {
+      if (!query?.from || !query?.to) {
+        throw new BadRequestException("Custom range requires both from and to dates");
+      }
+
+      const start = parseDateOnly(query.from);
+      const inclusiveEnd = parseDateOnly(query.to);
+
+      if (inclusiveEnd < start) {
+        throw new BadRequestException("Custom range end date cannot be earlier than the start date");
+      }
+
+      return {
+        preset,
+        start,
+        endExclusive: addUtcDays(inclusiveEnd, 1),
+        month: start.getUTCMonth() + 1,
+        year: start.getUTCFullYear(),
+        from: query.from,
+        to: query.to,
+        label: "Custom range"
+      };
+    }
+
+    const offset = resolveWeekStartOffset(today.getUTCDay(), weekStartsOn);
+    const start = addUtcDays(today, -offset);
+
+    return {
+      preset: "THIS_WEEK",
+      start,
+      endExclusive: tomorrow,
+      month: today.getUTCMonth() + 1,
+      year: today.getUTCFullYear(),
+      from: null,
+      to: null,
+      label: "This week"
+    };
   }
 
   private async getAuthState(userId: string) {
-    const hasBirthdayColumn = await this.hasBirthdayColumn();
+    const [hasBirthdayColumn, hasWeekStartsOnColumn] = await Promise.all([this.hasBirthdayColumn(), this.hasWeekStartsOnColumn()]);
     const user = await this.prisma.client.user.findUnique({
       where: { id: userId },
       select: {
@@ -50,7 +210,8 @@ export class ProfileService {
         photoUrl: true,
         telegramPhone: true,
         isAdmin: true,
-        isDark: true
+        isDark: true,
+        ...(hasWeekStartsOnColumn ? { weekStartsOn: true } : {})
       }
     });
 
@@ -73,7 +234,8 @@ export class ProfileService {
       photoUrl: user.photoUrl,
       telegramPhone: user.telegramPhone,
       isAdmin: user.isAdmin,
-      isDark: user.isDark
+      isDark: user.isDark,
+      weekStartsOn: hasWeekStartsOnColumn && isWeekStartDay((user as { weekStartsOn?: string | null }).weekStartsOn) ? (user as { weekStartsOn?: WeekStartDay }).weekStartsOn ?? defaultWeekStartsOn : defaultWeekStartsOn
     };
   }
 
@@ -299,6 +461,37 @@ export class ProfileService {
     });
   }
 
+  async updateAnalyticsPreferences(userId: string, dto: UpdateAnalyticsPreferencesDto) {
+    const hasWeekStartsOnColumn = await this.hasWeekStartsOnColumn();
+
+    if (!hasWeekStartsOnColumn) {
+      throw new BadRequestException("Analytics preferences are not available yet on this deployment. Run the latest database migration first.");
+    }
+
+    const existing = await this.prisma.client.user.findUnique({
+      where: { id: userId },
+      select: { id: true }
+    });
+
+    if (!existing) {
+      throw new UnauthorizedException("Invalid token");
+    }
+
+    const updated = await this.prisma.client.user.update({
+      where: { id: userId },
+      data: {
+        weekStartsOn: dto.weekStartsOn
+      },
+      select: {
+        weekStartsOn: true
+      }
+    });
+
+    return {
+      weekStartsOn: isWeekStartDay(updated.weekStartsOn) ? updated.weekStartsOn : defaultWeekStartsOn
+    };
+  }
+
   async snapshot(userId: string, month?: number, year?: number) {
     const [profile, summary, recent, auth] = await Promise.all([
       this.getProfile(userId),
@@ -315,11 +508,13 @@ export class ProfileService {
     };
   }
 
-  async dashboard(userId: string, month?: number, year?: number) {
+  async dashboard(userId: string, query?: DashboardQueryDto) {
+    const weekStartsOn = await this.getWeekStartsOnPreference(userId);
+    const range = this.resolveDashboardRange(query, weekStartsOn);
     const [profile, summary, recent, rates] = await Promise.all([
       this.getProfile(userId),
-      this.summary(userId, month, year, "UZS"),
-      this.recentTransactions(userId),
+      this.summarizeRange(userId, range, "UZS"),
+      this.recentTransactions(userId, range),
       getLatestCurrencyRates()
     ]);
 
@@ -328,7 +523,19 @@ export class ProfileService {
       summary,
       recent,
       rates,
-      supportedCurrencies: [...SUPPORTED_CURRENCIES]
+      supportedCurrencies: [...SUPPORTED_CURRENCIES],
+      filter: {
+        preset: range.preset,
+        from: range.from,
+        to: range.to,
+        appliedFrom: formatUtcDate(range.start),
+        appliedTo: formatUtcDate(addUtcDays(range.endExclusive, -1)),
+        label: range.label
+      },
+      preferences: {
+        weekStartsOn
+      },
+      availableViews: [...dashboardViewModes]
     };
   }
 
@@ -665,7 +872,7 @@ export class ProfileService {
     return { ok: true };
   }
 
-  async recentTransactions(userId: string) {
+  async recentTransactions(userId: string, range?: Pick<SummaryRange, "start" | "endExclusive">) {
     const coupleId = await this.resolveActiveCoupleId(userId, false);
     if (!coupleId) {
       return [];
@@ -674,7 +881,17 @@ export class ProfileService {
     await this.assertMembership(userId, coupleId);
 
     return this.prisma.client.transaction.findMany({
-      where: { coupleId },
+      where: {
+        coupleId,
+        ...(range
+          ? {
+              happenedAt: {
+                gte: range.start,
+                lt: range.endExclusive
+              }
+            }
+          : {})
+      },
       include: {
         category: {
           select: { name: true, kind: true }
@@ -693,25 +910,14 @@ export class ProfileService {
     });
   }
 
-  async summary(userId: string, month?: number, year?: number, displayCurrencyRaw?: string) {
-    const now = new Date();
-    const normalizedMonth = month ?? now.getMonth() + 1;
-    const normalizedYear = year ?? now.getFullYear();
+  private async summarizeRange(userId: string, range: SummaryRange, displayCurrencyRaw?: string) {
     const displayCurrency = normalizeCurrency(displayCurrencyRaw);
-
-    if (!Number.isInteger(normalizedMonth) || normalizedMonth < 1 || normalizedMonth > 12) {
-      throw new BadRequestException("month must be between 1 and 12");
-    }
-
-    if (!Number.isInteger(normalizedYear) || normalizedYear < 2000 || normalizedYear > 2200) {
-      throw new BadRequestException("year is out of accepted range");
-    }
 
     const coupleId = await this.resolveActiveCoupleId(userId, false);
     if (!coupleId) {
       return {
-        month: normalizedMonth,
-        year: normalizedYear,
+        month: range.month,
+        year: range.year,
         currency: displayCurrency,
         totalIncome: 0,
         totalExpense: 0,
@@ -724,15 +930,12 @@ export class ProfileService {
 
     await this.assertMembership(userId, coupleId);
 
-    const start = new Date(Date.UTC(normalizedYear, normalizedMonth - 1, 1));
-    const end = new Date(Date.UTC(normalizedYear, normalizedMonth, 1));
-
     const [income, expense, personalIncome, personalExpense] = await Promise.all([
       this.prisma.client.transaction.aggregate({
         where: {
           coupleId,
           kind: "INCOME",
-          happenedAt: { gte: start, lt: end }
+          happenedAt: { gte: range.start, lt: range.endExclusive }
         },
         _sum: { amountInUzs: true }
       }),
@@ -740,7 +943,7 @@ export class ProfileService {
         where: {
           coupleId,
           kind: "EXPENSE",
-          happenedAt: { gte: start, lt: end }
+          happenedAt: { gte: range.start, lt: range.endExclusive }
         },
         _sum: { amountInUzs: true }
       }),
@@ -749,7 +952,7 @@ export class ProfileService {
           coupleId,
           userId,
           kind: "INCOME",
-          happenedAt: { gte: start, lt: end }
+          happenedAt: { gte: range.start, lt: range.endExclusive }
         },
         _sum: { amountInUzs: true }
       }),
@@ -758,7 +961,7 @@ export class ProfileService {
           coupleId,
           userId,
           kind: "EXPENSE",
-          happenedAt: { gte: start, lt: end }
+          happenedAt: { gte: range.start, lt: range.endExclusive }
         },
         _sum: { amountInUzs: true }
       })
@@ -772,8 +975,8 @@ export class ProfileService {
     const normalizedPersonalExpense = convertFromUzs(Number(personalExpense._sum.amountInUzs ?? 0), displayRate);
 
     return {
-      month: normalizedMonth,
-      year: normalizedYear,
+      month: range.month,
+      year: range.year,
       currency: displayCurrency,
       totalIncome,
       totalExpense,
@@ -782,5 +985,9 @@ export class ProfileService {
       personalExpense: normalizedPersonalExpense,
       personalBalance: normalizedPersonalIncome - normalizedPersonalExpense
     };
+  }
+
+  async summary(userId: string, month?: number, year?: number, displayCurrencyRaw?: string) {
+    return this.summarizeRange(userId, this.resolveMonthRange(month, year), displayCurrencyRaw);
   }
 }

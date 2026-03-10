@@ -13,10 +13,12 @@ import { webEnv } from "@/lib/env";
 
 import { parseApiResponse } from "@/components/profile/api";
 import { clearDashboardCache, clearProfileSnapshotCache, readDashboardCache, writeDashboardCache } from "@/components/profile/cache";
-import { DashboardResponse, tokenKey, type SupportedCurrency } from "@/components/profile/types";
+import { DashboardResponse, tokenKey, type DashboardRangePreset, type DashboardViewMode, type SupportedCurrency } from "@/components/profile/types";
 
 import { DashboardMetrics } from "./dashboard-metrics";
+import { DashboardRangeFilter } from "./dashboard-range-filter";
 import { DashboardRecents } from "./dashboard-recents";
+import { DashboardViewSelect } from "./dashboard-view-select";
 
 const useClientLayoutEffect = typeof window === "undefined" ? useEffect : useLayoutEffect;
 
@@ -28,9 +30,23 @@ function convertAmount(amountInUzs: number, rate: number) {
   return Number((amountInUzs / rate).toFixed(2));
 }
 
+function formatDateLabel(value: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return value;
+  }
+
+  const [year, month, day] = value.split("-");
+  return `${day}/${month}/${year}`;
+}
+
 export function DashboardPage() {
   const [data, setData] = useState<DashboardResponse | null>(null);
   const [displayCurrency, setDisplayCurrency] = useState<SupportedCurrency>("UZS");
+  const [viewMode, setViewMode] = useState<DashboardViewMode>("COUPLE");
+  const [selectedPreset, setSelectedPreset] = useState<DashboardRangePreset>("THIS_WEEK");
+  const [appliedFilter, setAppliedFilter] = useState<{ preset: DashboardRangePreset; from: string; to: string }>({ preset: "THIS_WEEK", from: "", to: "" });
+  const [draftFrom, setDraftFrom] = useState("");
+  const [draftTo, setDraftTo] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -38,6 +54,10 @@ export function DashboardPage() {
     const cached = readDashboardCache();
     if (cached) {
       setData(cached);
+      setSelectedPreset(cached.filter.preset);
+      setAppliedFilter({ preset: cached.filter.preset, from: cached.filter.from ?? "", to: cached.filter.to ?? "" });
+      setDraftFrom(cached.filter.from ?? "");
+      setDraftTo(cached.filter.to ?? "");
     }
   }, []);
 
@@ -49,7 +69,13 @@ export function DashboardPage() {
     }
 
     setIsRefreshing(true);
-    void fetch(`${webEnv.apiUrl}/profile/me/dashboard`, {
+    const query = new URLSearchParams({ rangePreset: appliedFilter.preset });
+    if (appliedFilter.preset === "CUSTOM") {
+      query.set("from", appliedFilter.from);
+      query.set("to", appliedFilter.to);
+    }
+
+    void fetch(`${webEnv.apiUrl}/profile/me/dashboard?${query.toString()}`, {
       headers: {
         Authorization: `Bearer ${token}`
       }
@@ -73,7 +99,7 @@ export function DashboardPage() {
         setError(message);
       })
       .finally(() => setIsRefreshing(false));
-  }, []);
+  }, [appliedFilter]);
 
   const summary = useMemo(() => {
     if (!data) {
@@ -81,12 +107,16 @@ export function DashboardPage() {
     }
 
     const rate = data.rates[displayCurrency];
+    const income = viewMode === "PERSONAL" ? data.summary.personalIncome : data.summary.totalIncome;
+    const expense = viewMode === "PERSONAL" ? data.summary.personalExpense : data.summary.totalExpense;
+    const balance = viewMode === "PERSONAL" ? data.summary.personalBalance : data.summary.balance;
+
     return {
-      totalIncome: convertAmount(data.summary.totalIncome, rate),
-      totalExpense: convertAmount(data.summary.totalExpense, rate),
-      balance: convertAmount(data.summary.balance, rate)
+      totalIncome: convertAmount(income, rate),
+      totalExpense: convertAmount(expense, rate),
+      balance: convertAmount(balance, rate)
     };
-  }, [data, displayCurrency]);
+  }, [data, displayCurrency, viewMode]);
 
   useRouteTransitionPageReady(Boolean(data || error));
 
@@ -96,7 +126,7 @@ export function DashboardPage() {
         <Card className="panel-soft w-full max-w-xl">
           <CardHeader>
             <CardTitle className="flex items-center gap-2"><Loader2 className="size-5 animate-spin text-pop" />Loading dashboard</CardTitle>
-            <CardDescription>Preparing current-month converted balances...</CardDescription>
+            <CardDescription>Preparing the latest filtered balances and activity...</CardDescription>
           </CardHeader>
         </Card>
       </main>
@@ -113,6 +143,9 @@ export function DashboardPage() {
     );
   }
 
+  const metricsHeading = viewMode === "PERSONAL" ? "Personal lens" : "Shared lens";
+  const metricsDescription = viewMode === "PERSONAL" ? "See only your own income, expenses, and balance inside the currently selected range." : "See the combined workspace totals inside the currently selected range.";
+
   return (
     <main className="container-shell pb-16 pt-24">
       <header className="soft-rise mb-8 flex flex-wrap items-start justify-between gap-4">
@@ -120,11 +153,12 @@ export function DashboardPage() {
           <BrandMark href="/" />
           <div>
             <p className="eyebrow-row">Dashboard</p>
-            <h1 className="mt-5 font-[family-name:var(--font-heading)] text-[clamp(38px,4vw,56px)] font-light leading-[1.08]">Current month in any supported currency.</h1>
-            <p className="body-muted mt-3 text-sm">Workspace: {data.profile.activeCouple?.name ?? "Personal workspace"} · Code: {data.profile.user.coupleCode}</p>
+            <h1 className="mt-5 font-[family-name:var(--font-heading)] text-[clamp(38px,4vw,56px)] font-light leading-[1.08]">Filtered finance views with calendar-aware ranges.</h1>
+            <p className="body-muted mt-3 text-sm">Workspace: {data.profile.activeCouple?.name ?? "Personal workspace"} · Code: {data.profile.user.coupleCode} · Active range: {data.filter.label}</p>
           </div>
         </div>
         <div className="flex items-center gap-3">
+          <DashboardViewSelect value={viewMode} options={data.availableViews} onChange={setViewMode} />
           <label className="space-y-1 text-sm">
             <span className="field-label">Display currency</span>
             <SelectField value={displayCurrency} onChange={(event) => setDisplayCurrency(event.target.value as SupportedCurrency)} className="min-w-[112px]">
@@ -136,7 +170,30 @@ export function DashboardPage() {
         </div>
       </header>
 
-      <DashboardMetrics totalIncome={summary.totalIncome} totalExpense={summary.totalExpense} balance={summary.balance} currency={displayCurrency} />
+      <DashboardRangeFilter
+        preset={selectedPreset}
+        draftFrom={draftFrom}
+        draftTo={draftTo}
+        isRefreshing={isRefreshing}
+        weekStartsOn={data.preferences.weekStartsOn}
+        activeLabel={data.filter.label}
+        activeFrom={formatDateLabel(data.filter.appliedFrom)}
+        activeTo={formatDateLabel(data.filter.appliedTo)}
+        onPresetChange={(preset) => {
+          setSelectedPreset(preset);
+          if (preset !== "CUSTOM") {
+            setAppliedFilter({ preset, from: "", to: "" });
+          }
+        }}
+        onDraftFromChange={setDraftFrom}
+        onDraftToChange={setDraftTo}
+        onApplyCustom={() => {
+          setSelectedPreset("CUSTOM");
+          setAppliedFilter({ preset: "CUSTOM", from: draftFrom, to: draftTo });
+        }}
+      />
+
+      <DashboardMetrics heading={metricsHeading} description={metricsDescription} totalIncome={summary.totalIncome} totalExpense={summary.totalExpense} balance={summary.balance} currency={displayCurrency} />
       <DashboardRecents recent={data.recent} displayCurrency={displayCurrency} rates={data.rates} />
     </main>
   );

@@ -9,6 +9,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
+import { AnalyticsPreferencesCard } from "./management/analytics-preferences-card";
 import { BoundAccountsCard } from "./management/bound-accounts-card";
 import { PartnerConnectionCard } from "./management/partner-connection-card";
 import { PasswordSetupCard } from "./management/password-setup-card";
@@ -72,6 +73,10 @@ export function ProfileManagementPage() {
 
       <section className="mt-6">
         <PartnerConnectionCard bindCode={workspace.bindCode} setBindCode={workspace.setBindCode} isBinding={workspace.isBinding} bindMessage={workspace.bindMessage} bindError={workspace.bindError} activeWorkspaceName={workspace.profile.activeCouple?.name ?? null} activeRole={workspace.profile.activeCouple?.role ?? null} insertedCode={workspace.profile.bind?.insertedCode ?? null} onBind={workspace.onBind} />
+      </section>
+
+      <section className="mt-6">
+        <AnalyticsPreferencesCard weekStartsOn={workspace.weekStartsOn} setWeekStartsOn={workspace.setWeekStartsOn} isSavingPreferences={workspace.isSavingPreferences} preferencesMessage={workspace.preferencesMessage} preferencesError={workspace.preferencesError} onSavePreferences={workspace.onSavePreferences} />
       </section>
     </main>
   );

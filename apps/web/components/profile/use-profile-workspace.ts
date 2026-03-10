@@ -20,7 +20,8 @@ import {
   supportedCurrencies,
   tokenKey,
   type SupportedCurrency,
-  type MonthlySummary
+  type MonthlySummary,
+  type WeekStartDay
 } from "./types";
 
 declare global {
@@ -92,6 +93,10 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
   const [isSavingDetails, setIsSavingDetails] = useState(false);
   const [detailsMessage, setDetailsMessage] = useState<string | null>(null);
   const [detailsError, setDetailsError] = useState<string | null>(null);
+  const [weekStartsOn, setWeekStartsOn] = useState<WeekStartDay>("MONDAY");
+  const [isSavingPreferences, setIsSavingPreferences] = useState(false);
+  const [preferencesMessage, setPreferencesMessage] = useState<string | null>(null);
+  const [preferencesError, setPreferencesError] = useState<string | null>(null);
 
   const [setupEmail, setSetupEmail] = useState("");
   const [setupPassword, setSetupPassword] = useState("");
@@ -139,6 +144,7 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
     setDetailsFirstName(normalizedSnapshot.auth.firstName ?? "");
     setDetailsLastName(normalizedSnapshot.auth.lastName ?? "");
     setDetailsBirthday(normalizedSnapshot.auth.birthday?.slice(0, 10) ?? "");
+    setWeekStartsOn(normalizedSnapshot.auth.weekStartsOn);
 
     if (normalizedSnapshot.auth.email) {
       setSetupEmail((current) => current || normalizedSnapshot.auth.email || "");
@@ -159,6 +165,7 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
     setDetailsFirstName("");
     setDetailsLastName("");
     setDetailsBirthday("");
+    setWeekStartsOn("MONDAY");
     setTelegramConnectUrl(webEnv.botName ? `https://t.me/${webEnv.botName}` : "https://t.me/coup_fin_trackerbot");
   }, []);
 
@@ -502,6 +509,45 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
     }
   };
 
+  const onSavePreferences = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!token) return;
+    setPreferencesError(null);
+    setPreferencesMessage(null);
+    setIsSavingPreferences(true);
+
+    try {
+      const response = await fetch(`${webEnv.apiUrl}/profile/me/preferences`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ weekStartsOn })
+      });
+
+      const payload = await parseApiResponse<{ weekStartsOn: WeekStartDay }>(response);
+      setWeekStartsOn(payload.weekStartsOn);
+      setAuthMe((current) => {
+        if (!current) {
+          return current;
+        }
+
+        const nextAuth = { ...current, weekStartsOn: payload.weekStartsOn };
+        if (profile && summary) {
+          writeProfileSnapshotCache({ profile, summary, recent, auth: nextAuth });
+        }
+        return nextAuth;
+      });
+      setPreferencesMessage("Analytics preferences saved.");
+      clearDashboardCache();
+    } catch (error) {
+      setPreferencesError(error instanceof Error ? error.message : "Could not save analytics preferences");
+    } finally {
+      setIsSavingPreferences(false);
+    }
+  };
+
   const onBind = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!token) return;
@@ -714,6 +760,8 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
     setDetailsLastName,
     detailsBirthday,
     setDetailsBirthday,
+    weekStartsOn,
+    setWeekStartsOn,
     telegramDisplayName,
     telegramUsername,
     telegramConnectUrl,
@@ -721,6 +769,10 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
     detailsMessage,
     detailsError,
     onSaveDetails,
+    isSavingPreferences,
+    preferencesMessage,
+    preferencesError,
+    onSavePreferences,
     setupEmail,
     setSetupEmail,
     setupPassword,

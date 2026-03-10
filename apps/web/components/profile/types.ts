@@ -2,8 +2,14 @@ export const tokenKey = "cf_token";
 export const authSourceKey = "cf_auth_source";
 export const canonicalProfilePath = "/profile/me";
 export const supportedCurrencies = ["UZS", "USD", "EUR", "RUB"] as const;
+export const weekStartDays = ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY"] as const;
+export const dashboardRangePresets = ["THIS_WEEK", "THIS_MONTH", "CUSTOM"] as const;
+export const dashboardViewModes = ["COUPLE", "PERSONAL"] as const;
 
 export type SupportedCurrency = (typeof supportedCurrencies)[number];
+export type WeekStartDay = (typeof weekStartDays)[number];
+export type DashboardRangePreset = (typeof dashboardRangePresets)[number];
+export type DashboardViewMode = (typeof dashboardViewModes)[number];
 
 export type ProfileResponse = {
   user: {
@@ -83,6 +89,7 @@ export type AuthMeResponse = {
   telegramPhone: string | null;
   isAdmin: boolean;
   isDark: boolean;
+  weekStartsOn: WeekStartDay;
 };
 
 export type ProfileSnapshotResponse = {
@@ -108,6 +115,9 @@ export type DashboardResponse = {
     totalIncome: number;
     totalExpense: number;
     balance: number;
+    personalIncome: number;
+    personalExpense: number;
+    personalBalance: number;
   };
   recent: Array<{
     id: string;
@@ -122,4 +132,16 @@ export type DashboardResponse = {
   }>;
   rates: Record<SupportedCurrency, number>;
   supportedCurrencies: SupportedCurrency[];
+  filter: {
+    preset: DashboardRangePreset;
+    from: string | null;
+    to: string | null;
+    appliedFrom: string;
+    appliedTo: string;
+    label: string;
+  };
+  preferences: {
+    weekStartsOn: WeekStartDay;
+  };
+  availableViews: DashboardViewMode[];
 };

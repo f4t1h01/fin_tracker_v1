@@ -4,6 +4,8 @@ import { CurrentUser } from "../auth/current-user.decorator";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { BindCoupleDto } from "./dto/bind-couple.dto";
 import { CreateProfileTransactionDto } from "./dto/create-profile-transaction.dto";
+import { DashboardQueryDto } from "./dto/dashboard-query.dto";
+import { UpdateAnalyticsPreferencesDto } from "./dto/update-analytics-preferences.dto";
 import { UpdateProfileDetailsDto } from "./dto/update-profile-details.dto";
 import { UpdateProfileTransactionDto } from "./dto/update-profile-transaction.dto";
 import { ProfileService } from "./profile.service";
@@ -29,6 +31,11 @@ export class ProfileController {
     };
   }
 
+  @Patch("me/preferences")
+  updateMyPreferences(@CurrentUser() user: { id: string }, @Body() dto: UpdateAnalyticsPreferencesDto) {
+    return this.profileService.updateAnalyticsPreferences(user.id, dto);
+  }
+
   @Get("me/snapshot")
   mySnapshot(@CurrentUser() user: { id: string }, @Query("month") month?: string, @Query("year") year?: string) {
     const monthNumber = month ? Number(month) : undefined;
@@ -37,10 +44,8 @@ export class ProfileController {
   }
 
   @Get("me/dashboard")
-  myDashboard(@CurrentUser() user: { id: string }, @Query("month") month?: string, @Query("year") year?: string) {
-    const monthNumber = month ? Number(month) : undefined;
-    const yearNumber = year ? Number(year) : undefined;
-    return this.profileService.dashboard(user.id, monthNumber, yearNumber);
+  myDashboard(@CurrentUser() user: { id: string }, @Query() query: DashboardQueryDto) {
+    return this.profileService.dashboard(user.id, query);
   }
 
   @Post("me/bind")
