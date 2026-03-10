@@ -15,7 +15,6 @@ type AuthMeResponse = {
   hasPassword: boolean;
   firstName: string | null;
   username: string | null;
-  coupleCode: string | null;
   isDark: boolean;
 };
 
@@ -104,7 +103,6 @@ export default function ProfileEntryPage() {
             <div className="detail-box space-y-2 text-sm">
               <p>Display name: {warmName ?? "Not set yet"}</p>
               <p>Email login: {auth.hasPassword ? auth.email ?? "Ready" : "Not saved yet"}</p>
-              <p>Couple code: {auth.coupleCode ?? "Generating on first use"}</p>
               <p>Theme: {auth.isDark ? "Dark" : "Light"}</p>
             </div>
           ) : null}

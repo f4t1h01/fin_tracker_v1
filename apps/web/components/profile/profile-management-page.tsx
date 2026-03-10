@@ -62,7 +62,7 @@ export function ProfileManagementPage() {
 
       <section className="grid gap-5 lg:grid-cols-2">
         <ProfileDetailsCard detailsFirstName={workspace.detailsFirstName} setDetailsFirstName={workspace.setDetailsFirstName} detailsLastName={workspace.detailsLastName} setDetailsLastName={workspace.setDetailsLastName} detailsBirthday={workspace.detailsBirthday} setDetailsBirthday={workspace.setDetailsBirthday} telegramUsername={workspace.telegramUsername} isSavingDetails={workspace.isSavingDetails} detailsMessage={workspace.detailsMessage} detailsError={workspace.detailsError} onSaveDetails={workspace.onSaveDetails} />
-        <BoundAccountsCard email={workspace.authMe.email} hasPassword={workspace.authMe.hasPassword} telegramUsername={workspace.telegramUsername} telegramId={workspace.authMe.telegramId} telegramDisplayName={workspace.telegramDisplayName} telegramPhone={workspace.authMe.telegramPhone} workspaceCode={workspace.profile.user.coupleCode} telegramConnectUrl={workspace.telegramConnectUrl} />
+        <BoundAccountsCard email={workspace.authMe.email} hasPassword={workspace.authMe.hasPassword} telegramUsername={workspace.telegramUsername} telegramId={workspace.authMe.telegramId} telegramDisplayName={workspace.telegramDisplayName} telegramPhone={workspace.authMe.telegramPhone} telegramConnectUrl={workspace.telegramConnectUrl} />
       </section>
 
       {!workspace.authMe.hasPassword ? (
@@ -72,7 +72,7 @@ export function ProfileManagementPage() {
       ) : null}
 
       <section className="mt-6">
-        <PartnerConnectionCard bindCode={workspace.bindCode} setBindCode={workspace.setBindCode} isBinding={workspace.isBinding} bindMessage={workspace.bindMessage} bindError={workspace.bindError} activeWorkspaceName={workspace.profile.activeCouple?.name ?? null} activeRole={workspace.profile.activeCouple?.role ?? null} insertedCode={workspace.profile.bind?.insertedCode ?? null} onBind={workspace.onBind} />
+        <PartnerConnectionCard userCoupleCode={workspace.profile.user.coupleCode ?? null} bindCode={workspace.bindCode} setBindCode={workspace.setBindCode} isBinding={workspace.isBinding} bindMessage={workspace.bindMessage} bindError={workspace.bindError} activeWorkspaceName={workspace.profile.activeCouple?.name ?? null} activeRole={workspace.profile.activeCouple?.role ?? null} insertedCode={workspace.profile.bind?.insertedCode ?? null} onBind={workspace.onBind} />
       </section>
 
       <section className="mt-6">

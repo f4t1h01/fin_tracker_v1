@@ -11,6 +11,7 @@
 - Manual deployment is the active mode.
 - Server app entrypoint is `http://127.0.0.1:71` behind external reverse proxy.
 - Local/source deploy uses `docker-compose.yml`.
+- Production Postgres is not containerized in `docker compose`; it runs directly on the server host and is reached separately via `DATABASE_URL` / local `psql`.
 - Production domain is `cupfin.shaxin.uz`.
 - Telegram bot link: `https://t.me/coup_fin_trackerbot`.
 - Direct Postgres access command: `psql -h 127.0.0.1 -p 5432 -U postgres -d fin_tracker`
@@ -61,7 +62,7 @@
   - tell user when to pull on server
   - include explicit git commands with branch name based on the current repo state
   - prefer `git add .` in user-facing command examples
-  - when a Prisma schema change is part of the batch, explicitly tell the user to run the matching production migration step on the server before or during rebuild
+  - when a Prisma schema change is part of the batch, explicitly tell the user to run the matching production migration step against the host Postgres on the server before or during rebuild
   - include docker restart and verification commands
   - those messages must be added as a code blocks so it is easy for the user to copy and paste it.
 

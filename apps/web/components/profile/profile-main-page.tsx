@@ -39,7 +39,7 @@ export function ProfileMainPage() {
           <div>
             <div className="eyebrow-row">Profile workspace</div>
             <h1 className="mt-5 font-[family-name:var(--font-heading)] text-[clamp(38px,4vw,56px)] font-light leading-[1.08]">{workspace.greeting}</h1>
-            <p className="body-muted mt-3 text-sm">Your code: <span className="font-semibold text-[var(--gold)]">{workspace.profile.user.coupleCode ?? "-"}</span></p>
+            <p className="body-muted mt-3 text-sm">Your personal finance view stays here, while partner connection details live in profile management.</p>
           </div>
         </div>
         <div className="flex items-center gap-3">

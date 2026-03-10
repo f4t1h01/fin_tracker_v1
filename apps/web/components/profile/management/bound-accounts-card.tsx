@@ -8,7 +8,6 @@ type BoundAccountsCardProps = {
   telegramId: string;
   telegramDisplayName: string;
   telegramPhone: string | null;
-  workspaceCode: string;
   telegramConnectUrl: string;
 };
 
@@ -32,7 +31,6 @@ export function BoundAccountsCard(props: BoundAccountsCardProps) {
           <p>Telegram username: {props.telegramUsername}</p>
           <p>Telegram user id: {hasRealTelegramUser ? props.telegramId : "Unavailable"}</p>
           <p>Telegram phone: {props.telegramPhone ?? "Not shared yet"}</p>
-          <p>Workspace code: {props.workspaceCode}</p>
         </div>
         {!isTelegramLinked ? (
           <p className="body-muted text-sm">Use the button below to open Telegram with a signed link for this exact website account. Telegram can provide your user id, username, display name, and optional phone number after you share it.</p>

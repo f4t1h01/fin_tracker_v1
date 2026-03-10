@@ -154,7 +154,7 @@ export function DashboardPage() {
           <div>
             <p className="eyebrow-row">Dashboard</p>
             <h1 className="mt-5 font-[family-name:var(--font-heading)] text-[clamp(38px,4vw,56px)] font-light leading-[1.08]">Filtered finance views with calendar-aware ranges.</h1>
-            <p className="body-muted mt-3 text-sm">Workspace: {data.profile.activeCouple?.name ?? "Personal workspace"} · Code: {data.profile.user.coupleCode} · Active range: {data.filter.label}</p>
+            <p className="body-muted mt-3 text-sm">Workspace: {data.profile.activeCouple?.name ?? "Personal workspace"} · Active range: {data.filter.label}</p>
           </div>
         </div>
         <div className="flex items-center gap-3">
