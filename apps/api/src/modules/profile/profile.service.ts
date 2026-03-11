@@ -278,25 +278,41 @@ export class ProfileService {
     throw new BadRequestException("Could not reserve a unique couple code");
   }
 
+  private async findPersonalCoupleId(userId: string) {
+    const personalWorkspace = await this.prisma.client.couple.findFirst({
+      where: {
+        createdById: userId,
+        name: "Personal workspace",
+        memberships: {
+          some: {
+            userId
+          }
+        }
+      },
+      orderBy: {
+        createdAt: "asc"
+      },
+      select: {
+        id: true
+      }
+    });
+
+    return personalWorkspace?.id ?? null;
+  }
+
   private async resolveActiveCoupleId(userId: string, createIfMissing: boolean): Promise<string | null> {
-    const [bind, membership] = await Promise.all([
-      this.prisma.client.coupleBind.findUnique({
-        where: { userId },
-        select: { coupleId: true }
-      }),
-      this.prisma.client.membership.findFirst({
-        where: { userId },
-        orderBy: { createdAt: "asc" },
-        select: { coupleId: true }
-      })
-    ]);
+    const bind = await this.prisma.client.coupleBind.findUnique({
+      where: { userId },
+      select: { coupleId: true }
+    });
 
     if (bind?.coupleId) {
       return bind.coupleId;
     }
 
-    if (membership?.coupleId) {
-      return membership.coupleId;
+    const personalCoupleId = await this.findPersonalCoupleId(userId);
+    if (personalCoupleId) {
+      return personalCoupleId;
     }
 
     if (!createIfMissing) {
@@ -660,6 +676,75 @@ export class ProfileService {
         }
       })
     ]);
+
+    return this.getProfile(userId);
+  }
+
+  async unbindPartner(userId: string) {
+    const bind = await this.prisma.client.coupleBind.findUnique({
+      where: { userId },
+      select: {
+        coupleId: true
+      }
+    });
+
+    if (!bind) {
+      throw new BadRequestException("No active partner connection to remove");
+    }
+
+    const bindRows = await this.prisma.client.coupleBind.findMany({
+      where: {
+        coupleId: bind.coupleId
+      },
+      select: {
+        userId: true
+      }
+    });
+
+    const userIdsToPrepare = Array.from(new Set([userId, ...bindRows.map((item) => item.userId)]));
+
+    await this.prisma.client.$transaction(async (tx) => {
+      for (const targetUserId of userIdsToPrepare) {
+        const personalWorkspace = await tx.couple.findFirst({
+          where: {
+            createdById: targetUserId,
+            name: "Personal workspace",
+            memberships: {
+              some: {
+                userId: targetUserId
+              }
+            }
+          },
+          select: {
+            id: true
+          }
+        });
+
+        if (!personalWorkspace) {
+          await tx.couple.create({
+            data: {
+              name: "Personal workspace",
+              createdById: targetUserId,
+              memberships: {
+                create: {
+                  userId: targetUserId,
+                  role: "OWNER"
+                }
+              }
+            },
+            select: {
+              id: true
+            }
+          });
+        }
+      }
+
+      await tx.coupleBind.deleteMany({
+        where: {
+          coupleId: bind.coupleId
+        }
+      });
+    });
 
     return this.getProfile(userId);
   }

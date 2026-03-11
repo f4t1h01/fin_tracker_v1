@@ -8,6 +8,7 @@ import { AppLink } from "@/components/navigation/app-link";
 import { useRouteTransitionPageReady } from "@/components/navigation/route-transition-provider";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { PageHeaderActions } from "@/components/ui/page-header-actions";
 import { SelectField } from "@/components/ui/select-field";
 import { webEnv } from "@/lib/env";
 
@@ -157,10 +158,10 @@ export function DashboardPage() {
             <p className="body-muted mt-3 text-sm">Workspace: {data.profile.activeCouple?.name ?? "Personal workspace"} · Active range: {data.filter.label}</p>
           </div>
         </div>
-        <div className="flex items-center gap-3">
+        <PageHeaderActions>
           {isRefreshing ? <span className="body-muted text-xs uppercase tracking-[0.16em]">Refreshing</span> : null}
           <Button variant="outline" asChild><AppLink href="/profile/me">Back to profile</AppLink></Button>
-        </div>
+        </PageHeaderActions>
       </header>
 
       <section className="mb-6 flex flex-wrap items-end gap-3">

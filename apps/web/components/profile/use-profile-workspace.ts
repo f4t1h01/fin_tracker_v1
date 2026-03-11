@@ -114,6 +114,7 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
   const [bindMessage, setBindMessage] = useState<string | null>(null);
   const [bindError, setBindError] = useState<string | null>(null);
   const [isBinding, setIsBinding] = useState(false);
+  const [isUnbinding, setIsUnbinding] = useState(false);
   const [telegramConnectUrl, setTelegramConnectUrl] = useState(webEnv.botName ? `https://t.me/${webEnv.botName}` : "https://t.me/coup_fin_trackerbot");
 
   const [kind, setKind] = useState<"EXPENSE" | "INCOME">("EXPENSE");
@@ -568,11 +569,44 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
       await parseApiResponse<ProfileResponse>(response);
       setBindCode("");
       setBindMessage("Couple connection updated successfully.");
+      clearDashboardCache();
       await fetchSnapshot(token);
     } catch (error) {
       setBindError(error instanceof Error ? error.message : "Could not connect by code");
     } finally {
       setIsBinding(false);
+    }
+  };
+
+  const onUnbind = async () => {
+    if (!token) return;
+
+    const confirmed = window.confirm("Remove this partner connection? Existing shared history will stay preserved, but future work will return to your personal workspace.");
+    if (!confirmed) {
+      return;
+    }
+
+    setBindError(null);
+    setBindMessage(null);
+    setIsUnbinding(true);
+
+    try {
+      const response = await fetch(`${webEnv.apiUrl}/profile/me/bind`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+
+      await parseApiResponse<ProfileResponse>(response);
+      setBindCode("");
+      setBindMessage("Partner connection removed. You are back in your personal workspace.");
+      clearDashboardCache();
+      await fetchSnapshot(token);
+    } catch (error) {
+      setBindError(error instanceof Error ? error.message : "Could not remove partner connection");
+    } finally {
+      setIsUnbinding(false);
     }
   };
 
@@ -788,7 +822,9 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
     bindMessage,
     bindError,
     isBinding,
+    isUnbinding,
     onBind,
+    onUnbind,
     kind,
     setKind,
     amount,

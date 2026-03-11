@@ -8,6 +8,7 @@ import { useRouteTransitionPageReady } from "@/components/navigation/route-trans
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { PageHeaderActions } from "@/components/ui/page-header-actions";
 
 import { AnalyticsPreferencesCard } from "./management/analytics-preferences-card";
 import { BoundAccountsCard } from "./management/bound-accounts-card";
@@ -52,10 +53,10 @@ export function ProfileManagementPage() {
             <p className="body-muted mt-3 text-sm">Manage your details, account links, and appearance settings here.</p>
           </div>
         </div>
-        <div className="flex items-center gap-3">
+        <PageHeaderActions>
           <ThemeToggle onChange={(theme) => void workspace.onThemeChange(theme)} />
           <Button variant="outline" asChild><AppLink href="/profile/me">Back to profile</AppLink></Button>
-        </div>
+        </PageHeaderActions>
       </header>
 
       {workspace.authError ? <Card className="mb-6 border-red-300/20 bg-red-500/10 dark:border-red-400/30 dark:bg-red-500/10"><CardContent className="pt-6"><p className="status-error text-sm">{workspace.authError}</p></CardContent></Card> : null}
@@ -72,7 +73,7 @@ export function ProfileManagementPage() {
       ) : null}
 
       <section className="mt-6">
-        <PartnerConnectionCard userCoupleCode={workspace.profile.user.coupleCode ?? null} bindCode={workspace.bindCode} setBindCode={workspace.setBindCode} isBinding={workspace.isBinding} bindMessage={workspace.bindMessage} bindError={workspace.bindError} activeWorkspaceName={workspace.profile.activeCouple?.name ?? null} activeRole={workspace.profile.activeCouple?.role ?? null} insertedCode={workspace.profile.bind?.insertedCode ?? null} onBind={workspace.onBind} />
+        <PartnerConnectionCard userCoupleCode={workspace.profile.user.coupleCode ?? null} bindCode={workspace.bindCode} setBindCode={workspace.setBindCode} isBinding={workspace.isBinding} isUnbinding={workspace.isUnbinding} bindMessage={workspace.bindMessage} bindError={workspace.bindError} activeWorkspaceName={workspace.profile.activeCouple?.name ?? null} activeRole={workspace.profile.activeCouple?.role ?? null} insertedCode={workspace.profile.bind?.insertedCode ?? null} onBind={workspace.onBind} onUnbind={workspace.onUnbind} />
       </section>
 
       <section className="mt-6">

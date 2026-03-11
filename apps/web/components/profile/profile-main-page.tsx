@@ -5,6 +5,7 @@ import { AppLink } from "@/components/navigation/app-link";
 import { useRouteTransitionPageReady } from "@/components/navigation/route-transition-provider";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { PageHeaderActions } from "@/components/ui/page-header-actions";
 
 import { ProfileAuthGateway } from "./profile-auth-gateway";
 import { ProfileLoadingState } from "./profile-loading-state";
@@ -42,10 +43,10 @@ export function ProfileMainPage() {
             <p className="body-muted mt-3 text-sm">Your personal finance view stays here, while partner connection details live in profile management.</p>
           </div>
         </div>
-        <div className="flex items-center gap-3">
+        <PageHeaderActions>
           <Button variant="outline" asChild><AppLink href="/dashboard">View dashboard</AppLink></Button>
           <Button variant="outline" asChild><AppLink href="/profile/me/manage">Profile management</AppLink></Button>
-        </div>
+        </PageHeaderActions>
       </header>
 
       {workspace.authError ? <Card className="mb-6 border-red-300/20 bg-red-500/10 dark:border-red-400/30 dark:bg-red-500/10"><CardContent className="pt-6"><p className="status-error text-sm">{workspace.authError}</p></CardContent></Card> : null}

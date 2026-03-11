@@ -53,6 +53,11 @@ export class ProfileController {
     return this.profileService.bindByCode(user.id, dto);
   }
 
+  @Delete("me/bind")
+  unbindMe(@CurrentUser() user: { id: string }) {
+    return this.profileService.unbindPartner(user.id);
+  }
+
   @Post("me/transactions")
   createMyTransaction(@CurrentUser() user: { id: string }, @Body() dto: CreateProfileTransactionDto) {
     return this.profileService.createTransaction(user.id, dto);
