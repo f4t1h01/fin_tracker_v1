@@ -158,17 +158,20 @@ export function DashboardPage() {
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <DashboardViewSelect value={viewMode} options={data.availableViews} onChange={setViewMode} />
-          <label className="space-y-1 text-sm">
-            <span className="field-label">Display currency</span>
-            <SelectField value={displayCurrency} onChange={(event) => setDisplayCurrency(event.target.value as SupportedCurrency)} className="min-w-[112px]">
-              {data.supportedCurrencies.map((item) => <option key={item} value={item}>{item}</option>)}
-            </SelectField>
-          </label>
           {isRefreshing ? <span className="body-muted text-xs uppercase tracking-[0.16em]">Refreshing</span> : null}
           <Button variant="outline" asChild><AppLink href="/profile/me">Back to profile</AppLink></Button>
         </div>
       </header>
+
+      <section className="mb-6 flex flex-wrap items-end gap-3">
+        <DashboardViewSelect value={viewMode} options={data.availableViews} onChange={setViewMode} />
+        <label className="space-y-1 text-sm">
+          <span className="field-label">Display currency</span>
+          <SelectField value={displayCurrency} onChange={(event) => setDisplayCurrency(event.target.value as SupportedCurrency)} className="min-w-[112px]">
+            {data.supportedCurrencies.map((item) => <option key={item} value={item}>{item}</option>)}
+          </SelectField>
+        </label>
+      </section>
 
       <DashboardRangeFilter
         preset={selectedPreset}
