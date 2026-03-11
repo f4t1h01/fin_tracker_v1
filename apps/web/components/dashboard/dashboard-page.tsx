@@ -149,12 +149,12 @@ export function DashboardPage() {
 
   return (
     <main className="container-shell pb-16 pt-24">
-      <header className="soft-rise mb-8 flex flex-wrap items-start justify-between gap-4">
-        <div className="space-y-4">
+      <header className="soft-rise mb-8 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="max-w-4xl space-y-4">
           <BrandMark href="/" />
           <div>
             <p className="eyebrow-row">Dashboard</p>
-            <h1 className="mt-5 font-[family-name:var(--font-heading)] text-[clamp(38px,4vw,56px)] font-light leading-[1.08]">Filtered finance views with calendar-aware ranges.</h1>
+            <h1 className="mt-5 font-[family-name:var(--font-heading)] text-[clamp(38px,4vw,56px)] font-light leading-[1.08]">Filtered finance views.</h1>
             <p className="body-muted mt-3 text-sm">Workspace: {data.profile.activeCouple?.name ?? "Personal workspace"} · Active range: {data.filter.label}</p>
           </div>
         </div>
