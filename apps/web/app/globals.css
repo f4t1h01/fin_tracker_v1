@@ -1048,7 +1048,6 @@ html[data-theme="dark"] .field-control {
   -webkit-text-fill-color: var(--ink);
   letter-spacing: 0.04em;
   font-variant-numeric: tabular-nums;
-  padding-right: 42px;
   cursor: pointer;
 }
 
@@ -1068,25 +1067,6 @@ html[data-theme="dark"] .field-control {
   margin: 0;
   opacity: 0;
   cursor: pointer;
-}
-
-.picker-icon {
-  position: absolute;
-  top: 50%;
-  right: 10px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  color: var(--ink-soft);
-  pointer-events: none;
-  transform: translateY(-50%);
-  transition: color 180ms ease, transform 180ms ease;
-}
-
-.picker-shell:focus-within .picker-icon {
-  color: var(--ink);
 }
 
 .app-input:focus,

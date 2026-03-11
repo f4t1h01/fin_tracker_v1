@@ -1,6 +1,5 @@
 "use client";
 
-import { CalendarDays } from "lucide-react";
 import * as React from "react";
 
 import { cn } from "@/lib/cn";
@@ -24,9 +23,6 @@ const DatePicker = React.forwardRef<HTMLInputElement, DatePickerProps>(({ classN
         max={max}
         onChange={(event) => onChange?.(event.target.value)}
       />
-      <span className="picker-icon" aria-hidden="true">
-        <CalendarDays className="size-4" />
-      </span>
     </div>
   );
 });
