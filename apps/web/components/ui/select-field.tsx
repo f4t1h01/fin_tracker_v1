@@ -1,7 +1,9 @@
 import { Check, ChevronDown } from "lucide-react";
 import * as React from "react";
+import { createPortal } from "react-dom";
 
 import { useDismissableLayer } from "@/components/ui/use-dismissable-layer";
+import { useFloatingPanelPosition } from "@/components/ui/use-floating-panel-position";
 import { cn } from "@/lib/cn";
 
 export type SelectFieldProps = React.SelectHTMLAttributes<HTMLSelectElement> & {
@@ -36,6 +38,7 @@ function readNodeText(node: React.ReactNode): string {
 
 const SelectField = React.forwardRef<HTMLSelectElement, SelectFieldProps>(({ className, children, disabled, name, onBlur, onChange, placeholder, required, value, ...props }, ref) => {
   const [open, setOpen] = React.useState(false);
+  const [mounted, setMounted] = React.useState(false);
   const rootRef = React.useRef<HTMLDivElement | null>(null);
   const triggerRef = React.useRef<HTMLButtonElement | null>(null);
   const panelRef = React.useRef<HTMLDivElement | null>(null);
@@ -61,6 +64,17 @@ const SelectField = React.forwardRef<HTMLSelectElement, SelectFieldProps>(({ cla
     open,
     onDismiss: () => setOpen(false),
     refs: [rootRef, panelRef]
+  });
+
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const panelStyle = useFloatingPanelPosition({
+    anchorRef: rootRef,
+    estimatedHeight: 280,
+    open,
+    width: "anchor"
   });
 
   const emitChange = React.useCallback((nextValue: string) => {
@@ -106,11 +120,12 @@ const SelectField = React.forwardRef<HTMLSelectElement, SelectFieldProps>(({ cla
         </span>
         <ChevronDown className={cn("size-4 shrink-0 text-[var(--ink-soft)] transition-transform duration-200", open ? "rotate-180" : "")} />
       </button>
-      {open ? (
+      {open && mounted ? createPortal(
         <div
           ref={panelRef}
           role="listbox"
-          className="absolute left-0 top-full z-30 mt-2 max-h-64 w-full overflow-y-auto rounded-xl border border-[rgba(201,168,76,0.2)] bg-[color-mix(in_srgb,var(--warm-white)_92%,transparent)] p-2 shadow-[0_18px_48px_rgba(26,20,16,0.18)] backdrop-blur-md dark:bg-[color-mix(in_srgb,var(--warm-white)_82%,transparent)]"
+          style={panelStyle}
+          className="z-[220] max-h-64 overflow-y-auto rounded-xl border border-[rgba(201,168,76,0.2)] bg-[color-mix(in_srgb,var(--warm-white)_92%,transparent)] p-2 shadow-[0_18px_48px_rgba(26,20,16,0.18)] backdrop-blur-md dark:bg-[color-mix(in_srgb,var(--warm-white)_82%,transparent)]"
         >
           {options.map((option) => {
             const isSelected = option.value === normalizedValue;
@@ -133,7 +148,8 @@ const SelectField = React.forwardRef<HTMLSelectElement, SelectFieldProps>(({ cla
               </button>
             );
           })}
-        </div>
+        </div>,
+        document.body
       ) : null}
     </div>
   );

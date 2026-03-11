@@ -2,9 +2,11 @@
 
 import { Check, Clock3 } from "lucide-react";
 import * as React from "react";
+import { createPortal } from "react-dom";
 
 import { cn } from "@/lib/cn";
 import { useDismissableLayer } from "@/components/ui/use-dismissable-layer";
+import { useFloatingPanelPosition } from "@/components/ui/use-floating-panel-position";
 
 type TimePickerProps = Omit<React.InputHTMLAttributes<HTMLInputElement>, "type">;
 
@@ -23,6 +25,7 @@ function buildTimeSlots(step: number) {
 
 const TimePicker = React.forwardRef<HTMLInputElement, TimePickerProps>(({ className, disabled, onBlur, placeholder, step = 60, value, ...props }, ref) => {
   const [open, setOpen] = React.useState(false);
+  const [mounted, setMounted] = React.useState(false);
   const rootRef = React.useRef<HTMLDivElement | null>(null);
   const panelRef = React.useRef<HTMLDivElement | null>(null);
   const stepMinutes = React.useMemo(() => {
@@ -35,6 +38,17 @@ const TimePicker = React.forwardRef<HTMLInputElement, TimePickerProps>(({ classN
     open,
     onDismiss: () => setOpen(false),
     refs: [rootRef, panelRef]
+  });
+
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const panelStyle = useFloatingPanelPosition({
+    anchorRef: rootRef,
+    estimatedHeight: 360,
+    open,
+    width: 280
   });
 
   const emitChange = React.useCallback((nextValue: string) => {
@@ -73,10 +87,11 @@ const TimePicker = React.forwardRef<HTMLInputElement, TimePickerProps>(({ classN
       <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[var(--ink-soft)]">
         <Clock3 className="size-4" />
       </span>
-      {open ? (
+      {open && mounted ? createPortal(
         <div
           ref={panelRef}
-          className="absolute left-0 top-full z-30 mt-2 w-[280px] max-w-[calc(100vw-3rem)] rounded-[18px] border border-[rgba(201,168,76,0.2)] bg-[color-mix(in_srgb,var(--warm-white)_94%,transparent)] p-3 shadow-[0_18px_48px_rgba(26,20,16,0.2)] backdrop-blur-md dark:bg-[color-mix(in_srgb,var(--warm-white)_82%,transparent)]"
+          style={panelStyle}
+          className="z-[220] max-w-[calc(100vw-3rem)] rounded-[18px] border border-[rgba(201,168,76,0.2)] bg-[color-mix(in_srgb,var(--warm-white)_94%,transparent)] p-3 shadow-[0_18px_48px_rgba(26,20,16,0.2)] backdrop-blur-md dark:bg-[color-mix(in_srgb,var(--warm-white)_82%,transparent)]"
         >
           <div className="mb-3">
             <p className="font-[family-name:var(--font-heading)] text-[26px] font-light">Choose time</p>
@@ -109,7 +124,8 @@ const TimePicker = React.forwardRef<HTMLInputElement, TimePickerProps>(({ classN
               Midnight
             </button>
           </div>
-        </div>
+        </div>,
+        document.body
       ) : null}
     </div>
   );
