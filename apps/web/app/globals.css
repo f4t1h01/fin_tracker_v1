@@ -1051,6 +1051,18 @@ html[data-theme="dark"] .field-control {
   cursor: pointer;
 }
 
+.picker-display-input {
+  cursor: pointer;
+}
+
+.picker-native-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
 .picker-date-input::-webkit-date-and-time-value {
   text-align: left;
 }
