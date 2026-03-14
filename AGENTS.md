@@ -63,6 +63,9 @@
 - The server runtime `.env` may keep `DATABASE_URL` pointed at `host.docker.internal` for containers, but host-run Prisma migration commands must override `DATABASE_URL` inline to the exact host DB path:
   `DATABASE_URL=postgresql://postgres:1536@127.0.0.1:5432/fin_tracker?schema=public`
 - Use that exact override for `pnpm --filter @repo/db exec prisma migrate deploy` unless the user explicitly changes production Postgres credentials/host/port later.
+- Production also supports a no-image-rebuild server runtime via `docker-compose.server.yml`.
+- In that mode, the server mounts the repo into the containers and rebuilds app artifacts inside the containers on restart/recreate instead of using `docker compose up --build`.
+- Use `docker compose -f docker-compose.yml -f docker-compose.server.yml up -d --force-recreate` on the server after `git pull` when the user wants production deploys without image rebuilds.
 
 ## Working rhythm
 
