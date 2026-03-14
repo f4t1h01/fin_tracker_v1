@@ -1,3 +1,5 @@
+"use client";
+
 import { cva, type VariantProps } from "class-variance-authority";
 import { Slot } from "@radix-ui/react-slot";
 import * as React from "react";
@@ -33,13 +35,35 @@ const buttonVariants = cva(
 
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement>, VariantProps<typeof buttonVariants> {
   asChild?: boolean;
+  pending?: boolean;
+  pendingText?: React.ReactNode;
+  pendingDelayMs?: number;
 }
 
-const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(({ className, variant, size, asChild = false, children, ...props }, ref) => {
+const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(({ className, variant, size, asChild = false, children, pending = false, pendingText, pendingDelayMs = 200, ...props }, ref) => {
+  const [showPendingText, setShowPendingText] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!pending || !pendingText) {
+      setShowPendingText(false);
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      setShowPendingText(true);
+    }, pendingDelayMs);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [pending, pendingText, pendingDelayMs]);
+
   const Comp = asChild ? Slot : "button";
+  const content = pending && showPendingText && pendingText ? pendingText : children;
+
   return (
     <Comp className={cn(buttonVariants({ variant, size, className }))} ref={ref} {...props}>
-      {variant === "default" ? <span>{children}</span> : children}
+      {variant === "default" ? <span>{content}</span> : content}
     </Comp>
   );
 });

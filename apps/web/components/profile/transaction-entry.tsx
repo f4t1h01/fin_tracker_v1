@@ -60,7 +60,7 @@ export function TransactionEntry(props: TransactionEntryProps) {
             </SelectField>
           </label>
           <label className="space-y-1 text-sm"><span className="field-label">Note (optional)</span><TextField value={props.note} onChange={(event) => props.setNote(event.target.value)} placeholder="short context" /></label>
-          <div className="flex flex-wrap items-center gap-3"><Button type="submit" disabled={props.isSubmittingTx}>{props.isSubmittingTx ? "Saving..." : "Save transaction"}</Button>{props.txMessage ? <p className="status-success text-sm">{props.txMessage}</p> : null}{props.txError ? <p className="status-error text-sm">{props.txError}</p> : null}</div>
+          <div className="flex flex-wrap items-center gap-3"><Button type="submit" disabled={props.isSubmittingTx} pending={props.isSubmittingTx} pendingText="Saving...">Save transaction</Button>{props.txMessage ? <p className="status-success text-sm">{props.txMessage}</p> : null}{props.txError ? <p className="status-error text-sm">{props.txError}</p> : null}</div>
         </form>
       </CardContent>
     </Card>

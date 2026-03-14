@@ -70,7 +70,7 @@ export function RecentTransactions(props: RecentTransactionsProps) {
                   </SelectField>
                 </label>
                 <label className="space-y-1 text-sm"><span className="field-label">Note</span><TextField value={props.editingTransaction.note} onChange={(event) => props.setEditingTransaction({ ...props.editingTransaction!, note: event.target.value })} /></label>
-                <div className="flex items-center gap-3"><Button type="submit" disabled={props.isSavingEdit}>{props.isSavingEdit ? "Saving..." : "Save changes"}</Button><Button type="button" variant="outline" onClick={() => props.setEditingTransaction(null)}><X className="size-4" />Cancel</Button></div>
+                <div className="flex items-center gap-3"><Button type="submit" disabled={props.isSavingEdit} pending={props.isSavingEdit} pendingText="Saving...">Save changes</Button><Button type="button" variant="outline" onClick={() => props.setEditingTransaction(null)}><X className="size-4" />Cancel</Button></div>
               </form>
             </CardContent>
           </Card>

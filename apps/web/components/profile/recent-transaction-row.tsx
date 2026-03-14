@@ -27,7 +27,7 @@ export function RecentTransactionRow(props: RecentTransactionRowProps) {
       </div>
       <div className="mt-3 flex items-center gap-2">
         <Button type="button" size="sm" variant="outline" onClick={() => props.onStartEditing(props.item)}><Pencil className="size-3.5" />Edit</Button>
-        <Button type="button" size="sm" variant="ghost" disabled={props.isDeleting} onClick={() => void props.onDeleteTransaction(props.item.id)}><Trash2 className="size-3.5" />{props.isDeleting ? "Deleting..." : "Delete"}</Button>
+        <Button type="button" size="sm" variant="ghost" disabled={props.isDeleting} pending={props.isDeleting} pendingText={<><Trash2 className="size-3.5" />Deleting...</>} onClick={() => void props.onDeleteTransaction(props.item.id)}><Trash2 className="size-3.5" />Delete</Button>
       </div>
     </div>
   );

@@ -44,7 +44,7 @@ export function AnalyticsPreferencesCard(props: AnalyticsPreferencesCardProps) {
           </label>
           <p className="body-muted text-sm">`This week` on the dashboard uses this preference, then counts from that start day up to today.</p>
           <div className="flex flex-wrap items-center gap-3">
-            <Button type="submit" disabled={props.isSavingPreferences}>{props.isSavingPreferences ? "Saving..." : "Save settings"}</Button>
+            <Button type="submit" disabled={props.isSavingPreferences} pending={props.isSavingPreferences} pendingText="Saving...">Save settings</Button>
             {props.preferencesMessage ? <p className="status-success text-sm">{props.preferencesMessage}</p> : null}
             {props.preferencesError ? <p className="status-error text-sm">{props.preferencesError}</p> : null}
           </div>

@@ -24,7 +24,7 @@ export function PasswordSetupCard(props: PasswordSetupCardProps) {
           <label className="space-y-1 text-sm"><span className="field-label">Email</span><TextField required type="email" value={props.setupEmail} onChange={(event) => props.setSetupEmail(event.target.value)} /></label>
           <label className="space-y-1 text-sm"><span className="field-label">Password</span><TextField required type="password" minLength={8} value={props.setupPassword} onChange={(event) => props.setSetupPassword(event.target.value)} /></label>
           <label className="space-y-1 text-sm"><span className="field-label">Confirm password</span><TextField required type="password" minLength={8} value={props.setupConfirmPassword} onChange={(event) => props.setSetupConfirmPassword(event.target.value)} /></label>
-          <div className="flex items-center gap-3 md:col-span-3"><Button type="submit" disabled={props.isSettingPassword}>{props.isSettingPassword ? "Saving..." : "Save email login"}</Button>{props.setupMessage ? <p className="status-success text-sm">{props.setupMessage}</p> : null}{props.setupError ? <p className="status-error text-sm">{props.setupError}</p> : null}</div>
+          <div className="flex items-center gap-3 md:col-span-3"><Button type="submit" disabled={props.isSettingPassword} pending={props.isSettingPassword} pendingText="Saving...">Save email login</Button>{props.setupMessage ? <p className="status-success text-sm">{props.setupMessage}</p> : null}{props.setupError ? <p className="status-error text-sm">{props.setupError}</p> : null}</div>
         </form>
       </CardContent>
     </Card>

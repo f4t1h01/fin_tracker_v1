@@ -64,7 +64,7 @@ export function ProfileAuthGateway(props: ProfileAuthGatewayProps) {
               <label className="space-y-1 text-sm"><span className="field-label">Email</span><TextField required type="email" value={props.loginEmail} onChange={(event) => props.setLoginEmail(event.target.value)} placeholder="you@example.com" /></label>
               <label className="space-y-1 text-sm"><span className="field-label">Password</span><TextField required type="password" value={props.loginPassword} onChange={(event) => props.setLoginPassword(event.target.value)} placeholder="Your password" /></label>
               <div className="flex flex-wrap items-center gap-3">
-                <Button type="submit" disabled={props.isSubmittingLogin}>{props.isSubmittingLogin ? "Signing in..." : "Sign in"}</Button>
+                <Button type="submit" disabled={props.isSubmittingLogin} pending={props.isSubmittingLogin} pendingText="Signing in...">Sign in</Button>
                 {props.loginMessage ? <p className="status-success text-sm">{props.loginMessage}</p> : null}
                 {props.loginError ? <p className="status-error text-sm">{props.loginError}</p> : null}
               </div>
@@ -85,7 +85,7 @@ export function ProfileAuthGateway(props: ProfileAuthGatewayProps) {
               <label className="space-y-1 text-sm"><span className="field-label">Password</span><TextField required type="password" minLength={8} value={props.createPassword} onChange={(event) => props.setCreatePassword(event.target.value)} placeholder="At least 8 characters" /></label>
               <label className="space-y-1 text-sm"><span className="field-label">Confirm password</span><TextField required type="password" minLength={8} value={props.createConfirmPassword} onChange={(event) => props.setCreateConfirmPassword(event.target.value)} placeholder="Repeat password" /></label>
               <div className="flex flex-wrap items-center gap-3">
-                <Button type="submit" disabled={props.isCreatingAccount}>{props.isCreatingAccount ? "Creating..." : "Create account"}</Button>
+                <Button type="submit" disabled={props.isCreatingAccount} pending={props.isCreatingAccount} pendingText="Creating...">Create account</Button>
                 {props.createAccountMessage ? <p className="status-success text-sm">{props.createAccountMessage}</p> : null}
                 {props.createAccountError ? <p className="status-error text-sm">{props.createAccountError}</p> : null}
               </div>

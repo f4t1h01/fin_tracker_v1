@@ -33,12 +33,12 @@ export function PartnerConnectionCard(props: PartnerConnectionCardProps) {
           </div>
           <label className="space-y-1 text-sm"><span className="field-label">Partner code</span><TextField required value={props.bindCode} onChange={(event) => props.setBindCode(event.target.value.toUpperCase())} placeholder="AB12CD" /></label>
           <div className="flex flex-wrap items-center gap-3">
-            <Button type="submit" variant="outline" disabled={props.isBinding || props.isUnbinding}>
-              {props.isBinding ? "Connecting..." : "Connect partner"}
+            <Button type="submit" variant="outline" disabled={props.isBinding || props.isUnbinding} pending={props.isBinding} pendingText="Connecting...">
+              Connect partner
             </Button>
             {canUnlink ? (
-              <Button type="button" variant="outline" disabled={props.isBinding || props.isUnbinding} onClick={() => void props.onUnbind()}>
-                {props.isUnbinding ? "Removing..." : "Remove partner"}
+              <Button type="button" variant="outline" disabled={props.isBinding || props.isUnbinding} pending={props.isUnbinding} pendingText="Removing..." onClick={() => void props.onUnbind()}>
+                Remove partner
               </Button>
             ) : null}
             {props.bindMessage ? <p className="status-success text-sm">{props.bindMessage}</p> : null}

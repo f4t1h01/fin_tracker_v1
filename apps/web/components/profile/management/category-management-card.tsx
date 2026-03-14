@@ -69,8 +69,8 @@ function CategoryList(props: {
                         <Button type="button" variant="outline" disabled={props.isUpdatingCategoryVisibilityId === item.id} onClick={() => void props.onToggleCategoryVisibility(item.id, !item.isVisible)}>
                           {item.isVisible ? <Eye className="size-4" /> : <EyeOff className="size-4" />}
                         </Button>
-                        <Button type="button" variant="outline" disabled={props.isDeletingCategoryId === item.id} onClick={() => void props.onDeleteCategory(item.id)}>
-                          {props.isDeletingCategoryId === item.id ? "Removing..." : "Delete"}
+                        <Button type="button" variant="outline" disabled={props.isDeletingCategoryId === item.id} pending={props.isDeletingCategoryId === item.id} pendingText="Removing..." onClick={() => void props.onDeleteCategory(item.id)}>
+                          Delete
                         </Button>
                       </div>
                     </div>
@@ -83,8 +83,8 @@ function CategoryList(props: {
                               <Button type="button" variant="outline" disabled={props.isUpdatingCategoryVisibilityId === child.id} onClick={() => void props.onToggleCategoryVisibility(child.id, !child.isVisible)}>
                                 {child.isVisible ? <Eye className="size-4" /> : <EyeOff className="size-4" />}
                               </Button>
-                              <Button type="button" variant="outline" disabled={props.isDeletingCategoryId === child.id} onClick={() => void props.onDeleteCategory(child.id)}>
-                                {props.isDeletingCategoryId === child.id ? "Removing..." : "Delete"}
+                              <Button type="button" variant="outline" disabled={props.isDeletingCategoryId === child.id} pending={props.isDeletingCategoryId === child.id} pendingText="Removing..." onClick={() => void props.onDeleteCategory(child.id)}>
+                                Delete
                               </Button>
                             </div>
                           </div>
@@ -144,7 +144,7 @@ export function CategoryManagementCard(props: CategoryManagementCardProps) {
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-3">
-            <Button type="submit" disabled={props.isSavingCategoryPreferences}>{props.isSavingCategoryPreferences ? "Saving..." : "Save category preferences"}</Button>
+            <Button type="submit" disabled={props.isSavingCategoryPreferences} pending={props.isSavingCategoryPreferences} pendingText="Saving...">Save category preferences</Button>
             {props.categoryPreferencesMessage ? <p className="status-success text-sm">{props.categoryPreferencesMessage}</p> : null}
             {props.categoryPreferencesError ? <p className="status-error text-sm">{props.categoryPreferencesError}</p> : null}
           </div>
@@ -180,7 +180,7 @@ export function CategoryManagementCard(props: CategoryManagementCardProps) {
           </div>
           <p className="body-muted text-sm">Choose a parent only when creating a subcategory. Shared categories are available only while a partner is connected.</p>
           <div className="flex flex-wrap items-center gap-3">
-            <Button type="submit" disabled={props.isSavingCategory}>{props.isSavingCategory ? "Saving..." : "Add category"}</Button>
+            <Button type="submit" disabled={props.isSavingCategory} pending={props.isSavingCategory} pendingText="Saving...">Add category</Button>
             {props.categoryMessage ? <p className="status-success text-sm">{props.categoryMessage}</p> : null}
             {props.categoryError ? <p className="status-error text-sm">{props.categoryError}</p> : null}
           </div>
