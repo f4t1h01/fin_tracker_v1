@@ -1,6 +1,7 @@
 import { Type } from "class-transformer";
-import { IsIn, IsOptional, IsString, IsUUID, MaxLength, Min } from "class-validator";
+import { IsIn, IsOptional, IsString, MaxLength, Min } from "class-validator";
 
+import { IsPrismaEntityId } from "../../common/prisma-id.validator";
 import { SUPPORTED_CURRENCIES } from "../../common/currency";
 
 const transactionKinds = ["EXPENSE", "INCOME"] as const;
@@ -14,7 +15,7 @@ export class CreateProfileTransactionDto {
   kind!: "EXPENSE" | "INCOME";
 
   @IsOptional()
-  @IsUUID()
+  @IsPrismaEntityId()
   categoryId?: string;
 
   @IsOptional()

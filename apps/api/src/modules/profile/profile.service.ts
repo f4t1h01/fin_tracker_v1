@@ -1112,7 +1112,7 @@ export class ProfileService {
     }
 
     if (category.childCategories.length > 0) {
-      throw new BadRequestException("Delete child subcategories first");
+      throw new BadRequestException("Delete subcategories first before removing the parent category");
     }
 
     if (category.transactions.length > 0) {

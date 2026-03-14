@@ -1,4 +1,6 @@
-import { IsBoolean, IsIn, IsOptional, IsString, IsUUID, MaxLength } from "class-validator";
+import { IsBoolean, IsIn, IsOptional, IsString, MaxLength } from "class-validator";
+
+import { IsPrismaEntityId } from "../../common/prisma-id.validator";
 
 const transactionKinds = ["EXPENSE", "INCOME"] as const;
 const categoryScopes = ["PERSONAL", "SHARED"] as const;
@@ -15,7 +17,7 @@ export class CreateCategoryDto {
   name!: string;
 
   @IsOptional()
-  @IsUUID()
+  @IsPrismaEntityId()
   parentCategoryId?: string;
 }
 
@@ -25,10 +27,10 @@ export class UpdateCategoryPreferencesDto {
   showSharedCategories?: boolean;
 
   @IsOptional()
-  @IsUUID()
+  @IsPrismaEntityId()
   defaultIncomeCategoryId?: string | null;
 
   @IsOptional()
-  @IsUUID()
+  @IsPrismaEntityId()
   defaultExpenseCategoryId?: string | null;
 }
