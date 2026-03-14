@@ -12,6 +12,7 @@ export type SelectFieldProps = React.SelectHTMLAttributes<HTMLSelectElement> & {
 
 type SelectOptionItem = {
   disabled: boolean;
+  groupLabel?: string;
   label: string;
   value: string;
 };
@@ -45,15 +46,38 @@ const SelectField = React.forwardRef<HTMLSelectElement, SelectFieldProps>(({ cla
 
   const options = React.useMemo<SelectOptionItem[]>(() => {
     return React.Children.toArray(children).flatMap((child) => {
-      if (!React.isValidElement<React.OptionHTMLAttributes<HTMLOptionElement>>(child) || child.type !== "option") {
+      if (!React.isValidElement(child)) {
         return [];
       }
 
-      return [{
-        disabled: Boolean(child.props.disabled),
-        label: readNodeText(child.props.children),
-        value: String(child.props.value ?? "")
-      }];
+      if (child.type === "option") {
+        const optionChild = child as React.ReactElement<React.OptionHTMLAttributes<HTMLOptionElement>>;
+        return [{
+          disabled: Boolean(optionChild.props.disabled),
+          label: readNodeText(optionChild.props.children),
+          value: String(optionChild.props.value ?? "")
+        }];
+      }
+
+      if (child.type === "optgroup") {
+        const optgroupChild = child as React.ReactElement<React.OptgroupHTMLAttributes<HTMLOptGroupElement>>;
+        const groupLabel = typeof optgroupChild.props.label === "string" ? optgroupChild.props.label : "";
+
+        return React.Children.toArray(optgroupChild.props.children).flatMap((option) => {
+          if (!React.isValidElement<React.OptionHTMLAttributes<HTMLOptionElement>>(option) || option.type !== "option") {
+            return [];
+          }
+
+          return [{
+            disabled: Boolean(option.props.disabled),
+            groupLabel,
+            label: readNodeText(option.props.children),
+            value: String(option.props.value ?? "")
+          }];
+        });
+      }
+
+      return [];
     });
   }, [children]);
 
@@ -143,7 +167,7 @@ const SelectField = React.forwardRef<HTMLSelectElement, SelectFieldProps>(({ cla
                 )}
                 onClick={() => handleSelect(option.value)}
               >
-                <span className="truncate">{option.label}</span>
+                <span className="truncate">{option.groupLabel ? `${option.groupLabel}: ${option.label}` : option.label}</span>
                 {isSelected ? <Check className="size-4 shrink-0 text-[var(--gold)]" /> : null}
               </button>
             );

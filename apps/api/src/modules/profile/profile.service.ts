@@ -504,6 +504,15 @@ export class ProfileService {
     };
   }
 
+  private async hasActivePartnerBind(userId: string) {
+    const bind = await this.prisma.client.coupleBind.findUnique({
+      where: { userId },
+      select: { coupleId: true }
+    });
+
+    return Boolean(bind?.coupleId);
+  }
+
   private async resolveSelectedCategory(userId: string, coupleId: string, kind: TransactionKind, categoryId: string) {
     const category = await this.prisma.client.category.findUnique({
       where: { id: categoryId },
@@ -1042,6 +1051,10 @@ export class ProfileService {
     }
 
     await this.assertMembership(userId, coupleId);
+
+    if (dto.scope === "SHARED" && !(await this.hasActivePartnerBind(userId))) {
+      throw new BadRequestException("Shared categories are available only when a partner is connected");
+    }
 
     let parentCategoryId: string | null = null;
     if (dto.parentCategoryId) {

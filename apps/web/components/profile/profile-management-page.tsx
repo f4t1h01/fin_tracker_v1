@@ -84,6 +84,7 @@ export function ProfileManagementPage() {
       <section className="mt-6">
         <CategoryManagementCard
           categoryCatalog={workspace.categoryCatalog}
+          hasActivePartnerConnection={Boolean(workspace.profile.bind?.insertedCode)}
           showSharedCategoriesInPicker={workspace.showSharedCategoriesInPicker}
           setShowSharedCategoriesInPicker={workspace.setShowSharedCategoriesInPicker}
           defaultIncomeCategoryId={workspace.defaultIncomeCategoryId}

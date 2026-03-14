@@ -8,6 +8,7 @@ import { type CategoryCatalogResponse, type CategoryScope } from "@/components/p
 
 type CategoryManagementCardProps = {
   categoryCatalog: CategoryCatalogResponse | null;
+  hasActivePartnerConnection: boolean;
   showSharedCategoriesInPicker: boolean;
   setShowSharedCategoriesInPicker: (value: boolean) => void;
   defaultIncomeCategoryId: string;
@@ -104,6 +105,7 @@ export function CategoryManagementCard(props: CategoryManagementCardProps) {
               <input type="checkbox" checked={props.showSharedCategoriesInPicker} onChange={(event) => props.setShowSharedCategoriesInPicker(event.target.checked)} />
               <span>Show shared couple categories in my transaction picker</span>
             </label>
+            {!props.hasActivePartnerConnection ? <p className="body-muted text-sm">Shared categories become available after connecting a partner.</p> : null}
             <div className="grid gap-3 md:grid-cols-2">
               <label className="space-y-1 text-sm">
                 <span className="field-label">Default income category</span>
@@ -143,7 +145,7 @@ export function CategoryManagementCard(props: CategoryManagementCardProps) {
               <span className="field-label">Scope</span>
               <SelectField value={props.categoryFormScope} onChange={(event) => props.setCategoryFormScope(event.target.value as CategoryScope)}>
                 <option value="PERSONAL">My category</option>
-                <option value="SHARED">Shared category</option>
+                {props.hasActivePartnerConnection ? <option value="SHARED">Shared category</option> : null}
               </SelectField>
             </label>
             <label className="space-y-1 text-sm">
@@ -155,9 +157,10 @@ export function CategoryManagementCard(props: CategoryManagementCardProps) {
             </label>
             <label className="space-y-1 text-sm">
               <span className="field-label">Name</span>
-              <TextField required value={props.categoryFormName} onChange={(event) => props.setCategoryFormName(event.target.value)} placeholder="Groceries / Salary / Transport" />
+              <TextField required value={props.categoryFormName} onChange={(event) => props.setCategoryFormName(event.target.value)} placeholder="Groceries" />
             </label>
           </div>
+          <p className="body-muted text-sm">Choose a parent only when creating a subcategory. Shared categories are available only while a partner is connected.</p>
           <div className="flex flex-wrap items-center gap-3">
             <Button type="submit" disabled={props.isSavingCategory}>{props.isSavingCategory ? "Saving..." : "Add category"}</Button>
             {props.categoryMessage ? <p className="status-success text-sm">{props.categoryMessage}</p> : null}
@@ -168,7 +171,16 @@ export function CategoryManagementCard(props: CategoryManagementCardProps) {
         {props.categoryCatalog ? (
           <div className="grid gap-4 lg:grid-cols-2">
             <CategoryList title="My categories" groups={props.categoryCatalog.byKind} scope="PERSONAL" isDeletingCategoryId={props.isDeletingCategoryId} onDeleteCategory={props.onDeleteCategory} />
-            <CategoryList title="Shared categories" groups={props.categoryCatalog.byKind} scope="SHARED" isDeletingCategoryId={props.isDeletingCategoryId} onDeleteCategory={props.onDeleteCategory} />
+            {props.hasActivePartnerConnection ? (
+              <CategoryList title="Shared categories" groups={props.categoryCatalog.byKind} scope="SHARED" isDeletingCategoryId={props.isDeletingCategoryId} onDeleteCategory={props.onDeleteCategory} />
+            ) : (
+              <div className="space-y-3">
+                <p className="text-sm font-medium">Shared categories</p>
+                <div className="detail-box px-3 py-3">
+                  <p className="body-muted text-sm">Connect a partner to create and use shared categories in this workspace.</p>
+                </div>
+              </div>
+            )}
           </div>
         ) : null}
       </CardContent>
