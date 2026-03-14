@@ -26,8 +26,10 @@
   --button-primary-bg: #1a1410;
   --button-primary-fg: #f5f0e8;
   --button-primary-border: #1a1410;
-  --button-primary-hover-bg: #c9a84c;
-  --button-primary-hover-fg: #1a1410;
+  --button-primary-hover-bg: #1a1410;
+  --button-primary-hover-fg: #f5f0e8;
+  --button-primary-shadow: 0 12px 28px rgba(26, 20, 16, 0.12);
+  --button-primary-hover-shadow: 0 16px 36px rgba(201, 168, 76, 0.22);
   --theme-switch-duration: 220ms;
   --phone-summary-bg: #1a1410;
   --phone-summary-fg: #f5f0e8;
@@ -58,8 +60,10 @@ html[data-theme="dark"] {
   --button-primary-bg: color-mix(in srgb, var(--gold) 18%, var(--warm-white));
   --button-primary-fg: var(--ink);
   --button-primary-border: rgba(212, 176, 90, 0.32);
-  --button-primary-hover-bg: var(--gold);
-  --button-primary-hover-fg: #1a1410;
+  --button-primary-hover-bg: color-mix(in srgb, var(--gold) 22%, var(--warm-white));
+  --button-primary-hover-fg: var(--ink);
+  --button-primary-shadow: 0 12px 28px rgba(10, 8, 6, 0.26);
+  --button-primary-hover-shadow: 0 16px 36px rgba(212, 176, 90, 0.24);
   --phone-summary-bg: #14110e;
   --phone-summary-fg: #f0ebe1;
   --phone-summary-soft: rgba(240, 235, 225, 0.62);
@@ -275,7 +279,6 @@ html[data-theme="dark"] .theme-icon--moon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  overflow: hidden;
   border: 1px solid var(--button-primary-border);
   border-radius: 10px;
   background: var(--button-primary-bg);
@@ -286,33 +289,28 @@ html[data-theme="dark"] .theme-icon--moon {
   letter-spacing: 0.12em;
   text-transform: uppercase;
   transform: translateY(0);
-  transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.4s ease, color 0.4s ease, background-color 0.4s ease;
-}
-
-.primary-button::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: var(--button-primary-hover-bg);
-  transform: translateX(-100%);
-  transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: var(--button-primary-shadow);
+  transition:
+    transform 0.24s ease,
+    border-color 0.24s ease,
+    color 0.24s ease,
+    background-color 0.24s ease,
+    box-shadow 0.24s ease;
 }
 
 .primary-button > span {
   position: relative;
   z-index: 1;
   color: inherit;
-  transition: color 0.4s ease;
+  transition: color 0.24s ease;
 }
 
 .primary-button:hover {
   transform: translateY(-2px);
   color: var(--button-primary-hover-fg);
-  border-color: var(--button-primary-hover-bg);
-}
-
-.primary-button:hover::before {
-  transform: translateX(0);
+  background: var(--button-primary-hover-bg);
+  border-color: color-mix(in srgb, var(--gold) 62%, var(--button-primary-border));
+  box-shadow: var(--button-primary-hover-shadow);
 }
 
 .secondary-link {
