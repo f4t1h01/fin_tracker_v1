@@ -113,6 +113,7 @@ model Category {
   normalizedName           String          @map("normalized_name")
   kind                     TransactionKind
   scope                    CategoryScope   @default(PERSONAL)
+  isVisible                Boolean         @default(true) @map("is_visible")
   ownerUserId              String?         @map("owner_user_id")
   ownerUser                User?           @relation("OwnedCategories", fields: [ownerUserId], references: [id], onDelete: SetNull)
   parentCategoryId         String?         @map("parent_category_id")

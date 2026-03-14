@@ -1,3 +1,5 @@
+import { Eye, EyeOff } from "lucide-react";
+
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { SelectField } from "@/components/ui/select-field";
@@ -30,10 +32,12 @@ type CategoryManagementCardProps = {
   setCategoryFormParentId: (value: string) => void;
   isSavingCategory: boolean;
   isDeletingCategoryId: string | null;
+  isUpdatingCategoryVisibilityId: string | null;
   categoryMessage: string | null;
   categoryError: string | null;
   onCreateCategory: (event: React.FormEvent<HTMLFormElement>) => Promise<void>;
   onDeleteCategory: (categoryId: string) => Promise<void>;
+  onToggleCategoryVisibility: (categoryId: string, isVisible: boolean) => Promise<void>;
 };
 
 function CategoryList(props: {
@@ -41,7 +45,9 @@ function CategoryList(props: {
   groups: CategoryCatalogResponse["byKind"];
   scope: CategoryScope;
   isDeletingCategoryId: string | null;
+  isUpdatingCategoryVisibilityId: string | null;
   onDeleteCategory: (categoryId: string) => Promise<void>;
+  onToggleCategoryVisibility: (categoryId: string, isVisible: boolean) => Promise<void>;
 }) {
   return (
     <div className="space-y-3">
@@ -58,19 +64,29 @@ function CategoryList(props: {
                 {items.map((item) => (
                   <div key={item.id} className="space-y-2">
                     <div className="flex items-center justify-between gap-3">
-                      <span className="text-sm font-medium">{item.name}</span>
-                      <Button type="button" variant="outline" disabled={props.isDeletingCategoryId === item.id} onClick={() => void props.onDeleteCategory(item.id)}>
-                        {props.isDeletingCategoryId === item.id ? "Removing..." : "Delete"}
-                      </Button>
+                      <span className={item.isVisible ? "text-sm font-medium" : "text-sm font-medium text-[var(--ink-soft)]"}>{item.name}</span>
+                      <div className="flex items-center gap-2">
+                        <Button type="button" variant="outline" disabled={props.isUpdatingCategoryVisibilityId === item.id} onClick={() => void props.onToggleCategoryVisibility(item.id, !item.isVisible)}>
+                          {item.isVisible ? <Eye className="size-4" /> : <EyeOff className="size-4" />}
+                        </Button>
+                        <Button type="button" variant="outline" disabled={props.isDeletingCategoryId === item.id} onClick={() => void props.onDeleteCategory(item.id)}>
+                          {props.isDeletingCategoryId === item.id ? "Removing..." : "Delete"}
+                        </Button>
+                      </div>
                     </div>
                     {item.children.length > 0 ? (
                       <div className="space-y-1 pl-3">
                         {item.children.map((child) => (
                           <div key={child.id} className="flex items-center justify-between gap-3 text-sm">
-                            <span className="body-muted">{item.name} / {child.name}</span>
-                            <Button type="button" variant="outline" disabled={props.isDeletingCategoryId === child.id} onClick={() => void props.onDeleteCategory(child.id)}>
-                              {props.isDeletingCategoryId === child.id ? "Removing..." : "Delete"}
-                            </Button>
+                            <span className={child.isVisible ? "body-muted" : "body-muted opacity-60"}>{item.name} / {child.name}</span>
+                            <div className="flex items-center gap-2">
+                              <Button type="button" variant="outline" disabled={props.isUpdatingCategoryVisibilityId === child.id} onClick={() => void props.onToggleCategoryVisibility(child.id, !child.isVisible)}>
+                                {child.isVisible ? <Eye className="size-4" /> : <EyeOff className="size-4" />}
+                              </Button>
+                              <Button type="button" variant="outline" disabled={props.isDeletingCategoryId === child.id} onClick={() => void props.onDeleteCategory(child.id)}>
+                                {props.isDeletingCategoryId === child.id ? "Removing..." : "Delete"}
+                              </Button>
+                            </div>
                           </div>
                         ))}
                       </div>
@@ -172,9 +188,9 @@ export function CategoryManagementCard(props: CategoryManagementCardProps) {
 
         {props.categoryCatalog ? (
           <div className="grid gap-4 lg:grid-cols-2">
-            <CategoryList title="My categories" groups={props.categoryCatalog.byKind} scope="PERSONAL" isDeletingCategoryId={props.isDeletingCategoryId} onDeleteCategory={props.onDeleteCategory} />
+            <CategoryList title="My categories" groups={props.categoryCatalog.byKind} scope="PERSONAL" isDeletingCategoryId={props.isDeletingCategoryId} isUpdatingCategoryVisibilityId={props.isUpdatingCategoryVisibilityId} onDeleteCategory={props.onDeleteCategory} onToggleCategoryVisibility={props.onToggleCategoryVisibility} />
             {props.hasActivePartnerConnection ? (
-              <CategoryList title="Shared categories" groups={props.categoryCatalog.byKind} scope="SHARED" isDeletingCategoryId={props.isDeletingCategoryId} onDeleteCategory={props.onDeleteCategory} />
+              <CategoryList title="Shared categories" groups={props.categoryCatalog.byKind} scope="SHARED" isDeletingCategoryId={props.isDeletingCategoryId} isUpdatingCategoryVisibilityId={props.isUpdatingCategoryVisibilityId} onDeleteCategory={props.onDeleteCategory} onToggleCategoryVisibility={props.onToggleCategoryVisibility} />
             ) : (
               <div className="space-y-3">
                 <p className="text-sm font-medium">Shared categories</p>

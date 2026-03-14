@@ -34,3 +34,8 @@ export class UpdateCategoryPreferencesDto {
   @IsPrismaEntityId()
   defaultExpenseCategoryId?: string | null;
 }
+
+export class UpdateCategoryVisibilityDto {
+  @IsBoolean()
+  isVisible!: boolean;
+}

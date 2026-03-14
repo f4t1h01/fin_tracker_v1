@@ -4,7 +4,7 @@ import { convertFromUzs, convertToUzs, getLatestCurrencyRates, normalizeCurrency
 import { generateCoupleCodeCandidate, normalizeCoupleCode } from "../common/couple-code";
 import { PrismaService } from "../prisma/prisma.service";
 import { BindCoupleDto } from "./dto/bind-couple.dto";
-import { CreateCategoryDto, UpdateCategoryPreferencesDto } from "./dto/category-management.dto";
+import { CreateCategoryDto, UpdateCategoryPreferencesDto, UpdateCategoryVisibilityDto } from "./dto/category-management.dto";
 import { CreateProfileTransactionDto } from "./dto/create-profile-transaction.dto";
 import { DashboardQueryDto, type DashboardRangePreset } from "./dto/dashboard-query.dto";
 import { type UpdateAnalyticsPreferencesDto, type WeekStartDay, weekStartDays } from "./dto/update-analytics-preferences.dto";
@@ -38,12 +38,14 @@ type CategoryTreeNode = {
   scope: CategoryScope;
   kind: TransactionKind;
   ownerUserId: string | null;
+  isVisible: boolean;
   children: Array<{
     id: string;
     name: string;
     scope: CategoryScope;
     kind: TransactionKind;
     ownerUserId: string | null;
+    isVisible: boolean;
   }>;
 };
 
@@ -446,6 +448,7 @@ export class ProfileService {
           kind: true,
           scope: true,
           ownerUserId: true,
+          isVisible: true,
           parentCategoryId: true
         }
       })
@@ -478,7 +481,8 @@ export class ProfileService {
         name: row.name,
         scope: row.scope as CategoryScope,
         kind: row.kind as TransactionKind,
-        ownerUserId: row.ownerUserId
+        ownerUserId: row.ownerUserId,
+        isVisible: row.isVisible
       });
     }
 
@@ -494,6 +498,7 @@ export class ProfileService {
         scope: row.scope as CategoryScope,
         kind: row.kind as TransactionKind,
         ownerUserId: row.ownerUserId,
+        isVisible: row.isVisible,
         children: childMap.get(row.id) ?? []
       });
     }
@@ -557,6 +562,7 @@ export class ProfileService {
         coupleId: params.coupleId,
         kind: params.kind,
         scope: params.scope,
+        isVisible: true,
         ownerUserId: params.scope === "PERSONAL" ? params.userId : null,
         parentCategoryId: params.parentCategoryId ?? null,
         normalizedName
@@ -1121,6 +1127,37 @@ export class ProfileService {
 
     await this.prisma.client.category.delete({
       where: { id: categoryId }
+    });
+
+    return this.getCategoryCatalog(userId);
+  }
+
+  async updateCategoryVisibility(userId: string, categoryId: string, dto: UpdateCategoryVisibilityDto) {
+    const category = await this.prisma.client.category.findUnique({
+      where: { id: categoryId },
+      select: {
+        id: true,
+        coupleId: true,
+        scope: true,
+        ownerUserId: true
+      }
+    });
+
+    if (!category) {
+      throw new NotFoundException("Category not found");
+    }
+
+    await this.assertMembership(userId, category.coupleId);
+
+    if (category.scope === "PERSONAL" && category.ownerUserId !== userId) {
+      throw new BadRequestException("You can change visibility only for your own personal categories");
+    }
+
+    await this.prisma.client.category.update({
+      where: { id: categoryId },
+      data: {
+        isVisible: dto.isVisible
+      }
     });
 
     return this.getCategoryCatalog(userId);

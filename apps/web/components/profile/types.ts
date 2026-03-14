@@ -83,12 +83,14 @@ export type CategoryTreeNode = {
   kind: "EXPENSE" | "INCOME";
   scope: CategoryScope;
   ownerUserId: string | null;
+  isVisible: boolean;
   children: Array<{
     id: string;
     name: string;
     kind: "EXPENSE" | "INCOME";
     scope: CategoryScope;
     ownerUserId: string | null;
+    isVisible: boolean;
   }>;
 };
 

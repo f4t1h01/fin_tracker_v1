@@ -125,6 +125,7 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
   const [categoryFormParentId, setCategoryFormParentId] = useState("");
   const [isSavingCategory, setIsSavingCategory] = useState(false);
   const [isDeletingCategoryId, setIsDeletingCategoryId] = useState<string | null>(null);
+  const [isUpdatingCategoryVisibilityId, setIsUpdatingCategoryVisibilityId] = useState<string | null>(null);
   const [categoryMessage, setCategoryMessage] = useState<string | null>(null);
   const [categoryError, setCategoryError] = useState<string | null>(null);
 
@@ -740,6 +741,32 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
     }
   };
 
+  const onToggleCategoryVisibility = async (categoryId: string, isVisible: boolean) => {
+    if (!token) return;
+    setCategoryError(null);
+    setCategoryMessage(null);
+    setIsUpdatingCategoryVisibilityId(categoryId);
+
+    try {
+      const response = await fetch(`${webEnv.apiUrl}/profile/me/categories/${categoryId}/visibility`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ isVisible })
+      });
+
+      const payload = await parseApiResponse<CategoryCatalogResponse>(response);
+      applyCategoryCatalog(payload);
+      setCategoryMessage(isVisible ? "Category is visible in pickers again." : "Category hidden from pickers.");
+    } catch (error) {
+      setCategoryError(error instanceof Error ? error.message : "Could not update category visibility");
+    } finally {
+      setIsUpdatingCategoryVisibilityId(null);
+    }
+  };
+
   const onUnbind = async () => {
     if (!token) return;
 
@@ -1028,10 +1055,12 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
     setCategoryFormParentId,
     isSavingCategory,
     isDeletingCategoryId,
+    isUpdatingCategoryVisibilityId,
     categoryMessage,
     categoryError,
     onCreateCategory,
     onDeleteCategory,
+    onToggleCategoryVisibility,
     note,
     setNote,
     txMessage,

@@ -11,6 +11,10 @@ function flattenNodes(nodes: CategoryTreeNode[]): CategorySelectOption[] {
   const output: CategorySelectOption[] = [];
 
   for (const node of nodes) {
+    if (!node.isVisible) {
+      continue;
+    }
+
     output.push({
       id: node.id,
       label: node.name,
@@ -19,6 +23,10 @@ function flattenNodes(nodes: CategoryTreeNode[]): CategorySelectOption[] {
     });
 
     for (const child of node.children) {
+      if (!child.isVisible) {
+        continue;
+      }
+
       output.push({
         id: child.id,
         label: `${node.name} / ${child.name}`,

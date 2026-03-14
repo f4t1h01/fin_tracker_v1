@@ -105,10 +105,12 @@ export function ProfileManagementPage() {
           setCategoryFormParentId={workspace.setCategoryFormParentId}
           isSavingCategory={workspace.isSavingCategory}
           isDeletingCategoryId={workspace.isDeletingCategoryId}
+          isUpdatingCategoryVisibilityId={workspace.isUpdatingCategoryVisibilityId}
           categoryMessage={workspace.categoryMessage}
           categoryError={workspace.categoryError}
           onCreateCategory={workspace.onCreateCategory}
           onDeleteCategory={workspace.onDeleteCategory}
+          onToggleCategoryVisibility={workspace.onToggleCategoryVisibility}
         />
       </section>
     </main>

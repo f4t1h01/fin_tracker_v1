@@ -3,7 +3,7 @@ import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } f
 import { CurrentUser } from "../auth/current-user.decorator";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { BindCoupleDto } from "./dto/bind-couple.dto";
-import { CreateCategoryDto, UpdateCategoryPreferencesDto } from "./dto/category-management.dto";
+import { CreateCategoryDto, UpdateCategoryPreferencesDto, UpdateCategoryVisibilityDto } from "./dto/category-management.dto";
 import { CreateProfileTransactionDto } from "./dto/create-profile-transaction.dto";
 import { DashboardQueryDto } from "./dto/dashboard-query.dto";
 import { UpdateAnalyticsPreferencesDto } from "./dto/update-analytics-preferences.dto";
@@ -72,6 +72,11 @@ export class ProfileController {
   @Delete("me/categories/:categoryId")
   deleteMyCategory(@CurrentUser() user: { id: string }, @Param("categoryId") categoryId: string) {
     return this.profileService.deleteCategory(user.id, categoryId);
+  }
+
+  @Patch("me/categories/:categoryId/visibility")
+  updateMyCategoryVisibility(@CurrentUser() user: { id: string }, @Param("categoryId") categoryId: string, @Body() dto: UpdateCategoryVisibilityDto) {
+    return this.profileService.updateCategoryVisibility(user.id, categoryId, dto);
   }
 
   @Patch("me/category-preferences")
