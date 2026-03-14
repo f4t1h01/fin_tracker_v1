@@ -61,8 +61,9 @@ export function ProfileMainPage() {
         setAmount={workspace.setAmount}
         currency={workspace.currency}
         setCurrency={workspace.setCurrency}
-        categoryName={workspace.categoryName}
-        setCategoryName={workspace.setCategoryName}
+        categoryCatalog={workspace.categoryCatalog}
+        selectedCategoryId={workspace.selectedCategoryId}
+        setSelectedCategoryId={workspace.setSelectedCategoryId}
         note={workspace.note}
         setNote={workspace.setNote}
         txMessage={workspace.txMessage}
@@ -76,6 +77,7 @@ export function ProfileMainPage() {
         isLoadingData={workspace.isLoadingData}
         isDeletingId={workspace.isDeletingId}
         editingTransaction={workspace.editingTransaction}
+        categoryCatalog={workspace.categoryCatalog}
         setEditingTransaction={workspace.setEditingTransaction}
         isSavingEdit={workspace.isSavingEdit}
         onStartEditing={workspace.startEditing}

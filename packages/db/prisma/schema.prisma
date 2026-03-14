@@ -17,6 +17,11 @@ enum TransactionKind {
   INCOME
 }
 
+enum CategoryScope {
+  PERSONAL
+  SHARED
+}
+
 model User {
   id                String        @id @default(cuid())
   telegramId        BigInt        @unique
@@ -34,10 +39,16 @@ model User {
   isAdmin           Boolean       @default(false)
   isDark            Boolean       @default(false)
   weekStartsOn      String        @default("MONDAY") @map("week_starts_on")
+  showSharedCategories Boolean    @default(true) @map("show_shared_categories")
+  defaultIncomeCategoryId String? @map("default_income_category_id")
+  defaultIncomeCategory Category? @relation("UserDefaultIncomeCategory", fields: [defaultIncomeCategoryId], references: [id], onDelete: SetNull)
+  defaultExpenseCategoryId String? @map("default_expense_category_id")
+  defaultExpenseCategory Category? @relation("UserDefaultExpenseCategory", fields: [defaultExpenseCategoryId], references: [id], onDelete: SetNull)
   memberships       Membership[]
   coupleBind        CoupleBind?
   transactions      Transaction[]
   createdCategories Category[]
+  ownedCategories   Category[]    @relation("OwnedCategories")
   createdCouples    Couple[]      @relation("CreatedCouples")
   createdInvites    Invite[]      @relation("CreatedInvites")
   createdAt         DateTime      @default(now())
@@ -95,17 +106,29 @@ model Membership {
 }
 
 model Category {
-  id          String          @id @default(cuid())
-  coupleId    String
-  couple      Couple          @relation(fields: [coupleId], references: [id], onDelete: Cascade)
-  name        String
-  kind        TransactionKind
-  createdById String?
-  createdBy   User?           @relation(fields: [createdById], references: [id], onDelete: SetNull)
-  transactions Transaction[]
-  createdAt   DateTime        @default(now())
+  id                       String          @id @default(cuid())
+  coupleId                 String
+  couple                   Couple          @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+  name                     String
+  normalizedName           String          @map("normalized_name")
+  kind                     TransactionKind
+  scope                    CategoryScope   @default(PERSONAL)
+  ownerUserId              String?         @map("owner_user_id")
+  ownerUser                User?           @relation("OwnedCategories", fields: [ownerUserId], references: [id], onDelete: SetNull)
+  parentCategoryId         String?         @map("parent_category_id")
+  parentCategory           Category?       @relation("CategoryHierarchy", fields: [parentCategoryId], references: [id], onDelete: Restrict)
+  childCategories          Category[]      @relation("CategoryHierarchy")
+  createdById              String?
+  createdBy                User?           @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  transactions             Transaction[]
+  preferredAsDefaultIncomeBy User[]        @relation("UserDefaultIncomeCategory")
+  preferredAsDefaultExpenseBy User[]       @relation("UserDefaultExpenseCategory")
+  createdAt                DateTime        @default(now())
 
-  @@unique([coupleId, name, kind])
+  @@index([coupleId, kind, scope, ownerUserId, parentCategoryId])
+  @@index([coupleId, parentCategoryId])
+  @@index([ownerUserId, coupleId, scope])
+  @@index([coupleId, kind, normalizedName])
 }
 
 model Transaction {

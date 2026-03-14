@@ -27,6 +27,7 @@ export class TransactionsService {
     await this.assertMembership(userId, dto.coupleId);
 
     const normalizedCategoryName = dto.categoryName.trim();
+    const normalizedCategoryLookupName = normalizedCategoryName.toLowerCase();
     const currency = normalizeCurrency(dto.currency);
     const rates = await getLatestCurrencyRates();
     const exchangeRate = rates[currency];
@@ -37,17 +38,17 @@ export class TransactionsService {
         where: {
           coupleId: dto.coupleId,
           kind: dto.kind,
-          name: {
-            equals: normalizedCategoryName,
-            mode: "insensitive"
-          }
+          normalizedName: normalizedCategoryLookupName,
+          scope: "SHARED"
         }
       })) ??
       (await this.prisma.client.category.create({
         data: {
           coupleId: dto.coupleId,
           kind: dto.kind,
+          scope: "SHARED",
           name: normalizedCategoryName,
+          normalizedName: normalizedCategoryLookupName,
           createdById: userId
         }
       }));

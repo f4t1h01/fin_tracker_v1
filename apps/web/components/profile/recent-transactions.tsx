@@ -5,14 +5,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { SelectField } from "@/components/ui/select-field";
 import { TextField } from "@/components/ui/text-field";
 
+import { buildCategoryOptions } from "./category-options";
 import { RecentTransactionRow } from "./recent-transaction-row";
-import { type EditableTransaction, type RecentTransaction, supportedCurrencies, type SupportedCurrency } from "./types";
+import { type CategoryCatalogResponse, type EditableTransaction, type RecentTransaction, supportedCurrencies, type SupportedCurrency } from "./types";
 
 type RecentTransactionsProps = {
   recent: RecentTransaction[];
   isLoadingData: boolean;
   isDeletingId: string | null;
   editingTransaction: EditableTransaction | null;
+  categoryCatalog: CategoryCatalogResponse | null;
   setEditingTransaction: (value: EditableTransaction | null) => void;
   isSavingEdit: boolean;
   onStartEditing: (item: RecentTransaction) => void;
@@ -21,6 +23,8 @@ type RecentTransactionsProps = {
 };
 
 export function RecentTransactions(props: RecentTransactionsProps) {
+  const editOptions = props.editingTransaction ? buildCategoryOptions(props.categoryCatalog, props.editingTransaction.kind, { forceIncludeShared: true }) : null;
+
   return (
     <>
       <section className="mt-6">
@@ -57,7 +61,14 @@ export function RecentTransactions(props: RecentTransactionsProps) {
                   <label className="space-y-1 text-sm"><span className="field-label">Amount</span><TextField required inputMode="decimal" min="0.01" step="0.01" value={props.editingTransaction.amount} onChange={(event) => props.setEditingTransaction({ ...props.editingTransaction!, amount: event.target.value })} /></label>
                   <label className="space-y-1 text-sm"><span className="field-label">Currency</span><SelectField value={props.editingTransaction.currency} onChange={(event) => props.setEditingTransaction({ ...props.editingTransaction!, currency: event.target.value as SupportedCurrency })}>{supportedCurrencies.map((item) => <option key={item} value={item}>{item}</option>)}</SelectField></label>
                 </div>
-                <label className="space-y-1 text-sm"><span className="field-label">Category</span><TextField required value={props.editingTransaction.categoryName} onChange={(event) => props.setEditingTransaction({ ...props.editingTransaction!, categoryName: event.target.value })} /></label>
+                <label className="space-y-1 text-sm">
+                  <span className="field-label">Category</span>
+                  <SelectField value={props.editingTransaction.categoryId} onChange={(event) => props.setEditingTransaction({ ...props.editingTransaction!, categoryId: event.target.value })}>
+                    <option value="">Choose a category</option>
+                    {editOptions?.personal.length ? <optgroup label="My categories">{editOptions.personal.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</optgroup> : null}
+                    {editOptions?.shared.length ? <optgroup label="Shared categories">{editOptions.shared.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</optgroup> : null}
+                  </SelectField>
+                </label>
                 <label className="space-y-1 text-sm"><span className="field-label">Note</span><TextField value={props.editingTransaction.note} onChange={(event) => props.setEditingTransaction({ ...props.editingTransaction!, note: event.target.value })} /></label>
                 <div className="flex items-center gap-3"><Button type="submit" disabled={props.isSavingEdit}>{props.isSavingEdit ? "Saving..." : "Save changes"}</Button><Button type="button" variant="outline" onClick={() => props.setEditingTransaction(null)}><X className="size-4" />Cancel</Button></div>
               </form>

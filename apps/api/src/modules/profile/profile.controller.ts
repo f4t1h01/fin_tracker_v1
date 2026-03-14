@@ -3,6 +3,7 @@ import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } f
 import { CurrentUser } from "../auth/current-user.decorator";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { BindCoupleDto } from "./dto/bind-couple.dto";
+import { CreateCategoryDto, UpdateCategoryPreferencesDto } from "./dto/category-management.dto";
 import { CreateProfileTransactionDto } from "./dto/create-profile-transaction.dto";
 import { DashboardQueryDto } from "./dto/dashboard-query.dto";
 import { UpdateAnalyticsPreferencesDto } from "./dto/update-analytics-preferences.dto";
@@ -56,6 +57,26 @@ export class ProfileController {
   @Delete("me/bind")
   unbindMe(@CurrentUser() user: { id: string }) {
     return this.profileService.unbindPartner(user.id);
+  }
+
+  @Get("me/categories")
+  myCategories(@CurrentUser() user: { id: string }) {
+    return this.profileService.getManagedCategories(user.id);
+  }
+
+  @Post("me/categories")
+  createMyCategory(@CurrentUser() user: { id: string }, @Body() dto: CreateCategoryDto) {
+    return this.profileService.createCategory(user.id, dto);
+  }
+
+  @Delete("me/categories/:categoryId")
+  deleteMyCategory(@CurrentUser() user: { id: string }, @Param("categoryId") categoryId: string) {
+    return this.profileService.deleteCategory(user.id, categoryId);
+  }
+
+  @Patch("me/category-preferences")
+  updateMyCategoryPreferences(@CurrentUser() user: { id: string }, @Body() dto: UpdateCategoryPreferencesDto) {
+    return this.profileService.updateCategoryPreferences(user.id, dto);
   }
 
   @Post("me/transactions")

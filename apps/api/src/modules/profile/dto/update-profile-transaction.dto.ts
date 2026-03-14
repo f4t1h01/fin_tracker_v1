@@ -1,5 +1,5 @@
 import { Type } from "class-transformer";
-import { IsIn, IsOptional, IsString, MaxLength, Min } from "class-validator";
+import { IsIn, IsOptional, IsString, IsUUID, MaxLength, Min } from "class-validator";
 
 import { SUPPORTED_CURRENCIES } from "../../common/currency";
 
@@ -14,6 +14,10 @@ export class UpdateProfileTransactionDto {
   @IsOptional()
   @IsIn(transactionKinds)
   kind?: "EXPENSE" | "INCOME";
+
+  @IsOptional()
+  @IsUUID()
+  categoryId?: string;
 
   @IsOptional()
   @IsString()

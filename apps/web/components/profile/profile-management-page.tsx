@@ -12,6 +12,7 @@ import { PageHeaderActions } from "@/components/ui/page-header-actions";
 
 import { AnalyticsPreferencesCard } from "./management/analytics-preferences-card";
 import { BoundAccountsCard } from "./management/bound-accounts-card";
+import { CategoryManagementCard } from "./management/category-management-card";
 import { PartnerConnectionCard } from "./management/partner-connection-card";
 import { PasswordSetupCard } from "./management/password-setup-card";
 import { ProfileDetailsCard } from "./management/profile-details-card";
@@ -78,6 +79,36 @@ export function ProfileManagementPage() {
 
       <section className="mt-6">
         <AnalyticsPreferencesCard weekStartsOn={workspace.weekStartsOn} setWeekStartsOn={workspace.setWeekStartsOn} isSavingPreferences={workspace.isSavingPreferences} preferencesMessage={workspace.preferencesMessage} preferencesError={workspace.preferencesError} onSavePreferences={workspace.onSavePreferences} />
+      </section>
+
+      <section className="mt-6">
+        <CategoryManagementCard
+          categoryCatalog={workspace.categoryCatalog}
+          showSharedCategoriesInPicker={workspace.showSharedCategoriesInPicker}
+          setShowSharedCategoriesInPicker={workspace.setShowSharedCategoriesInPicker}
+          defaultIncomeCategoryId={workspace.defaultIncomeCategoryId}
+          setDefaultIncomeCategoryId={workspace.setDefaultIncomeCategoryId}
+          defaultExpenseCategoryId={workspace.defaultExpenseCategoryId}
+          setDefaultExpenseCategoryId={workspace.setDefaultExpenseCategoryId}
+          isSavingCategoryPreferences={workspace.isSavingCategoryPreferences}
+          categoryPreferencesMessage={workspace.categoryPreferencesMessage}
+          categoryPreferencesError={workspace.categoryPreferencesError}
+          onSaveCategoryPreferences={workspace.onSaveCategoryPreferences}
+          categoryFormKind={workspace.categoryFormKind}
+          setCategoryFormKind={workspace.setCategoryFormKind}
+          categoryFormScope={workspace.categoryFormScope}
+          setCategoryFormScope={workspace.setCategoryFormScope}
+          categoryFormName={workspace.categoryFormName}
+          setCategoryFormName={workspace.setCategoryFormName}
+          categoryFormParentId={workspace.categoryFormParentId}
+          setCategoryFormParentId={workspace.setCategoryFormParentId}
+          isSavingCategory={workspace.isSavingCategory}
+          isDeletingCategoryId={workspace.isDeletingCategoryId}
+          categoryMessage={workspace.categoryMessage}
+          categoryError={workspace.categoryError}
+          onCreateCategory={workspace.onCreateCategory}
+          onDeleteCategory={workspace.onDeleteCategory}
+        />
       </section>
     </main>
   );

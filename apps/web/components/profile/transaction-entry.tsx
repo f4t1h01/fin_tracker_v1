@@ -5,7 +5,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { SelectField } from "@/components/ui/select-field";
 import { TextField } from "@/components/ui/text-field";
 
-import { supportedCurrencies, type SupportedCurrency } from "./types";
+import { buildCategoryOptions } from "./category-options";
+import { supportedCurrencies, type CategoryCatalogResponse, type SupportedCurrency } from "./types";
 
 type TransactionEntryProps = {
   workspaceName: string;
@@ -15,8 +16,9 @@ type TransactionEntryProps = {
   setAmount: (value: string) => void;
   currency: SupportedCurrency;
   setCurrency: (value: SupportedCurrency) => void;
-  categoryName: string;
-  setCategoryName: (value: string) => void;
+  categoryCatalog: CategoryCatalogResponse | null;
+  selectedCategoryId: string;
+  setSelectedCategoryId: (value: string) => void;
   note: string;
   setNote: (value: string) => void;
   txMessage: string | null;
@@ -26,6 +28,8 @@ type TransactionEntryProps = {
 };
 
 export function TransactionEntry(props: TransactionEntryProps) {
+  const options = buildCategoryOptions(props.categoryCatalog, props.kind);
+
   return (
     <Card className="panel-soft">
       <CardHeader>
@@ -39,7 +43,22 @@ export function TransactionEntry(props: TransactionEntryProps) {
             <label className="space-y-1 text-sm"><span className="field-label">Amount</span><TextField required inputMode="decimal" min="0.01" step="0.01" value={props.amount} onChange={(event) => props.setAmount(event.target.value)} placeholder="45000" /></label>
             <label className="space-y-1 text-sm"><span className="field-label">Currency</span><SelectField value={props.currency} onChange={(event) => props.setCurrency(event.target.value as SupportedCurrency)}>{supportedCurrencies.map((item) => <option key={item} value={item}>{item}</option>)}</SelectField></label>
           </div>
-          <label className="space-y-1 text-sm"><span className="field-label">Category</span><TextField required value={props.categoryName} onChange={(event) => props.setCategoryName(event.target.value)} placeholder="groceries / salary" /></label>
+          <label className="space-y-1 text-sm">
+            <span className="field-label">Category</span>
+            <SelectField required value={props.selectedCategoryId} onChange={(event) => props.setSelectedCategoryId(event.target.value)}>
+              <option value="">Choose a category</option>
+              {options.personal.length > 0 ? (
+                <optgroup label="My categories">
+                  {options.personal.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
+                </optgroup>
+              ) : null}
+              {options.shared.length > 0 ? (
+                <optgroup label="Shared categories">
+                  {options.shared.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
+                </optgroup>
+              ) : null}
+            </SelectField>
+          </label>
           <label className="space-y-1 text-sm"><span className="field-label">Note (optional)</span><TextField value={props.note} onChange={(event) => props.setNote(event.target.value)} placeholder="short context" /></label>
           <div className="flex flex-wrap items-center gap-3"><Button type="submit" disabled={props.isSubmittingTx}>{props.isSubmittingTx ? "Saving..." : "Save transaction"}</Button>{props.txMessage ? <p className="status-success text-sm">{props.txMessage}</p> : null}{props.txError ? <p className="status-error text-sm">{props.txError}</p> : null}</div>
         </form>

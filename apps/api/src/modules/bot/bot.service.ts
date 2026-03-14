@@ -296,23 +296,24 @@ export class BotService {
     const amountInUzs = convertToUzs(dto.amount, exchangeRate);
 
     const categoryName = dto.category.trim();
+    const normalizedCategoryLookupName = categoryName.toLowerCase();
 
     const category =
       (await this.prisma.client.category.findFirst({
         where: {
           coupleId,
           kind: dto.kind,
-          name: {
-            equals: categoryName,
-            mode: "insensitive"
-          }
+          normalizedName: normalizedCategoryLookupName,
+          scope: "SHARED"
         }
       })) ??
       (await this.prisma.client.category.create({
         data: {
           coupleId,
           kind: dto.kind,
+          scope: "SHARED",
           name: categoryName,
+          normalizedName: normalizedCategoryLookupName,
           createdById: user.id
         }
       }));

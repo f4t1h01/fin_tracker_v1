@@ -5,6 +5,7 @@ import { FormEvent, useCallback, useEffect, useLayoutEffect, useMemo, useState }
 import { webEnv } from "@/lib/env";
 import { persistTheme, type ThemeMode } from "@/lib/theme";
 
+import { findCategoryOptionById } from "./category-options";
 import { parseApiResponse } from "./api";
 import { clearDashboardCache, clearProfileSnapshotCache, readProfileSnapshotCache, writeProfileSnapshotCache } from "./cache";
 import { getTashkentGreeting } from "./greeting";
@@ -13,6 +14,8 @@ import {
   authSourceKey,
   canonicalProfilePath,
   type AuthMeResponse,
+  type CategoryCatalogResponse,
+  type CategoryScope,
   type EditableTransaction,
   type ProfileResponse,
   type ProfileSnapshotResponse,
@@ -108,7 +111,22 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
   const [profile, setProfile] = useState<ProfileResponse | null>(null);
   const [summary, setSummary] = useState<MonthlySummary | null>(null);
   const [recent, setRecent] = useState<RecentTransaction[]>([]);
+  const [categoryCatalog, setCategoryCatalog] = useState<CategoryCatalogResponse | null>(null);
   const [isLoadingData, setIsLoadingData] = useState(false);
+  const [showSharedCategoriesInPicker, setShowSharedCategoriesInPicker] = useState(true);
+  const [defaultIncomeCategoryId, setDefaultIncomeCategoryId] = useState("");
+  const [defaultExpenseCategoryId, setDefaultExpenseCategoryId] = useState("");
+  const [isSavingCategoryPreferences, setIsSavingCategoryPreferences] = useState(false);
+  const [categoryPreferencesMessage, setCategoryPreferencesMessage] = useState<string | null>(null);
+  const [categoryPreferencesError, setCategoryPreferencesError] = useState<string | null>(null);
+  const [categoryFormKind, setCategoryFormKind] = useState<"EXPENSE" | "INCOME">("EXPENSE");
+  const [categoryFormScope, setCategoryFormScope] = useState<CategoryScope>("PERSONAL");
+  const [categoryFormName, setCategoryFormName] = useState("");
+  const [categoryFormParentId, setCategoryFormParentId] = useState("");
+  const [isSavingCategory, setIsSavingCategory] = useState(false);
+  const [isDeletingCategoryId, setIsDeletingCategoryId] = useState<string | null>(null);
+  const [categoryMessage, setCategoryMessage] = useState<string | null>(null);
+  const [categoryError, setCategoryError] = useState<string | null>(null);
 
   const [bindCode, setBindCode] = useState("");
   const [bindMessage, setBindMessage] = useState<string | null>(null);
@@ -121,6 +139,7 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
   const [amount, setAmount] = useState("");
   const [currency, setCurrency] = useState<SupportedCurrency>("UZS");
   const [categoryName, setCategoryName] = useState("");
+  const [selectedCategoryId, setSelectedCategoryId] = useState("");
   const [note, setNote] = useState("");
   const [txMessage, setTxMessage] = useState<string | null>(null);
   const [txError, setTxError] = useState<string | null>(null);
@@ -134,7 +153,20 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
   const applySnapshot = useCallback((snapshot: ProfileSnapshotResponse) => {
     const normalizedSnapshot: ProfileSnapshotResponse = {
       ...snapshot,
-      summary: normalizeMonthlySummary(snapshot.summary)
+      summary: normalizeMonthlySummary(snapshot.summary),
+      categories:
+        snapshot.categories ??
+        ({
+          preferences: {
+            showSharedCategories: true,
+            defaultIncomeCategoryId: null,
+            defaultExpenseCategoryId: null
+          },
+          byKind: {
+            EXPENSE: { personal: [], shared: [] },
+            INCOME: { personal: [], shared: [] }
+          }
+        } satisfies CategoryCatalogResponse)
     };
 
     writeProfileSnapshotCache(normalizedSnapshot);
@@ -142,6 +174,10 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
     setSummary(normalizedSnapshot.summary);
     setRecent(normalizedSnapshot.recent);
     setAuthMe(normalizedSnapshot.auth);
+    setCategoryCatalog(normalizedSnapshot.categories);
+    setShowSharedCategoriesInPicker(normalizedSnapshot.categories.preferences.showSharedCategories);
+    setDefaultIncomeCategoryId(normalizedSnapshot.categories.preferences.defaultIncomeCategoryId ?? "");
+    setDefaultExpenseCategoryId(normalizedSnapshot.categories.preferences.defaultExpenseCategoryId ?? "");
     setDetailsFirstName(normalizedSnapshot.auth.firstName ?? "");
     setDetailsLastName(normalizedSnapshot.auth.lastName ?? "");
     setDetailsBirthday(normalizedSnapshot.auth.birthday?.slice(0, 10) ?? "");
@@ -168,6 +204,11 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
     setDetailsBirthday("");
     setWeekStartsOn("MONDAY");
     setTelegramConnectUrl(webEnv.botName ? `https://t.me/${webEnv.botName}` : "https://t.me/coup_fin_trackerbot");
+    setCategoryCatalog(null);
+    setShowSharedCategoriesInPicker(true);
+    setDefaultIncomeCategoryId("");
+    setDefaultExpenseCategoryId("");
+    setSelectedCategoryId("");
   }, []);
 
   const ensureCanonicalProfileUrl = useCallback((targetPath = canonicalProfilePath) => {
@@ -194,11 +235,11 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
         if (message === "Invalid token" || message === "Missing bearer token") {
           clearSession();
         }
-        setAuthError(message);
-      } finally {
-        setIsLoadingData(false);
-      }
-    },
+      setAuthError(message);
+    } finally {
+      setIsLoadingData(false);
+    }
+  },
     [applySnapshot, clearSession, today]
   );
 
@@ -366,6 +407,30 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
     persistTheme(authMe.isDark ? "dark" : "light");
   }, [authMe]);
 
+  useEffect(() => {
+    if (!categoryCatalog) {
+      return;
+    }
+
+    const preferredCategoryId = kind === "INCOME" ? categoryCatalog.preferences.defaultIncomeCategoryId : categoryCatalog.preferences.defaultExpenseCategoryId;
+    if (!preferredCategoryId) {
+      return;
+    }
+
+    const option = findCategoryOptionById(categoryCatalog, kind, preferredCategoryId);
+    if (!option) {
+      return;
+    }
+
+    setSelectedCategoryId((current) => {
+      if (current && findCategoryOptionById(categoryCatalog, kind, current, { forceIncludeShared: true })) {
+        return current;
+      }
+
+      return preferredCategoryId;
+    });
+  }, [categoryCatalog, kind]);
+
   const onThemeChange = async (theme: ThemeMode) => {
     if (!token) {
       persistTheme(theme);
@@ -378,8 +443,8 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
       }
 
       const nextAuth = { ...current, isDark: theme === "dark" };
-      if (profile && summary) {
-        writeProfileSnapshotCache({ profile, summary, recent, auth: nextAuth });
+      if (profile && summary && categoryCatalog) {
+        writeProfileSnapshotCache({ profile, summary, recent, auth: nextAuth, categories: categoryCatalog });
       }
       return nextAuth;
     });
@@ -399,6 +464,14 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
       setAuthError(error instanceof Error ? error.message : "Could not save theme preference");
     }
   };
+
+  const applyCategoryCatalog = useCallback((catalog: CategoryCatalogResponse) => {
+    setCategoryCatalog(catalog);
+    setShowSharedCategoriesInPicker(catalog.preferences.showSharedCategories);
+    setDefaultIncomeCategoryId(catalog.preferences.defaultIncomeCategoryId ?? "");
+    setDefaultExpenseCategoryId(catalog.preferences.defaultExpenseCategoryId ?? "");
+    setAuthMe((current) => (current ? { ...current, showSharedCategories: catalog.preferences.showSharedCategories } : current));
+  }, []);
 
   const onSubmitLogin = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -535,8 +608,8 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
         }
 
         const nextAuth = { ...current, weekStartsOn: payload.weekStartsOn };
-        if (profile && summary) {
-          writeProfileSnapshotCache({ profile, summary, recent, auth: nextAuth });
+        if (profile && summary && categoryCatalog) {
+          writeProfileSnapshotCache({ profile, summary, recent, auth: nextAuth, categories: categoryCatalog });
         }
         return nextAuth;
       });
@@ -575,6 +648,95 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
       setBindError(error instanceof Error ? error.message : "Could not connect by code");
     } finally {
       setIsBinding(false);
+    }
+  };
+
+  const onSaveCategoryPreferences = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!token) return;
+    setCategoryPreferencesError(null);
+    setCategoryPreferencesMessage(null);
+    setIsSavingCategoryPreferences(true);
+
+    try {
+      const response = await fetch(`${webEnv.apiUrl}/profile/me/category-preferences`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          showSharedCategories: showSharedCategoriesInPicker,
+          defaultIncomeCategoryId: defaultIncomeCategoryId || undefined,
+          defaultExpenseCategoryId: defaultExpenseCategoryId || undefined
+        })
+      });
+
+      const payload = await parseApiResponse<CategoryCatalogResponse>(response);
+      applyCategoryCatalog(payload);
+      setCategoryPreferencesMessage("Category preferences saved.");
+    } catch (error) {
+      setCategoryPreferencesError(error instanceof Error ? error.message : "Could not save category preferences");
+    } finally {
+      setIsSavingCategoryPreferences(false);
+    }
+  };
+
+  const onCreateCategory = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!token) return;
+    setCategoryError(null);
+    setCategoryMessage(null);
+    setIsSavingCategory(true);
+
+    try {
+      const response = await fetch(`${webEnv.apiUrl}/profile/me/categories`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          kind: categoryFormKind,
+          scope: categoryFormScope,
+          name: categoryFormName,
+          parentCategoryId: categoryFormParentId || undefined
+        })
+      });
+
+      const payload = await parseApiResponse<CategoryCatalogResponse>(response);
+      applyCategoryCatalog(payload);
+      setCategoryFormName("");
+      setCategoryFormParentId("");
+      setCategoryMessage("Category saved.");
+    } catch (error) {
+      setCategoryError(error instanceof Error ? error.message : "Could not save category");
+    } finally {
+      setIsSavingCategory(false);
+    }
+  };
+
+  const onDeleteCategory = async (categoryId: string) => {
+    if (!token) return;
+    setCategoryError(null);
+    setCategoryMessage(null);
+    setIsDeletingCategoryId(categoryId);
+
+    try {
+      const response = await fetch(`${webEnv.apiUrl}/profile/me/categories/${categoryId}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+
+      const payload = await parseApiResponse<CategoryCatalogResponse>(response);
+      applyCategoryCatalog(payload);
+      setCategoryMessage("Category removed.");
+    } catch (error) {
+      setCategoryError(error instanceof Error ? error.message : "Could not remove category");
+    } finally {
+      setIsDeletingCategoryId(null);
     }
   };
 
@@ -624,13 +786,21 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`
         },
-        body: JSON.stringify({ amount: Number(amount), kind, currency, categoryName, note: note || undefined })
+        body: JSON.stringify({
+          amount: Number(amount),
+          kind,
+          currency,
+          categoryId: selectedCategoryId || undefined,
+          categoryName: categoryName || undefined,
+          note: note || undefined
+        })
       });
 
       await parseApiResponse<unknown>(response);
       setAmount("");
       setCurrency("UZS");
       setCategoryName("");
+      setSelectedCategoryId("");
       setNote("");
       setTxMessage(`${kind === "INCOME" ? "Income" : "Expense"} added.`);
       await fetchSnapshot(token);
@@ -681,14 +851,15 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
   const startEditing = (item: RecentTransaction) => {
     setTxMessage(null);
     setTxError(null);
-    setEditingTransaction({
-      id: item.id,
-      amount: String(item.amount),
-      kind: item.kind,
-      currency: item.currency,
-      categoryName: item.category.name,
-      note: item.note ?? ""
-    });
+      setEditingTransaction({
+        id: item.id,
+        amount: String(item.amount),
+        kind: item.kind,
+        currency: item.currency,
+        categoryId: item.category.id,
+        categoryName: item.category.name,
+        note: item.note ?? ""
+      });
   };
 
   const onSaveEdit = async (event: FormEvent<HTMLFormElement>) => {
@@ -709,6 +880,7 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
           amount: Number(editingTransaction.amount),
           kind: editingTransaction.kind,
           currency: editingTransaction.currency,
+          categoryId: editingTransaction.categoryId,
           categoryName: editingTransaction.categoryName,
           note: editingTransaction.note || undefined
         })
@@ -833,6 +1005,33 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
     setCurrency,
     categoryName,
     setCategoryName,
+    selectedCategoryId,
+    setSelectedCategoryId,
+    categoryCatalog,
+    showSharedCategoriesInPicker,
+    setShowSharedCategoriesInPicker,
+    defaultIncomeCategoryId,
+    setDefaultIncomeCategoryId,
+    defaultExpenseCategoryId,
+    setDefaultExpenseCategoryId,
+    isSavingCategoryPreferences,
+    categoryPreferencesMessage,
+    categoryPreferencesError,
+    onSaveCategoryPreferences,
+    categoryFormKind,
+    setCategoryFormKind,
+    categoryFormScope,
+    setCategoryFormScope,
+    categoryFormName,
+    setCategoryFormName,
+    categoryFormParentId,
+    setCategoryFormParentId,
+    isSavingCategory,
+    isDeletingCategoryId,
+    categoryMessage,
+    categoryError,
+    onCreateCategory,
+    onDeleteCategory,
     note,
     setNote,
     txMessage,

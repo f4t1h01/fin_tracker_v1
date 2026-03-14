@@ -5,11 +5,13 @@ export const supportedCurrencies = ["UZS", "USD", "EUR", "RUB"] as const;
 export const weekStartDays = ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY"] as const;
 export const dashboardRangePresets = ["THIS_WEEK", "THIS_MONTH", "CUSTOM"] as const;
 export const dashboardViewModes = ["COUPLE", "PERSONAL"] as const;
+export const categoryScopes = ["PERSONAL", "SHARED"] as const;
 
 export type SupportedCurrency = (typeof supportedCurrencies)[number];
 export type WeekStartDay = (typeof weekStartDays)[number];
 export type DashboardRangePreset = (typeof dashboardRangePresets)[number];
 export type DashboardViewMode = (typeof dashboardViewModes)[number];
+export type CategoryScope = (typeof categoryScopes)[number];
 
 export type ProfileResponse = {
   user: {
@@ -55,6 +57,7 @@ export type RecentTransaction = {
   note: string | null;
   happenedAt: string;
   category: {
+    id: string;
     name: string;
     kind: "EXPENSE" | "INCOME";
   };
@@ -69,8 +72,33 @@ export type EditableTransaction = {
   amount: string;
   kind: "EXPENSE" | "INCOME";
   currency: SupportedCurrency;
+  categoryId: string;
   categoryName: string;
   note: string;
+};
+
+export type CategoryTreeNode = {
+  id: string;
+  name: string;
+  kind: "EXPENSE" | "INCOME";
+  scope: CategoryScope;
+  ownerUserId: string | null;
+  children: Array<{
+    id: string;
+    name: string;
+    kind: "EXPENSE" | "INCOME";
+    scope: CategoryScope;
+    ownerUserId: string | null;
+  }>;
+};
+
+export type CategoryCatalogResponse = {
+  preferences: {
+    showSharedCategories: boolean;
+    defaultIncomeCategoryId: string | null;
+    defaultExpenseCategoryId: string | null;
+  };
+  byKind: Record<"EXPENSE" | "INCOME", { personal: CategoryTreeNode[]; shared: CategoryTreeNode[] }>;
 };
 
 export type AuthMeResponse = {
@@ -89,6 +117,7 @@ export type AuthMeResponse = {
   telegramPhone: string | null;
   isAdmin: boolean;
   isDark: boolean;
+  showSharedCategories: boolean;
   weekStartsOn: WeekStartDay;
 };
 
@@ -97,6 +126,7 @@ export type ProfileSnapshotResponse = {
   summary: MonthlySummary;
   recent: RecentTransaction[];
   auth: AuthMeResponse;
+  categories: CategoryCatalogResponse;
 };
 
 export type DashboardResponse = {
@@ -127,7 +157,7 @@ export type DashboardResponse = {
     currency: SupportedCurrency;
     note: string | null;
     happenedAt: string;
-    category: { name: string };
+    category: { id: string; name: string };
     user: { firstName: string | null; username: string | null };
   }>;
   rates: Record<SupportedCurrency, number>;

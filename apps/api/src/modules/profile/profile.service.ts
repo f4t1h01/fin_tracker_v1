@@ -4,6 +4,7 @@ import { convertFromUzs, convertToUzs, getLatestCurrencyRates, normalizeCurrency
 import { generateCoupleCodeCandidate, normalizeCoupleCode } from "../common/couple-code";
 import { PrismaService } from "../prisma/prisma.service";
 import { BindCoupleDto } from "./dto/bind-couple.dto";
+import { CreateCategoryDto, UpdateCategoryPreferencesDto } from "./dto/category-management.dto";
 import { CreateProfileTransactionDto } from "./dto/create-profile-transaction.dto";
 import { DashboardQueryDto, type DashboardRangePreset } from "./dto/dashboard-query.dto";
 import { type UpdateAnalyticsPreferencesDto, type WeekStartDay, weekStartDays } from "./dto/update-analytics-preferences.dto";
@@ -26,6 +27,34 @@ type DashboardDateRange = SummaryRange & {
 
 const defaultWeekStartsOn: WeekStartDay = "MONDAY";
 const dashboardViewModes = ["COUPLE", "PERSONAL"] as const;
+const categoryScopes = ["PERSONAL", "SHARED"] as const;
+
+type CategoryScope = (typeof categoryScopes)[number];
+type TransactionKind = "EXPENSE" | "INCOME";
+
+type CategoryTreeNode = {
+  id: string;
+  name: string;
+  scope: CategoryScope;
+  kind: TransactionKind;
+  ownerUserId: string | null;
+  children: Array<{
+    id: string;
+    name: string;
+    scope: CategoryScope;
+    kind: TransactionKind;
+    ownerUserId: string | null;
+  }>;
+};
+
+type CategoryCatalog = {
+  preferences: {
+    showSharedCategories: boolean;
+    defaultIncomeCategoryId: string | null;
+    defaultExpenseCategoryId: string | null;
+  };
+  byKind: Record<TransactionKind, { personal: CategoryTreeNode[]; shared: CategoryTreeNode[] }>;
+};
 
 function isWeekStartDay(value: string | null | undefined): value is WeekStartDay {
   return Boolean(value && weekStartDays.includes(value as WeekStartDay));
@@ -61,6 +90,14 @@ function resolveWeekStartOffset(dayOfWeek: number, weekStartsOn: WeekStartDay) {
   const startIndex = weekStartDays.indexOf(weekStartsOn);
   const normalizedDay = (dayOfWeek + 6) % 7;
   return (normalizedDay - startIndex + 7) % 7;
+}
+
+function normalizeCategoryName(value: string) {
+  return value.trim().replace(/\s+/g, " ");
+}
+
+function normalizeCategoryLookupName(value: string) {
+  return normalizeCategoryName(value).toLowerCase();
 }
 
 @Injectable()
@@ -211,6 +248,7 @@ export class ProfileService {
         telegramPhone: true,
         isAdmin: true,
         isDark: true,
+        showSharedCategories: true,
         ...(hasWeekStartsOnColumn ? { weekStartsOn: true } : {})
       }
     });
@@ -235,6 +273,7 @@ export class ProfileService {
       telegramPhone: user.telegramPhone,
       isAdmin: user.isAdmin,
       isDark: user.isDark,
+      showSharedCategories: user.showSharedCategories,
       weekStartsOn: hasWeekStartsOnColumn && isWeekStartDay((user as { weekStartsOn?: string | null }).weekStartsOn) ? (user as { weekStartsOn?: WeekStartDay }).weekStartsOn ?? defaultWeekStartsOn : defaultWeekStartsOn
     };
   }
@@ -352,6 +391,246 @@ export class ProfileService {
     if (!membership) {
       throw new BadRequestException("User is not linked to this couple workspace");
     }
+  }
+
+  private async getCategoryPreferences(userId: string) {
+    const user = await this.prisma.client.user.findUnique({
+      where: { id: userId },
+      select: {
+        showSharedCategories: true,
+        defaultIncomeCategoryId: true,
+        defaultExpenseCategoryId: true
+      }
+    });
+
+    if (!user) {
+      throw new UnauthorizedException("Invalid token");
+    }
+
+    return {
+      showSharedCategories: user.showSharedCategories,
+      defaultIncomeCategoryId: user.defaultIncomeCategoryId,
+      defaultExpenseCategoryId: user.defaultExpenseCategoryId
+    };
+  }
+
+  private async getCategoryCatalog(userId: string): Promise<CategoryCatalog> {
+    const coupleId = await this.resolveActiveCoupleId(userId, true);
+    if (!coupleId) {
+      return {
+        preferences: {
+          showSharedCategories: true,
+          defaultIncomeCategoryId: null,
+          defaultExpenseCategoryId: null
+        },
+        byKind: {
+          EXPENSE: { personal: [], shared: [] },
+          INCOME: { personal: [], shared: [] }
+        }
+      };
+    }
+
+    await this.assertMembership(userId, coupleId);
+
+    const [preferences, rows] = await Promise.all([
+      this.getCategoryPreferences(userId),
+      this.prisma.client.category.findMany({
+        where: {
+          coupleId,
+          OR: [{ scope: "SHARED" }, { scope: "PERSONAL", ownerUserId: userId }]
+        },
+        orderBy: [{ scope: "asc" }, { kind: "asc" }, { name: "asc" }],
+        select: {
+          id: true,
+          name: true,
+          kind: true,
+          scope: true,
+          ownerUserId: true,
+          parentCategoryId: true
+        }
+      })
+    ]);
+
+    const byKind: CategoryCatalog["byKind"] = {
+      EXPENSE: { personal: [], shared: [] },
+      INCOME: { personal: [], shared: [] }
+    };
+
+    const childMap = new Map<string, CategoryTreeNode["children"]>();
+    for (const row of rows) {
+      if (!row.parentCategoryId) {
+        childMap.set(row.id, []);
+      }
+    }
+
+    for (const row of rows) {
+      if (!row.parentCategoryId) {
+        continue;
+      }
+
+      const collection = childMap.get(row.parentCategoryId);
+      if (!collection) {
+        continue;
+      }
+
+      collection.push({
+        id: row.id,
+        name: row.name,
+        scope: row.scope as CategoryScope,
+        kind: row.kind as TransactionKind,
+        ownerUserId: row.ownerUserId
+      });
+    }
+
+    for (const row of rows) {
+      if (row.parentCategoryId) {
+        continue;
+      }
+
+      const target = row.scope === "SHARED" ? byKind[row.kind as TransactionKind].shared : byKind[row.kind as TransactionKind].personal;
+      target.push({
+        id: row.id,
+        name: row.name,
+        scope: row.scope as CategoryScope,
+        kind: row.kind as TransactionKind,
+        ownerUserId: row.ownerUserId,
+        children: childMap.get(row.id) ?? []
+      });
+    }
+
+    return {
+      preferences,
+      byKind
+    };
+  }
+
+  private async resolveSelectedCategory(userId: string, coupleId: string, kind: TransactionKind, categoryId: string) {
+    const category = await this.prisma.client.category.findUnique({
+      where: { id: categoryId },
+      select: {
+        id: true,
+        coupleId: true,
+        kind: true,
+        scope: true,
+        ownerUserId: true,
+        parentCategoryId: true,
+        name: true
+      }
+    });
+
+    if (!category || category.coupleId !== coupleId) {
+      throw new BadRequestException("Selected category was not found in this workspace");
+    }
+
+    if (category.kind !== kind) {
+      throw new BadRequestException("Selected category does not match the transaction type");
+    }
+
+    if (category.scope === "PERSONAL" && category.ownerUserId !== userId) {
+      throw new BadRequestException("Selected category is not available to this user");
+    }
+
+    return category;
+  }
+
+  private async findMatchingCategory(params: {
+    coupleId: string;
+    userId: string;
+    kind: TransactionKind;
+    scope: CategoryScope;
+    parentCategoryId?: string | null;
+    name: string;
+  }) {
+    const normalizedName = normalizeCategoryLookupName(params.name);
+
+    return this.prisma.client.category.findFirst({
+      where: {
+        coupleId: params.coupleId,
+        kind: params.kind,
+        scope: params.scope,
+        ownerUserId: params.scope === "PERSONAL" ? params.userId : null,
+        parentCategoryId: params.parentCategoryId ?? null,
+        normalizedName
+      },
+      select: {
+        id: true
+      }
+    });
+  }
+
+  private async createManagedCategory(params: {
+    coupleId: string;
+    userId: string;
+    kind: TransactionKind;
+    scope: CategoryScope;
+    name: string;
+    parentCategoryId?: string | null;
+  }) {
+    const normalizedName = normalizeCategoryLookupName(params.name);
+    const trimmedName = normalizeCategoryName(params.name);
+
+    if (params.parentCategoryId) {
+      const parent = await this.prisma.client.category.findUnique({
+        where: { id: params.parentCategoryId },
+        select: {
+          id: true,
+          coupleId: true,
+          kind: true,
+          scope: true,
+          ownerUserId: true,
+          parentCategoryId: true
+        }
+      });
+
+      if (!parent || parent.coupleId !== params.coupleId) {
+        throw new BadRequestException("Parent category was not found in this workspace");
+      }
+
+      if (parent.parentCategoryId) {
+        throw new BadRequestException("Only one level of subcategory nesting is supported");
+      }
+
+      if (parent.kind !== params.kind) {
+        throw new BadRequestException("Subcategory type must match the parent category");
+      }
+
+      if (parent.scope !== params.scope) {
+        throw new BadRequestException("Subcategory scope must match the parent category");
+      }
+
+      if (params.scope === "PERSONAL" && parent.ownerUserId !== params.userId) {
+        throw new BadRequestException("Personal subcategories must stay under the same owner");
+      }
+    }
+
+    const existing = await this.findMatchingCategory({
+      coupleId: params.coupleId,
+      userId: params.userId,
+      kind: params.kind,
+      scope: params.scope,
+      parentCategoryId: params.parentCategoryId ?? null,
+      name: trimmedName
+    });
+
+    if (existing) {
+      return existing;
+    }
+
+    return this.prisma.client.category.create({
+      data: {
+        coupleId: params.coupleId,
+        kind: params.kind,
+        scope: params.scope,
+        ownerUserId: params.scope === "PERSONAL" ? params.userId : null,
+        parentCategoryId: params.parentCategoryId ?? null,
+        name: trimmedName,
+        normalizedName,
+        createdById: params.userId
+      },
+      select: {
+        id: true
+      }
+    });
   }
 
   async getProfile(userId: string) {
@@ -509,18 +788,20 @@ export class ProfileService {
   }
 
   async snapshot(userId: string, month?: number, year?: number) {
-    const [profile, summary, recent, auth] = await Promise.all([
+    const [profile, summary, recent, auth, categories] = await Promise.all([
       this.getProfile(userId),
       this.summary(userId, month, year),
       this.recentTransactions(userId),
-      this.getAuthState(userId)
+      this.getAuthState(userId),
+      this.getCategoryCatalog(userId)
     ]);
 
     return {
       profile,
       summary,
       recent,
-      auth
+      auth,
+      categories
     };
   }
 
@@ -749,6 +1030,121 @@ export class ProfileService {
     return this.getProfile(userId);
   }
 
+  async getManagedCategories(userId: string) {
+    return this.getCategoryCatalog(userId);
+  }
+
+  async createCategory(userId: string, dto: CreateCategoryDto) {
+    const coupleId = await this.resolveActiveCoupleId(userId, true);
+
+    if (!coupleId) {
+      throw new BadRequestException("Could not resolve active workspace");
+    }
+
+    await this.assertMembership(userId, coupleId);
+
+    let parentCategoryId: string | null = null;
+    if (dto.parentCategoryId) {
+      const parent = await this.resolveSelectedCategory(userId, coupleId, dto.kind, dto.parentCategoryId);
+      if (parent.parentCategoryId) {
+        throw new BadRequestException("Subcategories can only be created one level deep");
+      }
+
+      if (parent.scope !== dto.scope) {
+        throw new BadRequestException("Subcategory scope must match its parent category");
+      }
+
+      parentCategoryId = parent.id;
+    }
+
+    await this.createManagedCategory({
+      coupleId,
+      userId,
+      kind: dto.kind,
+      scope: dto.scope,
+      name: dto.name,
+      parentCategoryId
+    });
+
+    return this.getCategoryCatalog(userId);
+  }
+
+  async deleteCategory(userId: string, categoryId: string) {
+    const category = await this.prisma.client.category.findUnique({
+      where: { id: categoryId },
+      select: {
+        id: true,
+        coupleId: true,
+        scope: true,
+        ownerUserId: true,
+        childCategories: {
+          select: { id: true },
+          take: 1
+        },
+        transactions: {
+          select: { id: true },
+          take: 1
+        }
+      }
+    });
+
+    if (!category) {
+      throw new NotFoundException("Category not found");
+    }
+
+    await this.assertMembership(userId, category.coupleId);
+
+    if (category.scope === "PERSONAL" && category.ownerUserId !== userId) {
+      throw new BadRequestException("You can delete only your own personal categories");
+    }
+
+    if (category.childCategories.length > 0) {
+      throw new BadRequestException("Delete child subcategories first");
+    }
+
+    if (category.transactions.length > 0) {
+      throw new BadRequestException("This category is already used by transactions and cannot be deleted");
+    }
+
+    await this.prisma.client.category.delete({
+      where: { id: categoryId }
+    });
+
+    return this.getCategoryCatalog(userId);
+  }
+
+  async updateCategoryPreferences(userId: string, dto: UpdateCategoryPreferencesDto) {
+    const coupleId = await this.resolveActiveCoupleId(userId, true);
+
+    if (!coupleId) {
+      throw new BadRequestException("Could not resolve active workspace");
+    }
+
+    await this.assertMembership(userId, coupleId);
+
+    const nextIncomeCategoryId = dto.defaultIncomeCategoryId === undefined ? undefined : dto.defaultIncomeCategoryId;
+    const nextExpenseCategoryId = dto.defaultExpenseCategoryId === undefined ? undefined : dto.defaultExpenseCategoryId;
+
+    if (nextIncomeCategoryId) {
+      await this.resolveSelectedCategory(userId, coupleId, "INCOME", nextIncomeCategoryId);
+    }
+
+    if (nextExpenseCategoryId) {
+      await this.resolveSelectedCategory(userId, coupleId, "EXPENSE", nextExpenseCategoryId);
+    }
+
+    await this.prisma.client.user.update({
+      where: { id: userId },
+      data: {
+        showSharedCategories: dto.showSharedCategories ?? undefined,
+        defaultIncomeCategoryId: nextIncomeCategoryId,
+        defaultExpenseCategoryId: nextExpenseCategoryId
+      }
+    });
+
+    return this.getCategoryCatalog(userId);
+  }
+
   async createTransaction(userId: string, dto: CreateProfileTransactionDto) {
     const coupleId = await this.resolveActiveCoupleId(userId, true);
 
@@ -757,32 +1153,33 @@ export class ProfileService {
     }
 
     await this.assertMembership(userId, coupleId);
-
-    const categoryName = dto.categoryName.trim();
     const currency = normalizeCurrency(dto.currency);
     const rates = await getLatestCurrencyRates();
     const exchangeRate = rates[currency];
     const amountInUzs = convertToUzs(dto.amount, exchangeRate);
 
-    const category =
-      (await this.prisma.client.category.findFirst({
-        where: {
-          coupleId,
-          kind: dto.kind,
-          name: {
-            equals: categoryName,
-            mode: "insensitive"
-          }
-        }
-      })) ??
-      (await this.prisma.client.category.create({
-        data: {
-          coupleId,
-          kind: dto.kind,
-          name: categoryName,
-          createdById: userId
-        }
-      }));
+    let categoryId = dto.categoryId ?? null;
+    if (!categoryId && dto.categoryName?.trim()) {
+      const created = await this.createManagedCategory({
+        coupleId,
+        userId,
+        kind: dto.kind,
+        scope: "PERSONAL",
+        name: dto.categoryName
+      });
+      categoryId = created.id;
+    }
+
+    if (!categoryId) {
+      const preferences = await this.getCategoryPreferences(userId);
+      categoryId = dto.kind === "INCOME" ? preferences.defaultIncomeCategoryId : preferences.defaultExpenseCategoryId;
+    }
+
+    if (!categoryId) {
+      throw new BadRequestException("Choose a category before saving the transaction");
+    }
+
+    const category = await this.resolveSelectedCategory(userId, coupleId, dto.kind, categoryId);
 
     return this.prisma.client.transaction.create({
       data: {
@@ -837,67 +1234,43 @@ export class ProfileService {
     const nextCurrency = normalizeCurrency(dto.currency ?? transaction.currency);
     let nextCategoryId = transaction.categoryId;
 
-    if (dto.categoryName || dto.kind) {
-      const categoryName = (dto.categoryName ?? "").trim();
-
-      if (!categoryName && dto.kind && !dto.categoryName) {
-        const existingCategory = await this.prisma.client.category.findUnique({
-          where: { id: transaction.categoryId },
-          select: { name: true }
-        });
-
-        if (!existingCategory) {
-          throw new NotFoundException("Category not found");
+    if (dto.categoryId) {
+      nextCategoryId = (await this.resolveSelectedCategory(userId, transaction.coupleId, nextKind, dto.categoryId)).id;
+    } else if (dto.categoryName?.trim()) {
+      nextCategoryId = (
+        await this.createManagedCategory({
+          coupleId: transaction.coupleId,
+          userId,
+          kind: nextKind,
+          scope: "PERSONAL",
+          name: dto.categoryName
+        })
+      ).id;
+    } else if (dto.kind) {
+      const existingCategory = await this.prisma.client.category.findUnique({
+        where: { id: transaction.categoryId },
+        select: {
+          name: true,
+          scope: true,
+          ownerUserId: true,
+          parentCategoryId: true
         }
+      });
 
-        const category =
-          (await this.prisma.client.category.findFirst({
-            where: {
-              coupleId: transaction.coupleId,
-              kind: nextKind,
-              name: {
-                equals: existingCategory.name,
-                mode: "insensitive"
-              }
-            },
-            select: { id: true }
-          })) ??
-          (await this.prisma.client.category.create({
-            data: {
-              coupleId: transaction.coupleId,
-              kind: nextKind,
-              name: existingCategory.name,
-              createdById: userId
-            },
-            select: { id: true }
-          }));
-
-        nextCategoryId = category.id;
-      } else if (categoryName) {
-        const category =
-          (await this.prisma.client.category.findFirst({
-            where: {
-              coupleId: transaction.coupleId,
-              kind: nextKind,
-              name: {
-                equals: categoryName,
-                mode: "insensitive"
-              }
-            },
-            select: { id: true }
-          })) ??
-          (await this.prisma.client.category.create({
-            data: {
-              coupleId: transaction.coupleId,
-              kind: nextKind,
-              name: categoryName,
-              createdById: userId
-            },
-            select: { id: true }
-          }));
-
-        nextCategoryId = category.id;
+      if (!existingCategory) {
+        throw new NotFoundException("Category not found");
       }
+
+      nextCategoryId = (
+        await this.createManagedCategory({
+          coupleId: transaction.coupleId,
+          userId: existingCategory.scope === "PERSONAL" && existingCategory.ownerUserId ? existingCategory.ownerUserId : userId,
+          kind: nextKind,
+          scope: existingCategory.scope as CategoryScope,
+          name: existingCategory.name,
+          parentCategoryId: null
+        })
+      ).id;
     }
 
     const nextAmount = dto.amount ?? Number(transaction.amount);
@@ -918,7 +1291,7 @@ export class ProfileService {
       },
       include: {
         category: {
-          select: { name: true, kind: true }
+          select: { id: true, name: true, kind: true }
         },
         user: {
           select: {
@@ -979,7 +1352,7 @@ export class ProfileService {
       },
       include: {
         category: {
-          select: { name: true, kind: true }
+          select: { id: true, name: true, kind: true }
         },
         user: {
           select: {
