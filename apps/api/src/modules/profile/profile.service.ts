@@ -1139,7 +1139,8 @@ export class ProfileService {
         id: true,
         coupleId: true,
         scope: true,
-        ownerUserId: true
+        ownerUserId: true,
+        parentCategoryId: true
       }
     });
 
@@ -1153,8 +1154,14 @@ export class ProfileService {
       throw new BadRequestException("You can change visibility only for your own personal categories");
     }
 
-    await this.prisma.client.category.update({
-      where: { id: categoryId },
+    await this.prisma.client.category.updateMany({
+      where: category.parentCategoryId
+        ? {
+            id: categoryId
+          }
+        : {
+            OR: [{ id: categoryId }, { parentCategoryId: categoryId }]
+          },
       data: {
         isVisible: dto.isVisible
       }
