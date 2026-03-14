@@ -30,6 +30,7 @@
   --button-primary-hover-fg: #f5f0e8;
   --button-primary-shadow: 0 12px 28px rgba(26, 20, 16, 0.12);
   --button-primary-hover-shadow: 0 16px 36px rgba(201, 168, 76, 0.22);
+  --button-primary-pressed-shadow: inset 0 2px 6px rgba(12, 9, 7, 0.28), 0 8px 18px rgba(26, 20, 16, 0.12);
   --theme-switch-duration: 220ms;
   --phone-summary-bg: #1a1410;
   --phone-summary-fg: #f5f0e8;
@@ -64,6 +65,7 @@ html[data-theme="dark"] {
   --button-primary-hover-fg: var(--ink);
   --button-primary-shadow: 0 12px 28px rgba(10, 8, 6, 0.26);
   --button-primary-hover-shadow: 0 16px 36px rgba(212, 176, 90, 0.24);
+  --button-primary-pressed-shadow: inset 0 2px 6px rgba(22, 16, 8, 0.24), 0 8px 18px rgba(10, 8, 6, 0.22);
   --phone-summary-bg: #14110e;
   --phone-summary-fg: #f0ebe1;
   --phone-summary-soft: rgba(240, 235, 225, 0.62);
@@ -306,11 +308,15 @@ html[data-theme="dark"] .theme-icon--moon {
 }
 
 .primary-button:hover {
-  transform: translateY(-2px);
   color: var(--button-primary-hover-fg);
   background: var(--button-primary-hover-bg);
   border-color: color-mix(in srgb, var(--gold) 62%, var(--button-primary-border));
   box-shadow: var(--button-primary-hover-shadow);
+}
+
+.primary-button:active {
+  transform: scale(0.985);
+  box-shadow: var(--button-primary-pressed-shadow);
 }
 
 .secondary-link {
