@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { SelectField } from "@/components/ui/select-field";
 import { TextField } from "@/components/ui/text-field";
+import { TogglePill } from "@/components/ui/toggle-pill";
 
 import { buildCategoryOptions } from "@/components/profile/category-options";
 import { type CategoryCatalogResponse, type CategoryScope } from "@/components/profile/types";
@@ -101,10 +102,11 @@ export function CategoryManagementCard(props: CategoryManagementCardProps) {
       <CardContent className="space-y-6">
         <form className="space-y-4" onSubmit={props.onSaveCategoryPreferences}>
           <div className="detail-box space-y-3 px-3 py-3 text-sm">
-            <label className="flex items-center gap-3">
-              <input type="checkbox" checked={props.showSharedCategoriesInPicker} onChange={(event) => props.setShowSharedCategoriesInPicker(event.target.checked)} />
-              <span>Show shared couple categories in my transaction picker</span>
-            </label>
+            <TogglePill
+              checked={props.showSharedCategoriesInPicker}
+              label="Show shared couple categories in my transaction picker"
+              onToggle={props.setShowSharedCategoriesInPicker}
+            />
             {!props.hasActivePartnerConnection ? <p className="body-muted text-sm">Shared categories become available after connecting a partner.</p> : null}
             <div className="grid gap-3 md:grid-cols-2">
               <label className="space-y-1 text-sm">
