@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { SelectField } from "@/components/ui/select-field";
 import { TextField } from "@/components/ui/text-field";
+import { cn } from "@/lib/cn";
 
 import { buildCategoryOptions } from "./category-options";
 import { supportedCurrencies, type CategoryCatalogResponse, type SupportedCurrency } from "./types";
@@ -39,7 +40,27 @@ export function TransactionEntry(props: TransactionEntryProps) {
       <CardContent>
         <form className="space-y-3" onSubmit={props.onSubmit}>
           <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-            <label className="space-y-1 text-sm"><span className="field-label">Type</span><SelectField value={props.kind} onChange={(event) => props.setKind(event.target.value as "EXPENSE" | "INCOME")}><option value="EXPENSE">Expense</option><option value="INCOME">Income</option></SelectField></label>
+            <div className="space-y-1 text-sm md:col-span-3">
+              <span className="field-label">Type</span>
+              <div className="tx-kind-toggle">
+                <button
+                  type="button"
+                  className={cn("tx-kind-button", props.kind === "EXPENSE" ? "tx-kind-button--expense-active" : "tx-kind-button--inactive")}
+                  aria-pressed={props.kind === "EXPENSE"}
+                  onClick={() => props.setKind("EXPENSE")}
+                >
+                  Expense
+                </button>
+                <button
+                  type="button"
+                  className={cn("tx-kind-button", props.kind === "INCOME" ? "tx-kind-button--income-active" : "tx-kind-button--inactive")}
+                  aria-pressed={props.kind === "INCOME"}
+                  onClick={() => props.setKind("INCOME")}
+                >
+                  Income
+                </button>
+              </div>
+            </div>
             <label className="space-y-1 text-sm"><span className="field-label">Amount</span><TextField required inputMode="decimal" min="0.01" step="0.01" value={props.amount} onChange={(event) => props.setAmount(event.target.value)} placeholder="45000" /></label>
             <label className="space-y-1 text-sm"><span className="field-label">Currency</span><SelectField value={props.currency} onChange={(event) => props.setCurrency(event.target.value as SupportedCurrency)}>{supportedCurrencies.map((item) => <option key={item} value={item}>{item}</option>)}</SelectField></label>
           </div>

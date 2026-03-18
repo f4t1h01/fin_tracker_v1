@@ -1159,6 +1159,60 @@ html[data-theme="dark"] .field-control {
   background: var(--card-bg);
 }
 
+.tx-kind-toggle {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.tx-kind-button {
+  border: 1px solid rgba(201, 168, 76, 0.16);
+  border-radius: 14px;
+  padding: 12px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  transition:
+    border-color 0.2s ease,
+    color 0.2s ease,
+    background-color 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.12s ease;
+}
+
+.tx-kind-button:hover {
+  box-shadow: 0 10px 24px rgba(201, 168, 76, 0.12);
+}
+
+.tx-kind-button:active {
+  transform: scale(0.985);
+}
+
+.tx-kind-button--inactive {
+  background: color-mix(in srgb, var(--warm-white) 88%, transparent);
+  color: var(--ink-soft);
+}
+
+.tx-kind-button--inactive:hover {
+  border-color: rgba(201, 168, 76, 0.3);
+  color: var(--ink);
+}
+
+.tx-kind-button--expense-active {
+  border-color: color-mix(in srgb, var(--blush-deep) 48%, rgba(201, 168, 76, 0.16));
+  background: color-mix(in srgb, var(--blush-deep) 22%, var(--warm-white));
+  color: color-mix(in srgb, var(--blush-deep) 72%, var(--ink));
+  box-shadow: 0 12px 28px color-mix(in srgb, var(--blush-deep) 18%, transparent);
+}
+
+.tx-kind-button--income-active {
+  border-color: color-mix(in srgb, var(--sage) 52%, rgba(201, 168, 76, 0.16));
+  background: color-mix(in srgb, var(--sage) 20%, var(--warm-white));
+  color: color-mix(in srgb, var(--sage) 76%, var(--ink));
+  box-shadow: 0 12px 28px color-mix(in srgb, var(--sage) 16%, transparent);
+}
+
 @keyframes fadeUp {
   from { opacity: 0; transform: translateY(30px); }
   to { opacity: 1; transform: translateY(0); }
