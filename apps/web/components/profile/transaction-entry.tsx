@@ -39,7 +39,7 @@ export function TransactionEntry(props: TransactionEntryProps) {
       </CardHeader>
       <CardContent>
         <form className="space-y-3" onSubmit={props.onSubmit}>
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-6">
             <div className="space-y-1 text-sm md:col-span-3">
               <span className="field-label">Type</span>
               <div className="tx-kind-toggle">
@@ -61,25 +61,25 @@ export function TransactionEntry(props: TransactionEntryProps) {
                 </button>
               </div>
             </div>
-            <label className="space-y-1 text-sm"><span className="field-label">Amount</span><TextField required inputMode="decimal" min="0.01" step="0.01" value={props.amount} onChange={(event) => props.setAmount(event.target.value)} placeholder="45000" /></label>
-            <label className="space-y-1 text-sm"><span className="field-label">Currency</span><SelectField value={props.currency} onChange={(event) => props.setCurrency(event.target.value as SupportedCurrency)}>{supportedCurrencies.map((item) => <option key={item} value={item}>{item}</option>)}</SelectField></label>
+            <label className="space-y-1 text-sm md:col-span-2"><span className="field-label">Amount</span><TextField required inputMode="decimal" min="0.01" step="0.01" value={props.amount} onChange={(event) => props.setAmount(event.target.value)} placeholder="45000" /></label>
+            <label className="space-y-1 text-sm md:col-span-2"><span className="field-label">Currency</span><SelectField value={props.currency} onChange={(event) => props.setCurrency(event.target.value as SupportedCurrency)}>{supportedCurrencies.map((item) => <option key={item} value={item}>{item}</option>)}</SelectField></label>
+            <label className="space-y-1 text-sm md:col-span-2">
+              <span className="field-label">Category</span>
+              <SelectField required value={props.selectedCategoryId} onChange={(event) => props.setSelectedCategoryId(event.target.value)}>
+                <option value="">Choose a category</option>
+                {options.personal.length > 0 ? (
+                  <optgroup label="My categories">
+                    {options.personal.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
+                  </optgroup>
+                ) : null}
+                {options.shared.length > 0 ? (
+                  <optgroup label="Shared categories">
+                    {options.shared.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
+                  </optgroup>
+                ) : null}
+              </SelectField>
+            </label>
           </div>
-          <label className="space-y-1 text-sm">
-            <span className="field-label">Category</span>
-            <SelectField required value={props.selectedCategoryId} onChange={(event) => props.setSelectedCategoryId(event.target.value)}>
-              <option value="">Choose a category</option>
-              {options.personal.length > 0 ? (
-                <optgroup label="My categories">
-                  {options.personal.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
-                </optgroup>
-              ) : null}
-              {options.shared.length > 0 ? (
-                <optgroup label="Shared categories">
-                  {options.shared.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
-                </optgroup>
-              ) : null}
-            </SelectField>
-          </label>
           <label className="space-y-1 text-sm"><span className="field-label">Note (optional)</span><TextField value={props.note} onChange={(event) => props.setNote(event.target.value)} placeholder="short context" /></label>
           <div className="flex flex-wrap items-center gap-3"><Button type="submit" disabled={props.isSubmittingTx} pending={props.isSubmittingTx} pendingText="Saving...">Save transaction</Button>{props.txMessage ? <p className="status-success text-sm">{props.txMessage}</p> : null}{props.txError ? <p className="status-error text-sm">{props.txError}</p> : null}</div>
         </form>
