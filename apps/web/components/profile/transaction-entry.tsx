@@ -40,7 +40,7 @@ export function TransactionEntry(props: TransactionEntryProps) {
       <CardContent>
         <form className="space-y-3" onSubmit={props.onSubmit}>
           <div className="grid grid-cols-1 gap-3 md:grid-cols-6">
-            <div className="space-y-1 text-sm md:col-span-3">
+            <div className="space-y-1 text-sm md:col-span-6">
               <span className="field-label">Type</span>
               <div className="tx-kind-toggle">
                 <button
