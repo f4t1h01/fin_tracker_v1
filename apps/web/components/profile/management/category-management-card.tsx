@@ -152,13 +152,41 @@ export function CategoryManagementCard(props: CategoryManagementCardProps) {
 
         <form className="space-y-3" onSubmit={props.onCreateCategory}>
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-            <label className="space-y-1 text-sm">
-              <span className="field-label">Type</span>
-              <SelectField value={props.categoryFormKind} onChange={(event) => props.setCategoryFormKind(event.target.value as "EXPENSE" | "INCOME")}>
-                <option value="EXPENSE">Expense</option>
-                <option value="INCOME">Income</option>
-              </SelectField>
-            </label>
+             <label className="space-y-1 text-sm">
+               <span className="field-label">Type</span>
+               <div className="mt-1 flex gap-2">
+                 <button
+                   className={`
+                     flex-1 px-3 py-2 text-sm font-medium rounded-md
+                     ${props.categoryFormKind === "EXPENSE"
+                       ? 'bg-red-500 text-white hover:bg-red-600'
+                       : 'bg-slate-50 text-slate-500 hover:bg-slate-100'
+                     }
+                     transition-colors
+                     focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2
+                     disabled:pointer-events-none disabled:opacity-50
+                   `}
+                   onClick={() => props.setCategoryFormKind("EXPENSE")}
+                 >
+                   Expense
+                 </button>
+                 <button
+                   className={`
+                     flex-1 px-3 py-2 text-sm font-medium rounded-md
+                     ${props.categoryFormKind === "INCOME"
+                       ? 'bg-green-500 text-white hover:bg-green-600'
+                       : 'bg-slate-50 text-slate-500 hover:bg-slate-100'
+                     }
+                     transition-colors
+                     focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2
+                     disabled:pointer-events-none disabled:opacity-50
+                   `}
+                   onClick={() => props.setCategoryFormKind("INCOME")}
+                 >
+                   Income
+                 </button>
+               </div>
+             </label>
             <label className="space-y-1 text-sm">
               <span className="field-label">Scope</span>
               <SelectField value={props.categoryFormScope} onChange={(event) => props.setCategoryFormScope(event.target.value as CategoryScope)}>
