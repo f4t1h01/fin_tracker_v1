@@ -1,66 +1,52 @@
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import type { FormEvent } from "react";
 
-import { type DashboardResponse, type SupportedCurrency } from "@/components/profile/types";
+import type { CategoryCatalogResponse, DashboardResponse, EditableTransaction, SupportedCurrency } from "@/components/profile/types";
+import { TransactionListCard } from "@/components/transactions/transaction-list-card";
 
 type DashboardRecentsProps = {
   transactions: DashboardResponse["transactions"];
   displayCurrency: SupportedCurrency;
   rates: Record<SupportedCurrency, number>;
   onPageChange: (value: number) => void;
+  isLoadingData: boolean;
+  isDeletingId: string | null;
+  editingTransaction: EditableTransaction | null;
+  categoryCatalog: CategoryCatalogResponse | null;
+  setEditingTransaction: (value: EditableTransaction | null) => void;
+  isSavingEdit: boolean;
+  onStartEditing: (item: DashboardResponse["transactions"]["items"][number]) => void;
+  onSaveEdit: (event: FormEvent<HTMLFormElement>) => Promise<void>;
+  onDeleteTransaction: (transactionId: string) => Promise<void>;
+  statusMessage?: string | null;
+  statusError?: string | null;
 };
 
-function convertAmount(amountInUzs: number, rate: number) {
-  if (rate <= 0) {
-    return 0;
-  }
-
-  return Number((amountInUzs / rate).toFixed(2));
-}
-
-export function DashboardRecents({ transactions, displayCurrency, rates, onPageChange }: DashboardRecentsProps) {
-  const rate = rates[displayCurrency];
+export function DashboardRecents(props: DashboardRecentsProps) {
   return (
-    <Card className="panel-soft">
-      <CardHeader>
-        <CardTitle>Transactions</CardTitle>
-        <CardDescription>Paginated activity slice for the current filter set. Stored in original currency, displayed here in your selected dashboard currency.</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        {transactions.items.length === 0 ? (
-          <p className="body-muted text-sm">No transactions match the current filters.</p>
-        ) : (
-          <div className="space-y-2">
-            {transactions.items.map((item) => {
-          const actor = item.user.firstName ?? item.user.username ?? "Member";
-          const converted = convertAmount(Number(item.amountInUzs), rate);
-          return (
-            <div key={item.id} className="detail-box px-3 py-3 text-sm">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="font-medium">{item.category.name}</p>
-                  <p className="body-muted text-xs">{actor} - {item.note ?? "No note"} - {new Date(item.happenedAt).toLocaleString()}</p>
-                </div>
-                <div className="text-right">
-                  <p className="font-semibold">{converted.toLocaleString()} {displayCurrency}</p>
-                  <p className="body-muted text-xs">Original: {Number(item.amount).toLocaleString()} {item.currency}</p>
-                </div>
-              </div>
-            </div>
-          );
-            })}
-          </div>
-        )}
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/5 pt-3 text-sm">
-          <p className="body-muted">
-            Page {transactions.page} of {transactions.totalPages} · {transactions.totalItems} transactions
-          </p>
-          <div className="flex items-center gap-2">
-            <Button type="button" variant="outline" disabled={transactions.page <= 1} onClick={() => onPageChange(Math.max(1, transactions.page - 1))}>Previous</Button>
-            <Button type="button" variant="outline" disabled={transactions.page >= transactions.totalPages} onClick={() => onPageChange(Math.min(transactions.totalPages, transactions.page + 1))}>Next</Button>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
+    <TransactionListCard
+      title="Transactions"
+      description="Paginated activity slice for the current filter set. Stored in original currency, displayed here in your selected dashboard currency."
+      items={props.transactions.items}
+      isLoadingData={props.isLoadingData}
+      isDeletingId={props.isDeletingId}
+      editingTransaction={props.editingTransaction}
+      categoryCatalog={props.categoryCatalog}
+      setEditingTransaction={props.setEditingTransaction}
+      isSavingEdit={props.isSavingEdit}
+      onStartEditing={props.onStartEditing}
+      onSaveEdit={props.onSaveEdit}
+      onDeleteTransaction={props.onDeleteTransaction}
+      emptyText="No transactions match the current filters."
+      statusMessage={props.statusMessage}
+      statusError={props.statusError}
+      pagination={{
+        page: props.transactions.page,
+        totalPages: props.transactions.totalPages,
+        totalItems: props.transactions.totalItems,
+        onPageChange: props.onPageChange
+      }}
+      displayCurrency={props.displayCurrency}
+      rates={props.rates}
+    />
   );
 }

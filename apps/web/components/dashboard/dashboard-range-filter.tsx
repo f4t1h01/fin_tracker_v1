@@ -2,7 +2,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { DatePicker } from "@/components/ui/date-picker";
 import { SelectField } from "@/components/ui/select-field";
-import { TextField } from "@/components/ui/text-field";
 
 import { dashboardRangePresets, type DashboardRangePreset, type WeekStartDay } from "@/components/profile/types";
 
@@ -83,7 +82,7 @@ export function DashboardRangeFilter(props: DashboardRangeFilterProps) {
             <div className="grid gap-3 md:grid-cols-[minmax(0,220px)_auto]">
               <label className="space-y-1 text-sm">
                 <span className="field-label">Month</span>
-                <TextField type="month" value={props.draftMonthKey} onChange={(event) => props.onDraftMonthKeyChange(event.target.value)} />
+                <DatePicker mode="month" value={props.draftMonthKey} onChange={props.onDraftMonthKeyChange} />
               </label>
               <div className="flex items-end">
                 <Button type="button" disabled={props.isRefreshing || !props.draftMonthKey} onClick={props.onApplyMonth}>
@@ -102,7 +101,7 @@ export function DashboardRangeFilter(props: DashboardRangeFilterProps) {
           )}
         </div>
         {isCustom ? <p className="body-muted text-sm">Custom range uses whole selected dates on the backend, from 00:00 on the first day through the next 00:00 after the end day.</p> : null}
-        {isSpecificMonth ? <p className="body-muted text-sm">Specific month groups the full selected month, from the first day through the next month boundary.</p> : null}
+        {isSpecificMonth ? <p className="body-muted text-sm">Specific month uses a month-only picker, from the first day through the next month boundary.</p> : null}
       </CardContent>
     </Card>
   );

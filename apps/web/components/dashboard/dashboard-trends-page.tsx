@@ -11,16 +11,17 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeaderActions } from "@/components/ui/page-header-actions";
 import { SelectField } from "@/components/ui/select-field";
 
+import { DashboardAdvancedFilters } from "./dashboard-advanced-filters";
 import { DashboardMetrics } from "./dashboard-metrics";
 import { DashboardRangeFilter } from "./dashboard-range-filter";
-import { DashboardRecents } from "./dashboard-recents";
 import { DashboardSearchField } from "./dashboard-search-field";
+import { DashboardTrendsPanel } from "./dashboard-charts";
 import { DashboardViewSelect } from "./dashboard-view-select";
 import { formatDashboardDateLabel } from "./dashboard-format";
 import { useDashboardWorkspace } from "./use-dashboard-workspace";
 
-export function DashboardPage() {
-  const workspace = useDashboardWorkspace("overview");
+export function DashboardTrendsPage() {
+  const workspace = useDashboardWorkspace("trends");
   const summary = workspace.summary;
   const isPageReady = Boolean(workspace.data || workspace.error);
 
@@ -42,7 +43,7 @@ export function DashboardPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Loader2 className="size-5 animate-spin text-pop" />
-              Loading dashboard
+              Loading trends
             </CardTitle>
           </CardHeader>
         </Card>
@@ -68,8 +69,8 @@ export function DashboardPage() {
         <div className="max-w-4xl space-y-4">
           <BrandMark href="/" />
           <div>
-            <p className="eyebrow-row">Dashboard</p>
-            <h1 className="mt-5 font-[family-name:var(--font-heading)] text-[clamp(38px,4vw,56px)] font-light leading-[1.08]">Transactions at a glance.</h1>
+            <p className="eyebrow-row">Trends</p>
+            <h1 className="mt-5 font-[family-name:var(--font-heading)] text-[clamp(38px,4vw,56px)] font-light leading-[1.08]">Breakdowns and trend charts.</h1>
             <p className="body-muted mt-3 text-sm">
               Workspace: {workspace.workspaceName} · Active range: {workspace.data.filter.label}
             </p>
@@ -78,7 +79,7 @@ export function DashboardPage() {
         <PageHeaderActions>
           {workspace.isRefreshing ? <span className="body-muted text-xs uppercase tracking-[0.16em]">Refreshing</span> : null}
           <Button variant="outline" asChild>
-            <AppLink href="/dashboard/trends">View trends</AppLink>
+            <AppLink href="/dashboard">Back to dashboard</AppLink>
           </Button>
           <Button variant="outline" asChild>
             <AppLink href="/profile/me">Back to profile</AppLink>
@@ -162,6 +163,36 @@ export function DashboardPage() {
         }}
       />
 
+      <DashboardAdvancedFilters
+        categoryCatalog={workspace.data.filters.categories}
+        viewMode={workspace.viewMode}
+        kind={workspace.kind}
+        categoryId={workspace.categoryId}
+        actor={workspace.actor}
+        timeFrom={workspace.timeFrom}
+        timeTo={workspace.timeTo}
+        onKindChange={(value) => {
+          workspace.setKind(value);
+          workspace.setPage(1);
+        }}
+        onCategoryChange={(value) => {
+          workspace.setCategoryId(value);
+          workspace.setPage(1);
+        }}
+        onActorChange={(value) => {
+          workspace.setActor(value);
+          workspace.setPage(1);
+        }}
+        onTimeFromChange={(value) => {
+          workspace.setTimeFrom(value);
+          workspace.setPage(1);
+        }}
+        onTimeToChange={(value) => {
+          workspace.setTimeTo(value);
+          workspace.setPage(1);
+        }}
+      />
+
       <DashboardMetrics
         heading={metricsHeading}
         description={metricsDescription}
@@ -171,23 +202,7 @@ export function DashboardPage() {
         currency={workspace.displayCurrency}
       />
 
-      <DashboardRecents
-        transactions={workspace.data.transactions}
-        displayCurrency={workspace.displayCurrency}
-        rates={workspace.data.rates}
-        onPageChange={(value) => workspace.setPage(value)}
-        isLoadingData={workspace.isRefreshing}
-        isDeletingId={workspace.isDeletingId}
-        editingTransaction={workspace.editingTransaction}
-        categoryCatalog={workspace.data.filters.categories}
-        setEditingTransaction={workspace.setEditingTransaction}
-        isSavingEdit={workspace.isSavingEdit}
-        onStartEditing={workspace.startEditing}
-        onSaveEdit={workspace.onSaveEdit}
-        onDeleteTransaction={workspace.onDeleteTransaction}
-        statusMessage={workspace.txMessage}
-        statusError={workspace.txError}
-      />
+      <DashboardTrendsPanel charts={workspace.data.charts} displayCurrency={workspace.displayCurrency} rates={workspace.data.rates} />
     </main>
   );
 }

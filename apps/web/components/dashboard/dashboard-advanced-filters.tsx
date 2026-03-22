@@ -13,13 +13,11 @@ type DashboardAdvancedFiltersProps = {
   kind: DashboardKind;
   categoryId: string;
   actor: DashboardActor;
-  searchDraft: string;
   timeFrom: string;
   timeTo: string;
   onKindChange: (value: DashboardKind) => void;
   onCategoryChange: (value: string) => void;
   onActorChange: (value: DashboardActor) => void;
-  onSearchDraftChange: (value: string) => void;
   onTimeFromChange: (value: string) => void;
   onTimeToChange: (value: string) => void;
 };
@@ -97,19 +95,10 @@ export function DashboardAdvancedFilters(props: DashboardAdvancedFiltersProps) {
     <Card className="panel-soft mb-6">
       <CardHeader>
         <CardTitle>Filters</CardTitle>
-        <CardDescription>Search transactions, narrow by category, and trim the time window without overcrowding the primary toolbar.</CardDescription>
+        <CardDescription>Narrow by transaction kind, category, actor, and time window without overcrowding the primary toolbar.</CardDescription>
       </CardHeader>
       <CardContent>
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-          <label className="space-y-1 text-sm">
-            <span className="field-label">Search</span>
-            <TextField
-              type="search"
-              value={props.searchDraft}
-              onChange={(event) => props.onSearchDraftChange(event.target.value)}
-              placeholder="note or category"
-            />
-          </label>
           <label className="space-y-1 text-sm">
             <span className="field-label">Kind</span>
             <SelectField value={props.kind} onChange={(event) => props.onKindChange(event.target.value as DashboardKind)}>

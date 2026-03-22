@@ -1,7 +1,8 @@
-import type { DashboardResponse, ProfileSnapshotResponse } from "./types";
+import { supportedCurrencies, type DashboardResponse, type ProfileSnapshotResponse, type SupportedCurrency } from "./types";
 
 const profileSnapshotKey = "duet-profile-snapshot";
 const dashboardSnapshotKey = "duet-dashboard-snapshot";
+const dashboardDisplayCurrencyKey = "duet-dashboard-display-currency";
 
 export function readProfileSnapshotCache(): ProfileSnapshotResponse | null {
   if (typeof window === "undefined") {
@@ -59,4 +60,29 @@ export function clearDashboardCache() {
   }
 
   window.sessionStorage.removeItem(dashboardSnapshotKey);
+}
+
+export function readDashboardDisplayCurrencyCache(): SupportedCurrency | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  const raw = window.sessionStorage.getItem(dashboardDisplayCurrencyKey);
+  return supportedCurrencies.includes(raw as SupportedCurrency) ? (raw as SupportedCurrency) : null;
+}
+
+export function writeDashboardDisplayCurrencyCache(value: SupportedCurrency) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.sessionStorage.setItem(dashboardDisplayCurrencyKey, value);
+}
+
+export function clearDashboardDisplayCurrencyCache() {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.sessionStorage.removeItem(dashboardDisplayCurrencyKey);
 }

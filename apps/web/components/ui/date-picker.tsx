@@ -11,6 +11,7 @@ import { useFloatingPanelPosition } from "@/components/ui/use-floating-panel-pos
 type DatePickerProps = Omit<React.InputHTMLAttributes<HTMLInputElement>, "type" | "value" | "onChange"> & {
   value?: string;
   onChange?: (value: string) => void;
+  mode?: "date" | "month";
 };
 
 const displayFormatter = new Intl.DateTimeFormat(undefined, {
@@ -45,6 +46,18 @@ function parseIsoDate(value: string) {
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
+function parseIsoMonth(value: string) {
+  const match = /^(\d{4})-(\d{2})$/.exec(value);
+  if (!match) {
+    return null;
+  }
+
+  const year = Number(match[1]);
+  const month = Number(match[2]) - 1;
+  const parsed = new Date(year, month, 1);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
 function formatIsoDate(value: Date) {
   const year = value.getFullYear();
   const month = `${value.getMonth() + 1}`.padStart(2, "0");
@@ -52,9 +65,19 @@ function formatIsoDate(value: Date) {
   return `${year}-${month}-${day}`;
 }
 
-function formatDateValue(value: string) {
-  const parsed = parseIsoDate(value);
-  return parsed ? displayFormatter.format(parsed) : value;
+function formatIsoMonth(value: Date) {
+  const year = value.getFullYear();
+  const month = `${value.getMonth() + 1}`.padStart(2, "0");
+  return `${year}-${month}`;
+}
+
+function formatPickerValue(value: string, mode: "date" | "month") {
+  const parsed = mode === "month" ? parseIsoMonth(value) : parseIsoDate(value);
+  if (!parsed) {
+    return value;
+  }
+
+  return mode === "month" ? monthFormatter.format(parsed) : displayFormatter.format(parsed);
 }
 
 function startOfMonth(value: Date) {
@@ -92,7 +115,7 @@ function buildCalendarDays(month: Date) {
   });
 }
 
-const DatePicker = React.forwardRef<HTMLInputElement, DatePickerProps>(({ className, disabled, max, min, onBlur, onChange, placeholder, value = "", ...props }, ref) => {
+const DatePicker = React.forwardRef<HTMLInputElement, DatePickerProps>(({ className, disabled, max, min, mode = "date", onBlur, onChange, placeholder, value = "", ...props }, ref) => {
   const [open, setOpen] = React.useState(false);
   const [mounted, setMounted] = React.useState(false);
   const [viewMode, setViewMode] = React.useState<"days" | "months" | "years">("days");
@@ -103,9 +126,9 @@ const DatePicker = React.forwardRef<HTMLInputElement, DatePickerProps>(({ classN
     next.setHours(0, 0, 0, 0);
     return next;
   }, []);
-  const selectedDate = React.useMemo(() => parseIsoDate(value), [value]);
-  const minDate = React.useMemo(() => parseIsoDate(typeof min === "string" ? min : ""), [min]);
-  const maxDate = React.useMemo(() => parseIsoDate(typeof max === "string" ? max : ""), [max]);
+  const selectedDate = React.useMemo(() => (mode === "month" ? parseIsoMonth(value) : parseIsoDate(value)), [mode, value]);
+  const minDate = React.useMemo(() => (mode === "month" ? null : parseIsoDate(typeof min === "string" ? min : "")), [mode, min]);
+  const maxDate = React.useMemo(() => (mode === "month" ? null : parseIsoDate(typeof max === "string" ? max : "")), [mode, max]);
   const [visibleMonth, setVisibleMonth] = React.useState(() => startOfMonth(selectedDate ?? today));
 
   useDismissableLayer({
@@ -121,9 +144,9 @@ const DatePicker = React.forwardRef<HTMLInputElement, DatePickerProps>(({ classN
   React.useEffect(() => {
     if (open) {
       setVisibleMonth(startOfMonth(selectedDate ?? today));
-      setViewMode("days");
+      setViewMode(mode === "month" ? "months" : "days");
     }
-  }, [open, selectedDate, today]);
+  }, [mode, open, selectedDate, today]);
 
   const panelStyle = useFloatingPanelPosition({
     anchorRef: rootRef,
@@ -152,9 +175,9 @@ const DatePicker = React.forwardRef<HTMLInputElement, DatePickerProps>(({ classN
   }, [visibleYear]);
 
   const selectDate = React.useCallback((nextDate: Date | null) => {
-    onChange?.(nextDate ? formatIsoDate(nextDate) : "");
+    onChange?.(nextDate ? (mode === "month" ? formatIsoMonth(nextDate) : formatIsoDate(nextDate)) : "");
     setOpen(false);
-  }, [onChange]);
+  }, [mode, onChange]);
 
   const shiftVisibleRange = React.useCallback((direction: -1 | 1) => {
     if (viewMode === "years") {
@@ -180,9 +203,9 @@ const DatePicker = React.forwardRef<HTMLInputElement, DatePickerProps>(({ classN
         disabled={disabled}
         inputMode="none"
         autoComplete="off"
-        placeholder={placeholder ?? "Select date"}
+        placeholder={placeholder ?? (mode === "month" ? "Select month" : "Select date")}
         className="field-control field-input picker-display-input pr-11"
-        value={formatDateValue(value)}
+        value={formatPickerValue(value, mode)}
         onClick={() => !disabled && setOpen(true)}
         onFocus={() => !disabled && setOpen(true)}
         onKeyDown={(event) => {
@@ -221,7 +244,7 @@ const DatePicker = React.forwardRef<HTMLInputElement, DatePickerProps>(({ classN
             </button>
           </div>
 
-          {viewMode === "days" ? (
+          {viewMode === "days" && mode === "date" ? (
             <>
               <div className="mb-2 grid grid-cols-7 gap-1">
                 {weekdayLabels.map((label) => (
@@ -275,6 +298,11 @@ const DatePicker = React.forwardRef<HTMLInputElement, DatePickerProps>(({ classN
                     )}
                     onClick={() => {
                       setVisibleMonth(candidate);
+                      if (mode === "month") {
+                        selectDate(candidate);
+                        return;
+                      }
+
                       setViewMode("days");
                     }}
                   >
@@ -314,7 +342,7 @@ const DatePicker = React.forwardRef<HTMLInputElement, DatePickerProps>(({ classN
               Clear
             </button>
             <button type="button" className="text-xs uppercase tracking-[0.16em] text-[var(--gold)] transition-colors hover:text-[var(--ink)]" onClick={() => selectDate(today)}>
-              Today
+              {mode === "month" ? "This month" : "Today"}
             </button>
           </div>
         </div>,

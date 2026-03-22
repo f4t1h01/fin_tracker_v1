@@ -63,7 +63,7 @@ export type RecentTransaction = {
   category: {
     id: string;
     name: string;
-    kind: "EXPENSE" | "INCOME";
+    kind?: "EXPENSE" | "INCOME";
   };
   user: {
     firstName: string | null;
@@ -79,6 +79,29 @@ export type EditableTransaction = {
   categoryId: string;
   categoryName: string;
   note: string;
+};
+
+export type TransactionListCategory = {
+  id: string;
+  name: string;
+  kind?: "EXPENSE" | "INCOME";
+};
+
+export type TransactionListUser = {
+  firstName: string | null;
+  username: string | null;
+};
+
+export type TransactionListItem = {
+  id: string;
+  kind: "EXPENSE" | "INCOME";
+  amount: number | string;
+  amountInUzs: number | string;
+  currency: SupportedCurrency;
+  note: string | null;
+  happenedAt: string;
+  category: TransactionListCategory;
+  user: TransactionListUser;
 };
 
 export type CategoryTreeNode = {
@@ -130,10 +153,12 @@ export type AuthMeResponse = {
 export type ProfileSnapshotResponse = {
   profile: ProfileResponse;
   summary: MonthlySummary;
-  recent: RecentTransaction[];
+  recent: TransactionListItem[];
   auth: AuthMeResponse;
   categories: CategoryCatalogResponse;
 };
+
+export type DashboardTransaction = TransactionListItem;
 
 export type DashboardResponse = {
   profile: {
@@ -155,29 +180,9 @@ export type DashboardResponse = {
     personalExpense: number;
     personalBalance: number;
   };
-  recent: Array<{
-    id: string;
-    kind: "EXPENSE" | "INCOME";
-    amount: number | string;
-    amountInUzs: number | string;
-    currency: SupportedCurrency;
-    note: string | null;
-    happenedAt: string;
-    category: { id: string; name: string };
-    user: { firstName: string | null; username: string | null };
-  }>;
+  recent: TransactionListItem[];
   transactions: {
-    items: Array<{
-      id: string;
-      kind: "EXPENSE" | "INCOME";
-      amount: number | string;
-      amountInUzs: number | string;
-      currency: SupportedCurrency;
-      note: string | null;
-      happenedAt: string;
-      category: { id: string; name: string; kind: "EXPENSE" | "INCOME" };
-      user: { firstName: string | null; username: string | null };
-    }>;
+    items: DashboardTransaction[];
     page: number;
     pageSize: number;
     totalItems: number;
