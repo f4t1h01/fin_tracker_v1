@@ -14,8 +14,18 @@ import { webEnv } from "@/lib/env";
 
 import { parseApiResponse } from "@/components/profile/api";
 import { clearDashboardCache, clearProfileSnapshotCache, readDashboardCache, writeDashboardCache } from "@/components/profile/cache";
-import { DashboardResponse, tokenKey, type DashboardRangePreset, type DashboardViewMode, type SupportedCurrency } from "@/components/profile/types";
+import {
+  DashboardResponse,
+  tokenKey,
+  type DashboardActor,
+  type DashboardKind,
+  type DashboardRangePreset,
+  type DashboardViewMode,
+  type SupportedCurrency
+} from "@/components/profile/types";
 
+import { DashboardAdvancedFilters } from "./dashboard-advanced-filters";
+import { DashboardCharts } from "./dashboard-charts";
 import { DashboardMetrics } from "./dashboard-metrics";
 import { DashboardRangeFilter } from "./dashboard-range-filter";
 import { DashboardRecents } from "./dashboard-recents";
@@ -45,37 +55,105 @@ export function DashboardPage() {
   const [displayCurrency, setDisplayCurrency] = useState<SupportedCurrency>("UZS");
   const [viewMode, setViewMode] = useState<DashboardViewMode>("COUPLE");
   const [selectedPreset, setSelectedPreset] = useState<DashboardRangePreset>("THIS_WEEK");
-  const [appliedFilter, setAppliedFilter] = useState<{ preset: DashboardRangePreset; from: string; to: string }>({ preset: "THIS_WEEK", from: "", to: "" });
   const [draftFrom, setDraftFrom] = useState("");
   const [draftTo, setDraftTo] = useState("");
+  const [draftMonthKey, setDraftMonthKey] = useState("");
+  const [kind, setKind] = useState<DashboardKind>("ALL");
+  const [categoryId, setCategoryId] = useState("");
+  const [actor, setActor] = useState<DashboardActor>("EVERYONE");
+  const [searchDraft, setSearchDraft] = useState("");
+  const [search, setSearch] = useState("");
+  const [timeFrom, setTimeFrom] = useState("");
+  const [timeTo, setTimeTo] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize] = useState(20);
   const [error, setError] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   useClientLayoutEffect(() => {
     const cached = readDashboardCache();
-    if (cached) {
-      setData(cached);
-      setSelectedPreset(cached.filter.preset);
-      setAppliedFilter({ preset: cached.filter.preset, from: cached.filter.from ?? "", to: cached.filter.to ?? "" });
-      setDraftFrom(cached.filter.from ?? "");
-      setDraftTo(cached.filter.to ?? "");
+    if (!cached || !("transactions" in cached) || !("charts" in cached) || !("filters" in cached)) {
+      return;
     }
+
+    setData(cached);
+    setDisplayCurrency("UZS");
+    setViewMode(cached.filter.viewMode ?? "COUPLE");
+    setSelectedPreset(cached.filter.preset);
+    setDraftFrom(cached.filter.from ?? "");
+    setDraftTo(cached.filter.to ?? "");
+    setDraftMonthKey(cached.filter.monthKey ?? "");
+    setKind(cached.filter.kind ?? "ALL");
+    setCategoryId(cached.filter.categoryId ?? "");
+    setActor(cached.filter.actor ?? "EVERYONE");
+    setSearchDraft(cached.filter.search ?? "");
+    setSearch(cached.filter.search ?? "");
+    setTimeFrom(cached.filter.timeFrom ?? "");
+    setTimeTo(cached.filter.timeTo ?? "");
+    setPage(cached.filter.page ?? 1);
   }, []);
 
   useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setSearch(searchDraft.trim());
+      setPage(1);
+    }, 500);
+
+    return () => window.clearTimeout(timer);
+  }, [searchDraft]);
+
+  useEffect(() => {
+    if ((selectedPreset === "CUSTOM" && (!draftFrom || !draftTo)) || (selectedPreset === "SPECIFIC_MONTH" && !draftMonthKey)) {
+      return;
+    }
+
     const token = localStorage.getItem(tokenKey);
     if (!token) {
       window.location.replace("/profile/me");
       return;
     }
 
-    setIsRefreshing(true);
-    const query = new URLSearchParams({ rangePreset: appliedFilter.preset });
-    if (appliedFilter.preset === "CUSTOM") {
-      query.set("from", appliedFilter.from);
-      query.set("to", appliedFilter.to);
+    const query = new URLSearchParams({
+      viewMode,
+      page: String(page),
+      pageSize: String(pageSize),
+      rangePreset: selectedPreset
+    });
+
+    if (selectedPreset === "CUSTOM") {
+      query.set("from", draftFrom);
+      query.set("to", draftTo);
     }
 
+    if (selectedPreset === "SPECIFIC_MONTH" && draftMonthKey) {
+      query.set("monthKey", draftMonthKey);
+    }
+
+    if (kind !== "ALL") {
+      query.set("kind", kind);
+    }
+
+    if (categoryId) {
+      query.set("categoryId", categoryId);
+    }
+
+    if (actor !== "EVERYONE") {
+      query.set("actor", actor);
+    }
+
+    if (search) {
+      query.set("search", search);
+    }
+
+    if (timeFrom) {
+      query.set("timeFrom", timeFrom);
+    }
+
+    if (timeTo) {
+      query.set("timeTo", timeTo);
+    }
+
+    setIsRefreshing(true);
     void fetch(`${webEnv.apiUrl}/profile/me/dashboard?${query.toString()}`, {
       headers: {
         Authorization: `Bearer ${token}`
@@ -86,6 +164,19 @@ export function DashboardPage() {
         writeDashboardCache(payload);
         setData(payload);
         setError(null);
+        setViewMode(payload.filter.viewMode);
+        setSelectedPreset(payload.filter.preset);
+        setDraftFrom(payload.filter.from ?? "");
+        setDraftTo(payload.filter.to ?? "");
+        setDraftMonthKey(payload.filter.monthKey ?? "");
+        setKind(payload.filter.kind);
+        setCategoryId(payload.filter.categoryId ?? "");
+        setActor(payload.filter.actor);
+        setSearchDraft(payload.filter.search);
+        setSearch(payload.filter.search);
+        setTimeFrom(payload.filter.timeFrom ?? "");
+        setTimeTo(payload.filter.timeTo ?? "");
+        setPage(payload.filter.page);
       })
       .catch((err) => {
         const message = err instanceof Error ? err.message : "Could not load dashboard";
@@ -100,7 +191,7 @@ export function DashboardPage() {
         setError(message);
       })
       .finally(() => setIsRefreshing(false));
-  }, [appliedFilter]);
+  }, [actor, categoryId, draftFrom, draftMonthKey, draftTo, kind, page, pageSize, search, selectedPreset, timeFrom, timeTo, viewMode]);
 
   const summary = useMemo(() => {
     if (!data) {
@@ -145,7 +236,7 @@ export function DashboardPage() {
   }
 
   const metricsHeading = viewMode === "PERSONAL" ? "Personal lens" : "Shared lens";
-  const metricsDescription = viewMode === "PERSONAL" ? "See only your own income, expenses, and balance inside the currently selected range." : "See the combined workspace totals inside the currently selected range.";
+  const metricsDescription = viewMode === "PERSONAL" ? "See only your own income, expenses, and balance inside the selected range." : "See the combined workspace totals inside the selected range.";
 
   return (
     <main className="container-shell pb-16 pt-24">
@@ -165,7 +256,7 @@ export function DashboardPage() {
       </header>
 
       <section className="mb-6 flex flex-wrap items-end gap-3">
-        <DashboardViewSelect value={viewMode} options={data.availableViews} onChange={setViewMode} />
+        <DashboardViewSelect value={viewMode} options={data.availableViews} onChange={(value) => { setViewMode(value); setPage(1); }} />
         <label className="space-y-1 text-sm">
           <span className="field-label">Display currency</span>
           <SelectField value={displayCurrency} onChange={(event) => setDisplayCurrency(event.target.value as SupportedCurrency)} className="min-w-[112px]">
@@ -178,27 +269,88 @@ export function DashboardPage() {
         preset={selectedPreset}
         draftFrom={draftFrom}
         draftTo={draftTo}
+        draftMonthKey={draftMonthKey}
         isRefreshing={isRefreshing}
-        weekStartsOn={data.preferences.weekStartsOn}
+        weekStartsOn={data.filters.weekStartsOn}
         activeLabel={data.filter.label}
         activeFrom={formatDateLabel(data.filter.appliedFrom)}
         activeTo={formatDateLabel(data.filter.appliedTo)}
         onPresetChange={(preset) => {
           setSelectedPreset(preset);
+          setPage(1);
           if (preset !== "CUSTOM") {
-            setAppliedFilter({ preset, from: "", to: "" });
+            setDraftFrom("");
+            setDraftTo("");
+          }
+          if (preset !== "SPECIFIC_MONTH") {
+            setDraftMonthKey("");
           }
         }}
-        onDraftFromChange={setDraftFrom}
-        onDraftToChange={setDraftTo}
+        onDraftFromChange={(value) => {
+          setDraftFrom(value);
+          setPage(1);
+        }}
+        onDraftToChange={(value) => {
+          setDraftTo(value);
+          setPage(1);
+        }}
+        onDraftMonthKeyChange={(value) => {
+          setDraftMonthKey(value);
+          setPage(1);
+        }}
         onApplyCustom={() => {
           setSelectedPreset("CUSTOM");
-          setAppliedFilter({ preset: "CUSTOM", from: draftFrom, to: draftTo });
+          setPage(1);
+        }}
+        onApplyMonth={() => {
+          setSelectedPreset("SPECIFIC_MONTH");
+          setPage(1);
+        }}
+      />
+
+      <DashboardAdvancedFilters
+        categoryCatalog={data.filters.categories}
+        viewMode={viewMode}
+        kind={kind}
+        categoryId={categoryId}
+        actor={actor}
+        searchDraft={searchDraft}
+        timeFrom={timeFrom}
+        timeTo={timeTo}
+        onKindChange={(value) => {
+          setKind(value);
+          setPage(1);
+        }}
+        onCategoryChange={(value) => {
+          setCategoryId(value);
+          setPage(1);
+        }}
+        onActorChange={(value) => {
+          setActor(value);
+          setPage(1);
+        }}
+        onSearchDraftChange={(value) => {
+          setSearchDraft(value);
+          setPage(1);
+        }}
+        onTimeFromChange={(value) => {
+          setTimeFrom(value);
+          setPage(1);
+        }}
+        onTimeToChange={(value) => {
+          setTimeTo(value);
+          setPage(1);
         }}
       />
 
       <DashboardMetrics heading={metricsHeading} description={metricsDescription} totalIncome={summary.totalIncome} totalExpense={summary.totalExpense} balance={summary.balance} currency={displayCurrency} />
-      <DashboardRecents recent={data.recent} displayCurrency={displayCurrency} rates={data.rates} />
+      <DashboardCharts charts={data.charts} displayCurrency={displayCurrency} rates={data.rates} />
+      <DashboardRecents
+        transactions={data.transactions}
+        displayCurrency={displayCurrency}
+        rates={data.rates}
+        onPageChange={(value) => setPage(value)}
+      />
     </main>
   );
 }

@@ -6,7 +6,7 @@ import { PrismaService } from "../prisma/prisma.service";
 import { BindCoupleDto } from "./dto/bind-couple.dto";
 import { CreateCategoryDto, UpdateCategoryPreferencesDto, UpdateCategoryVisibilityDto } from "./dto/category-management.dto";
 import { CreateProfileTransactionDto } from "./dto/create-profile-transaction.dto";
-import { DashboardQueryDto, type DashboardRangePreset } from "./dto/dashboard-query.dto";
+import { DashboardQueryDto, type DashboardRangePreset, type DashboardViewMode } from "./dto/dashboard-query.dto";
 import { type UpdateAnalyticsPreferencesDto, type WeekStartDay, weekStartDays } from "./dto/update-analytics-preferences.dto";
 import { UpdateProfileDetailsDto } from "./dto/update-profile-details.dto";
 import { UpdateProfileTransactionDto } from "./dto/update-profile-transaction.dto";
@@ -28,9 +28,12 @@ type DashboardDateRange = SummaryRange & {
 const defaultWeekStartsOn: WeekStartDay = "MONDAY";
 const dashboardViewModes = ["COUPLE", "PERSONAL"] as const;
 const categoryScopes = ["PERSONAL", "SHARED"] as const;
+const dashboardTrendGranularities = ["DAY", "WEEK", "MONTH"] as const;
+const dashboardTimeZone = "Asia/Tashkent";
 
 type CategoryScope = (typeof categoryScopes)[number];
 type TransactionKind = "EXPENSE" | "INCOME";
+type DashboardTrendGranularity = (typeof dashboardTrendGranularities)[number];
 
 type CategoryTreeNode = {
   id: string;
@@ -56,6 +59,68 @@ type CategoryCatalog = {
     defaultExpenseCategoryId: string | null;
   };
   byKind: Record<TransactionKind, { personal: CategoryTreeNode[]; shared: CategoryTreeNode[] }>;
+};
+
+type DashboardRangeResolution = SummaryRange & {
+  preset: DashboardRangePreset;
+  from: string | null;
+  to: string | null;
+  monthKey: string | null;
+  label: string;
+};
+
+type DashboardTransactionRow = {
+  id: string;
+  kind: TransactionKind;
+  amount: { toNumber: () => number } | number | string;
+  amountInUzs: { toNumber: () => number } | number | string;
+  currency: string;
+  note: string | null;
+  happenedAt: Date;
+  category: {
+    id: string;
+    name: string;
+    kind: TransactionKind;
+  };
+  user: {
+    firstName: string | null;
+    username: string | null;
+  };
+  userId: string;
+};
+
+type DashboardTrendItem = {
+  label: string;
+  start: string;
+  end: string;
+  income: number;
+  expense: number;
+  net: number;
+};
+
+type DashboardBreakdownItem = {
+  categoryId: string;
+  categoryName: string;
+  totalExpense: number;
+  share: number;
+};
+
+type DashboardCharts = {
+  trend: {
+    granularity: DashboardTrendGranularity;
+    items: DashboardTrendItem[];
+  };
+  breakdown: {
+    items: DashboardBreakdownItem[];
+  };
+};
+
+type DashboardTransactionsSlice = {
+  items: DashboardTransactionRow[];
+  page: number;
+  pageSize: number;
+  totalItems: number;
+  totalPages: number;
 };
 
 function isWeekStartDay(value: string | null | undefined): value is WeekStartDay {
@@ -88,6 +153,125 @@ function parseDateOnly(value: string) {
   return parsed;
 }
 
+function parseMonthKey(value: string) {
+  const match = /^(\d{4})-(\d{2})$/.exec(value);
+  if (!match) {
+    throw new BadRequestException("monthKey must use YYYY-MM format");
+  }
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const start = new Date(Date.UTC(year, month - 1, 1));
+  if (start.getUTCFullYear() !== year || start.getUTCMonth() !== month - 1) {
+    throw new BadRequestException("monthKey is invalid");
+  }
+
+  return {
+    year,
+    month,
+    start,
+    endExclusive: new Date(Date.UTC(year, month, 1))
+  };
+}
+
+function formatMonthKey(value: Date) {
+  return `${value.getUTCFullYear()}-${String(value.getUTCMonth() + 1).padStart(2, "0")}`;
+}
+
+function formatMonthLabel(value: Date) {
+  return value.toLocaleString("en-US", {
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC"
+  });
+}
+
+function parseTimeToMinutes(value?: string | null) {
+  if (!value) {
+    return null;
+  }
+
+  const match = /^(\d{2}):(\d{2})$/.exec(value);
+  if (!match) {
+    throw new BadRequestException("Time filters must use HH:mm format");
+  }
+
+  const hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  if (!Number.isInteger(hours) || !Number.isInteger(minutes) || hours > 23 || minutes > 59) {
+    throw new BadRequestException("Time filters are invalid");
+  }
+
+  return hours * 60 + minutes;
+}
+
+function getTashkentMinutes(value: Date) {
+  const formatter = new Intl.DateTimeFormat("en-GB", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+    timeZone: dashboardTimeZone
+  });
+
+  const parts = formatter.formatToParts(value);
+  const hour = Number(parts.find((part) => part.type === "hour")?.value ?? "0");
+  const minute = Number(parts.find((part) => part.type === "minute")?.value ?? "0");
+  return hour * 60 + minute;
+}
+
+function matchesTimeWindow(value: Date, fromMinutes: number | null, toMinutes: number | null) {
+  if (fromMinutes === null && toMinutes === null) {
+    return true;
+  }
+
+  const current = getTashkentMinutes(value);
+
+  if (fromMinutes !== null && toMinutes !== null) {
+    return fromMinutes <= toMinutes ? current >= fromMinutes && current <= toMinutes : current >= fromMinutes || current <= toMinutes;
+  }
+
+  if (fromMinutes !== null) {
+    return current >= fromMinutes;
+  }
+
+  return current <= (toMinutes ?? 0);
+}
+
+function getGranularity(start: Date, endExclusive: Date): DashboardTrendGranularity {
+  const spanDays = Math.max(1, Math.round((endExclusive.getTime() - start.getTime()) / 86400000));
+  if (spanDays <= 31) {
+    return "DAY";
+  }
+
+  return spanDays <= 90 ? "WEEK" : "MONTH";
+}
+
+function getBucketStart(date: Date, granularity: DashboardTrendGranularity, rangeStart: Date) {
+  if (granularity === "DAY") {
+    return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+  }
+
+  if (granularity === "MONTH") {
+    return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1));
+  }
+
+  const dayOffset = Math.floor((date.getTime() - rangeStart.getTime()) / 86400000);
+  const bucketStart = addUtcDays(rangeStart, Math.floor(dayOffset / 7) * 7);
+  return new Date(Date.UTC(bucketStart.getUTCFullYear(), bucketStart.getUTCMonth(), bucketStart.getUTCDate()));
+}
+
+function getBucketEnd(start: Date, granularity: DashboardTrendGranularity) {
+  if (granularity === "DAY") {
+    return addUtcDays(start, 1);
+  }
+
+  if (granularity === "MONTH") {
+    return new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1, 1));
+  }
+
+  return addUtcDays(start, 7);
+}
+
 function resolveWeekStartOffset(dayOfWeek: number, weekStartsOn: WeekStartDay) {
   const startIndex = weekStartDays.indexOf(weekStartsOn);
   const normalizedDay = (dayOfWeek + 6) % 7;
@@ -100,6 +284,18 @@ function normalizeCategoryName(value: string) {
 
 function normalizeCategoryLookupName(value: string) {
   return normalizeCategoryName(value).toLowerCase();
+}
+
+function decimalToNumber(value: { toNumber: () => number } | number | string) {
+  if (typeof value === "number") {
+    return value;
+  }
+
+  if (typeof value === "string") {
+    return Number(value);
+  }
+
+  return value.toNumber();
 }
 
 @Injectable()
@@ -173,7 +369,7 @@ export class ProfileService {
     };
   }
 
-  private resolveDashboardRange(query: DashboardQueryDto | undefined, weekStartsOn: WeekStartDay): DashboardDateRange {
+  private resolveDashboardRange(query: DashboardQueryDto | undefined, weekStartsOn: WeekStartDay): DashboardRangeResolution {
     const preset = query?.rangePreset ?? "THIS_WEEK";
     const today = startOfUtcDay(new Date());
     const tomorrow = addUtcDays(today, 1);
@@ -187,7 +383,27 @@ export class ProfileService {
         year: today.getUTCFullYear(),
         from: null,
         to: null,
+        monthKey: formatMonthKey(today),
         label: "This month"
+      };
+    }
+
+    if (preset === "SPECIFIC_MONTH") {
+      if (!query?.monthKey) {
+        throw new BadRequestException("Specific month requires monthKey");
+      }
+
+      const resolved = parseMonthKey(query.monthKey);
+      return {
+        preset,
+        start: resolved.start,
+        endExclusive: resolved.endExclusive,
+        month: resolved.month,
+        year: resolved.year,
+        from: null,
+        to: null,
+        monthKey: query.monthKey,
+        label: formatMonthLabel(resolved.start)
       };
     }
 
@@ -211,6 +427,7 @@ export class ProfileService {
         year: start.getUTCFullYear(),
         from: query.from,
         to: query.to,
+        monthKey: null,
         label: "Custom range"
       };
     }
@@ -226,7 +443,229 @@ export class ProfileService {
       year: today.getUTCFullYear(),
       from: null,
       to: null,
+      monthKey: formatMonthKey(today),
       label: "This week"
+    };
+  }
+
+  private async getPartnerUserId(userId: string, coupleId: string | null) {
+    if (!coupleId) {
+      return null;
+    }
+
+    const partner = await this.prisma.client.membership.findFirst({
+      where: {
+        coupleId,
+        NOT: {
+          userId
+        }
+      },
+      select: {
+        userId: true
+      }
+    });
+
+    return partner?.userId ?? null;
+  }
+
+  private buildDashboardTransactionWhere(params: {
+    userId: string;
+    coupleId: string | null;
+    viewMode: DashboardViewMode;
+    query?: DashboardQueryDto;
+    partnerUserId: string | null;
+    range: DashboardRangeResolution;
+  }): any {
+    const search = params.query?.search?.trim() ?? "";
+    const normalizedSearch = search.toLowerCase();
+    const categoryId = params.query?.categoryId?.trim();
+    const kind = params.query?.kind;
+    const actor = params.query?.actor ?? "EVERYONE";
+
+    const baseWhere: any = {
+      happenedAt: {
+        gte: params.range.start,
+        lt: params.range.endExclusive
+      }
+    };
+
+    if (params.viewMode === "PERSONAL") {
+      baseWhere.userId = params.userId;
+    } else if (params.coupleId) {
+      baseWhere.coupleId = params.coupleId;
+    }
+
+    if (kind && kind !== "ALL") {
+      baseWhere.kind = kind;
+    }
+
+    if (categoryId) {
+      baseWhere.categoryId = categoryId;
+    }
+
+    if (actor === "ME") {
+      baseWhere.userId = params.userId;
+    } else if (actor === "PARTNER" && params.partnerUserId) {
+      baseWhere.userId = params.partnerUserId;
+    } else if (actor === "PARTNER") {
+      baseWhere.userId = "___NO_PARTNER___";
+    }
+
+    if (normalizedSearch) {
+      baseWhere.OR = [
+        { note: { contains: search, mode: "insensitive" } },
+        { category: { is: { name: { contains: search, mode: "insensitive" } } } },
+        { category: { is: { normalizedName: { contains: normalizedSearch } } } }
+      ];
+    }
+
+    return baseWhere;
+  }
+
+  private getDashboardFilteredTransactions(rows: DashboardTransactionRow[], query?: DashboardQueryDto) {
+    const fromMinutes = parseTimeToMinutes(query?.timeFrom);
+    const toMinutes = parseTimeToMinutes(query?.timeTo);
+    return rows.filter((row) => matchesTimeWindow(row.happenedAt, fromMinutes, toMinutes));
+  }
+
+  private buildDashboardTransactionsSlice(rows: DashboardTransactionRow[], page: number, pageSize: number): DashboardTransactionsSlice {
+    const totalItems = rows.length;
+    const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+    const normalizedPage = Math.min(Math.max(1, page), totalPages);
+    const startIndex = (normalizedPage - 1) * pageSize;
+
+    return {
+      items: rows.slice(startIndex, startIndex + pageSize),
+      page: normalizedPage,
+      pageSize,
+      totalItems,
+      totalPages
+    };
+  }
+
+  private buildDashboardCharts(rows: DashboardTransactionRow[], range: DashboardRangeResolution): DashboardCharts {
+    const granularity = getGranularity(range.start, range.endExclusive);
+    const buckets = new Map<string, DashboardTrendItem>();
+
+    let cursor = new Date(range.start.getTime());
+    while (cursor < range.endExclusive) {
+      const bucketStart = getBucketStart(cursor, granularity, range.start);
+      const bucketEnd = getBucketEnd(bucketStart, granularity);
+      const key = bucketStart.toISOString();
+      if (!buckets.has(key)) {
+        buckets.set(key, {
+          label:
+            granularity === "MONTH"
+              ? formatMonthLabel(bucketStart)
+              : granularity === "WEEK"
+                ? `${formatUtcDate(bucketStart)} - ${formatUtcDate(addUtcDays(bucketEnd, -1))}`
+                : formatUtcDate(bucketStart),
+          start: bucketStart.toISOString(),
+          end: bucketEnd.toISOString(),
+          income: 0,
+          expense: 0,
+          net: 0
+        });
+      }
+
+      cursor = bucketEnd;
+    }
+
+    for (const row of rows) {
+      const amount = decimalToNumber(row.amountInUzs);
+      const bucketStart = getBucketStart(row.happenedAt, granularity, range.start);
+      const key = bucketStart.toISOString();
+      const bucket = buckets.get(key);
+      if (!bucket) {
+        continue;
+      }
+
+      if (row.kind === "INCOME") {
+        bucket.income += amount;
+      } else {
+        bucket.expense += amount;
+      }
+    }
+
+    const trendItems = Array.from(buckets.values()).sort((a, b) => a.start.localeCompare(b.start)).map((bucket) => ({
+      ...bucket,
+      income: Number(bucket.income.toFixed(2)),
+      expense: Number(bucket.expense.toFixed(2)),
+      net: Number((bucket.income - bucket.expense).toFixed(2))
+    }));
+
+    const expenseBuckets = new Map<string, { categoryId: string; categoryName: string; totalExpense: number }>();
+    let totalExpense = 0;
+    for (const row of rows) {
+      if (row.kind !== "EXPENSE") {
+        continue;
+      }
+
+      const amount = decimalToNumber(row.amountInUzs);
+      totalExpense += amount;
+      const existing = expenseBuckets.get(row.category.id);
+      if (existing) {
+        existing.totalExpense += amount;
+      } else {
+        expenseBuckets.set(row.category.id, {
+          categoryId: row.category.id,
+          categoryName: row.category.name,
+          totalExpense: amount
+        });
+      }
+    }
+
+    const breakdownItems = Array.from(expenseBuckets.values())
+      .sort((a, b) => b.totalExpense - a.totalExpense)
+      .slice(0, 8)
+      .map((item) => ({
+        ...item,
+        totalExpense: Number(item.totalExpense.toFixed(2)),
+        share: totalExpense > 0 ? Number(((item.totalExpense / totalExpense) * 100).toFixed(2)) : 0
+      }));
+
+    return {
+      trend: {
+        granularity,
+        items: trendItems
+      },
+      breakdown: {
+        items: breakdownItems
+      }
+    };
+  }
+
+  private summarizeDashboardTransactions(rows: DashboardTransactionRow[], userId: string, range: DashboardRangeResolution) {
+    let totalIncome = 0;
+    let totalExpense = 0;
+    let personalIncome = 0;
+    let personalExpense = 0;
+
+    for (const row of rows) {
+      const amount = decimalToNumber(row.amountInUzs);
+      if (row.kind === "INCOME") {
+        totalIncome += amount;
+        if (row.userId === userId) {
+          personalIncome += amount;
+        }
+      } else {
+        totalExpense += amount;
+        if (row.userId === userId) {
+          personalExpense += amount;
+        }
+      }
+    }
+
+    return {
+      month: range.month,
+      year: range.year,
+      currency: "UZS" as const,
+      totalIncome: Number(totalIncome.toFixed(2)),
+      totalExpense: Number(totalExpense.toFixed(2)),
+      balance: Number((totalIncome - totalExpense).toFixed(2)),
+      personalIncome: Number(personalIncome.toFixed(2)),
+      personalExpense: Number(personalExpense.toFixed(2)),
+      personalBalance: Number((personalIncome - personalExpense).toFixed(2))
     };
   }
 
@@ -823,31 +1262,109 @@ export class ProfileService {
   async dashboard(userId: string, query?: DashboardQueryDto) {
     const weekStartsOn = await this.getWeekStartsOnPreference(userId);
     const range = this.resolveDashboardRange(query, weekStartsOn);
-    const [profile, summary, recent, rates] = await Promise.all([
+    const viewMode = query?.viewMode ?? "COUPLE";
+    const coupleId = await this.resolveActiveCoupleId(userId, false);
+    const partnerUserId = viewMode === "COUPLE" ? await this.getPartnerUserId(userId, coupleId) : null;
+    const categoryCatalog = await this.getCategoryCatalog(userId);
+    const [profile, rates, rows] = await Promise.all([
       this.getProfile(userId),
-      this.summarizeRange(userId, range, "UZS"),
-      this.recentTransactions(userId, range),
-      getLatestCurrencyRates()
+      getLatestCurrencyRates(),
+      this.prisma.client.transaction.findMany({
+        where: this.buildDashboardTransactionWhere({
+          userId,
+          coupleId,
+          viewMode,
+          query,
+          partnerUserId,
+          range
+        }),
+        include: {
+          category: {
+            select: {
+              id: true,
+              name: true,
+              kind: true
+            }
+          },
+          user: {
+            select: {
+              firstName: true,
+              username: true
+            }
+          }
+        },
+        orderBy: {
+          happenedAt: "desc"
+        }
+      })
     ]);
+
+    const filteredRows = this.getDashboardFilteredTransactions(
+      rows.map((row) => ({
+        ...row,
+        amount: row.amount,
+        amountInUzs: row.amountInUzs,
+        currency: row.currency,
+        userId: row.userId
+      })),
+      query
+    );
+
+    const pageSize = query?.pageSize ?? 20;
+    const page = query?.page ?? 1;
+    const transactionsPage = this.buildDashboardTransactionsSlice(filteredRows, page, pageSize);
+    const summary = this.summarizeDashboardTransactions(filteredRows, userId, range);
+    const charts = this.buildDashboardCharts(filteredRows, range);
+
+    const mappedTransactions = transactionsPage.items.map((row) => ({
+      id: row.id,
+      kind: row.kind,
+      amount: decimalToNumber(row.amount),
+      amountInUzs: decimalToNumber(row.amountInUzs),
+      currency: normalizeCurrency(row.currency),
+      note: row.note,
+      happenedAt: row.happenedAt.toISOString(),
+      category: row.category,
+      user: row.user
+    }));
 
     return {
       profile,
       summary,
-      recent,
+      recent: mappedTransactions,
+      transactions: {
+        ...transactionsPage,
+        items: mappedTransactions
+      },
       rates,
       supportedCurrencies: [...SUPPORTED_CURRENCIES],
       filter: {
         preset: range.preset,
         from: range.from,
         to: range.to,
+        monthKey: range.monthKey,
+        viewMode,
+        kind: query?.kind ?? "ALL",
+        categoryId: query?.categoryId ?? null,
+        actor: query?.actor ?? "EVERYONE",
+        search: query?.search?.trim() ?? "",
+        timeFrom: query?.timeFrom ?? null,
+        timeTo: query?.timeTo ?? null,
+        page: transactionsPage.page,
+        pageSize: transactionsPage.pageSize,
         appliedFrom: formatUtcDate(range.start),
         appliedTo: formatUtcDate(addUtcDays(range.endExclusive, -1)),
         label: range.label
       },
+      filters: {
+        categories: categoryCatalog,
+        weekStartsOn
+      },
       preferences: {
         weekStartsOn
       },
-      availableViews: [...dashboardViewModes]
+      availableViews: [...dashboardViewModes],
+      charts
     };
   }
 

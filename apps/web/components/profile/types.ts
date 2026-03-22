@@ -3,15 +3,19 @@ export const authSourceKey = "cf_auth_source";
 export const canonicalProfilePath = "/profile/me";
 export const supportedCurrencies = ["UZS", "USD", "EUR", "RUB"] as const;
 export const weekStartDays = ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY"] as const;
-export const dashboardRangePresets = ["THIS_WEEK", "THIS_MONTH", "CUSTOM"] as const;
+export const dashboardRangePresets = ["THIS_WEEK", "THIS_MONTH", "SPECIFIC_MONTH", "CUSTOM"] as const;
 export const dashboardViewModes = ["COUPLE", "PERSONAL"] as const;
 export const categoryScopes = ["PERSONAL", "SHARED"] as const;
+export const dashboardKinds = ["ALL", "EXPENSE", "INCOME"] as const;
+export const dashboardActors = ["EVERYONE", "ME", "PARTNER"] as const;
 
 export type SupportedCurrency = (typeof supportedCurrencies)[number];
 export type WeekStartDay = (typeof weekStartDays)[number];
 export type DashboardRangePreset = (typeof dashboardRangePresets)[number];
 export type DashboardViewMode = (typeof dashboardViewModes)[number];
 export type CategoryScope = (typeof categoryScopes)[number];
+export type DashboardKind = (typeof dashboardKinds)[number];
+export type DashboardActor = (typeof dashboardActors)[number];
 
 export type ProfileResponse = {
   user: {
@@ -162,18 +166,70 @@ export type DashboardResponse = {
     category: { id: string; name: string };
     user: { firstName: string | null; username: string | null };
   }>;
+  transactions: {
+    items: Array<{
+      id: string;
+      kind: "EXPENSE" | "INCOME";
+      amount: number | string;
+      amountInUzs: number | string;
+      currency: SupportedCurrency;
+      note: string | null;
+      happenedAt: string;
+      category: { id: string; name: string; kind: "EXPENSE" | "INCOME" };
+      user: { firstName: string | null; username: string | null };
+    }>;
+    page: number;
+    pageSize: number;
+    totalItems: number;
+    totalPages: number;
+  };
   rates: Record<SupportedCurrency, number>;
   supportedCurrencies: SupportedCurrency[];
   filter: {
     preset: DashboardRangePreset;
+    viewMode: DashboardViewMode;
+    kind: DashboardKind;
+    categoryId: string | null;
+    actor: DashboardActor;
+    search: string;
+    timeFrom: string | null;
+    timeTo: string | null;
+    monthKey: string | null;
     from: string | null;
     to: string | null;
     appliedFrom: string;
     appliedTo: string;
     label: string;
+    page: number;
+    pageSize: number;
   };
   preferences: {
     weekStartsOn: WeekStartDay;
   };
   availableViews: DashboardViewMode[];
+  filters: {
+    categories: CategoryCatalogResponse;
+    weekStartsOn: WeekStartDay;
+  };
+  charts: {
+    trend: {
+      granularity: "DAY" | "WEEK" | "MONTH";
+      items: Array<{
+        label: string;
+        start: string;
+        end: string;
+        income: number;
+        expense: number;
+        net: number;
+      }>;
+    };
+    breakdown: {
+      items: Array<{
+        categoryId: string;
+        categoryName: string;
+        totalExpense: number;
+        share: number;
+      }>;
+    };
+  };
 };
