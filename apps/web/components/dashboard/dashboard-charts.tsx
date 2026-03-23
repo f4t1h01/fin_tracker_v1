@@ -2,8 +2,8 @@
 
 import { useMemo, useState } from "react";
 
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { SegmentedControl } from "@/components/ui/segmented-control";
 
 import type { DashboardResponse, SupportedCurrency } from "@/components/profile/types";
 
@@ -78,30 +78,33 @@ export function DashboardTrendsPanel({ charts, displayCurrency, rates }: Dashboa
       <Card className="panel-soft">
         <CardHeader>
           <CardTitle>Trend breakdown</CardTitle>
-          <CardDescription>Chronological income and expense buckets for the active filter range.</CardDescription>
+          <CardDescription>Chronological income and expense buckets for the active filter range. Green is income, rose is expense.</CardDescription>
         </CardHeader>
         <CardContent>
           {charts.trend.items.length === 0 ? (
             <p className="body-muted text-sm">No trend data for the selected filters.</p>
           ) : (
-            <div className="overflow-x-auto pb-2">
-              <div className="flex min-w-[720px] items-end gap-3">
+            <div className="overflow-x-scroll dashboard-scrollbar pb-4">
+              <div className="flex w-max min-w-full items-end gap-4 pr-4">
                 {charts.trend.items.map((item) => {
                   const incomeHeight = Math.max(10, (item.income / trendPeak) * 100);
                   const expenseHeight = Math.max(10, (item.expense / trendPeak) * 100);
                   return (
-                    <div key={`${item.start}-${item.end}`} className="flex min-w-[78px] flex-1 flex-col items-center gap-2">
+                    <div key={`${item.start}-${item.end}`} className="flex w-[88px] shrink-0 flex-col items-center gap-2">
                       <div className="flex h-[260px] items-end gap-2">
-                        <div className="flex w-7 items-end justify-center rounded-t-[12px] bg-emerald-500/20" style={{ height: `${incomeHeight}%` }}>
-                          <span className="mb-1 text-[10px] font-medium text-emerald-700 dark:text-emerald-200">{formatAmount(convertAmount(item.income, displayRate))}</span>
+                        <div className="flex w-7 items-end justify-center rounded-t-[14px] bg-[linear-gradient(180deg,rgba(16,185,129,0.92),rgba(16,185,129,0.62))] shadow-[0_8px_18px_rgba(16,185,129,0.14)]" style={{ height: `${incomeHeight}%` }}>
+                          <span className="mb-1 text-[10px] font-semibold text-white">{formatAmount(convertAmount(item.income, displayRate))}</span>
                         </div>
-                        <div className="flex w-7 items-end justify-center rounded-t-[12px] bg-rose-500/20" style={{ height: `${expenseHeight}%` }}>
-                          <span className="mb-1 text-[10px] font-medium text-rose-700 dark:text-rose-200">{formatAmount(convertAmount(item.expense, displayRate))}</span>
+                        <div className="flex w-7 items-end justify-center rounded-t-[14px] bg-[linear-gradient(180deg,rgba(244,63,94,0.92),rgba(244,63,94,0.62))] shadow-[0_8px_18px_rgba(244,63,94,0.14)]" style={{ height: `${expenseHeight}%` }}>
+                          <span className="mb-1 text-[10px] font-semibold text-white">{formatAmount(convertAmount(item.expense, displayRate))}</span>
                         </div>
                       </div>
                       <div className="space-y-1 text-center">
-                        <p className="text-xs font-medium leading-tight">{item.label}</p>
-                        <p className="body-muted text-[11px]">{item.net >= 0 ? "+" : "-"}{formatAmount(Math.abs(convertAmount(item.net, displayRate)))} {displayCurrency}</p>
+                        <p className="text-[11px] font-medium leading-tight">{item.label}</p>
+                        <p className="body-muted text-[11px]">
+                          {item.net >= 0 ? "+" : "-"}
+                          {formatAmount(Math.abs(convertAmount(item.net, displayRate)))} {displayCurrency}
+                        </p>
                       </div>
                     </div>
                   );
@@ -120,22 +123,24 @@ export function DashboardTrendsPanel({ charts, displayCurrency, rates }: Dashboa
               <CardDescription>Switch between bar and pie views. The value mode changes between absolute amounts and shares.</CardDescription>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <div className="inline-flex rounded-full border border-white/10 bg-black/5 p-1 dark:bg-white/5">
-                <Button type="button" size="sm" variant={expenseChartMode === "BAR" ? "default" : "ghost"} className="rounded-full" onClick={() => setExpenseChartMode("BAR")}>
-                  Bar
-                </Button>
-                <Button type="button" size="sm" variant={expenseChartMode === "PIE" ? "default" : "ghost"} className="rounded-full" onClick={() => setExpenseChartMode("PIE")}>
-                  Pie
-                </Button>
-              </div>
-              <div className="inline-flex rounded-full border border-white/10 bg-black/5 p-1 dark:bg-white/5">
-                <Button type="button" size="sm" variant={expenseValueMode === "ABSOLUTE" ? "default" : "ghost"} className="rounded-full" onClick={() => setExpenseValueMode("ABSOLUTE")}>
-                  Absolute
-                </Button>
-                <Button type="button" size="sm" variant={expenseValueMode === "PERCENT" ? "default" : "ghost"} className="rounded-full" onClick={() => setExpenseValueMode("PERCENT")}>
-                  Percent
-                </Button>
-              </div>
+              <SegmentedControl
+                ariaLabel="Expense chart type"
+                value={expenseChartMode}
+                onChange={(next) => setExpenseChartMode(next)}
+                options={[
+                  { value: "BAR", label: "Bar" },
+                  { value: "PIE", label: "Pie" }
+                ]}
+              />
+              <SegmentedControl
+                ariaLabel="Expense value mode"
+                value={expenseValueMode}
+                onChange={(next) => setExpenseValueMode(next)}
+                options={[
+                  { value: "ABSOLUTE", label: "Absolute" },
+                  { value: "PERCENT", label: "Percent" }
+                ]}
+              />
             </div>
           </div>
         </CardHeader>
@@ -143,24 +148,24 @@ export function DashboardTrendsPanel({ charts, displayCurrency, rates }: Dashboa
           {charts.breakdown.items.length === 0 ? (
             <p className="body-muted text-sm">No expense breakdown yet for this filter set.</p>
           ) : expenseChartMode === "BAR" ? (
-            <div className="overflow-x-auto pb-2">
-              <div className="flex min-w-[720px] items-end gap-3">
+            <div className="overflow-x-scroll dashboard-scrollbar pb-4">
+              <div className="flex w-max min-w-full items-end gap-4 pr-4">
                 {charts.breakdown.items.map((item, index) => {
                   const displayAmount = convertAmount(item.totalExpense, displayRate);
                   const barValue = expenseValueMode === "ABSOLUTE" ? displayAmount : item.share;
                   const barHeight = Math.max(8, (barValue / expensePeak) * 100);
                   const color = pieColors[index % pieColors.length];
                   return (
-                    <div key={item.categoryId} className="flex min-w-[78px] flex-1 flex-col items-center gap-2">
-                      <div className="flex h-[240px] w-full items-end justify-center rounded-[18px] bg-[color-mix(in_srgb,var(--gold)_7%,transparent)] px-2 pb-2">
+                    <div key={item.categoryId} className="flex w-[88px] shrink-0 flex-col items-center gap-2">
+                      <div className="flex h-[240px] w-full items-end justify-center rounded-[20px] border border-[rgba(201,168,76,0.12)] bg-[color-mix(in_srgb,var(--gold)_7%,transparent)] px-2 pb-2 shadow-[0_10px_22px_rgba(26,20,16,0.04)]">
                         <div className="flex h-full w-full items-end justify-center">
-                          <div className="flex w-8 items-end justify-center rounded-t-[14px]" style={{ height: `${barHeight}%`, backgroundColor: color }}>
-                            <span className="mb-1 text-[10px] font-medium text-white">{renderValue(barValue, expenseValueMode)}</span>
+                          <div className="flex w-8 items-end justify-center rounded-t-[16px] shadow-[0_8px_16px_rgba(26,20,16,0.1)]" style={{ height: `${barHeight}%`, backgroundColor: color }}>
+                            <span className="mb-1 text-[10px] font-semibold text-white">{renderValue(barValue, expenseValueMode)}</span>
                           </div>
                         </div>
                       </div>
                       <div className="space-y-1 text-center">
-                        <p className="text-xs font-medium leading-tight">{item.categoryName}</p>
+                        <p className="text-[11px] font-medium leading-tight">{item.categoryName}</p>
                         <p className="body-muted text-[11px]">{expenseValueMode === "ABSOLUTE" ? `${formatAmount(displayAmount)} ${displayCurrency}` : `${formatAmount(item.share)}% of total`}</p>
                       </div>
                     </div>

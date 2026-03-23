@@ -1139,6 +1139,33 @@ html[data-theme="dark"] .field-control {
   padding: 12px;
 }
 
+.dashboard-scrollbar {
+  scrollbar-gutter: stable both-edges;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(201, 168, 76, 0.7) rgba(26, 20, 16, 0.08);
+}
+
+.dashboard-scrollbar::-webkit-scrollbar {
+  height: 12px;
+}
+
+.dashboard-scrollbar::-webkit-scrollbar-track {
+  border-radius: 999px;
+  background: rgba(26, 20, 16, 0.08);
+}
+
+.dashboard-scrollbar::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(201, 168, 76, 0.42), rgba(201, 168, 76, 0.88));
+  background-clip: content-box;
+}
+
+.dashboard-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(90deg, rgba(201, 168, 76, 0.58), rgba(201, 168, 76, 1));
+  background-clip: content-box;
+}
+
 .status-success {
   color: var(--sage);
 }
