@@ -85,12 +85,12 @@ export function DashboardTrendsPanel({ charts, displayCurrency, rates }: Dashboa
           {charts.trend.items.length === 0 ? (
             <p className="body-muted text-sm">No trend data for the selected filters.</p>
           ) : (
-            <ChartScrollLane>
+            <ChartScrollLane itemCount={charts.trend.items.length} minItemWidth={88}>
               {charts.trend.items.map((item) => {
                 const incomeHeight = Math.max(10, (item.income / trendPeak) * 100);
                 const expenseHeight = Math.max(10, (item.expense / trendPeak) * 100);
                 return (
-                  <div key={`${item.start}-${item.end}`} className="flex w-[88px] shrink-0 flex-col items-center gap-2">
+                  <div key={`${item.start}-${item.end}`} className="flex min-w-[88px] flex-1 flex-col items-center gap-2">
                     <div className="flex h-[260px] items-end gap-2">
                       <div className="flex w-7 items-end justify-center rounded-t-[14px] bg-[linear-gradient(180deg,rgba(16,185,129,0.92),rgba(16,185,129,0.62))] shadow-[0_8px_18px_rgba(16,185,129,0.14)]" style={{ height: `${incomeHeight}%` }}>
                         <span className="mb-1 text-[10px] font-semibold text-white">{formatAmount(convertAmount(item.income, displayRate))}</span>
@@ -147,14 +147,14 @@ export function DashboardTrendsPanel({ charts, displayCurrency, rates }: Dashboa
           {charts.breakdown.items.length === 0 ? (
             <p className="body-muted text-sm">No expense breakdown yet for this filter set.</p>
           ) : expenseChartMode === "BAR" ? (
-            <ChartScrollLane>
+            <ChartScrollLane itemCount={charts.breakdown.items.length} minItemWidth={88}>
               {charts.breakdown.items.map((item, index) => {
                 const displayAmount = convertAmount(item.totalExpense, displayRate);
                 const barValue = expenseValueMode === "ABSOLUTE" ? displayAmount : item.share;
                 const barHeight = Math.max(8, (barValue / expensePeak) * 100);
                 const color = pieColors[index % pieColors.length];
                 return (
-                  <div key={item.categoryId} className="flex w-[88px] shrink-0 flex-col items-center gap-2">
+                  <div key={item.categoryId} className="flex min-w-[88px] flex-1 flex-col items-center gap-2">
                     <div className="flex h-[240px] w-full items-end justify-center rounded-[20px] border border-[rgba(201,168,76,0.12)] bg-[color-mix(in_srgb,var(--gold)_7%,transparent)] px-2 pb-2 shadow-[0_10px_22px_rgba(26,20,16,0.04)]">
                       <div className="flex h-full w-full items-end justify-center">
                         <div className="flex w-8 items-end justify-center rounded-t-[16px] shadow-[0_8px_16px_rgba(26,20,16,0.1)]" style={{ height: `${barHeight}%`, backgroundColor: color }}>
