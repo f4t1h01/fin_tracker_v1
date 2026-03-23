@@ -11,6 +11,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeaderActions } from "@/components/ui/page-header-actions";
 import { SelectField } from "@/components/ui/select-field";
 
+import { DashboardBreakdownPanel } from "./dashboard-breakdown";
+import { DashboardKindSelect } from "./dashboard-kind-select";
 import { DashboardMetrics } from "./dashboard-metrics";
 import { DashboardRangeFilter } from "./dashboard-range-filter";
 import { DashboardRecents } from "./dashboard-recents";
@@ -30,10 +32,11 @@ export function DashboardPage() {
   const metricsDescription = useMemo(
     () =>
       workspace.viewMode === "PERSONAL"
-        ? "See only your own income, expenses, and balance inside the selected range."
+        ? "See only your own transactions inside the selected range."
         : "See the combined workspace totals inside the selected range.",
     [workspace.viewMode]
   );
+  const activeKindLabel = workspace.kind === "ALL" ? "All transactions" : workspace.kind === "INCOME" ? "Income" : "Expense";
 
   if (!workspace.data && !workspace.error) {
     return (
@@ -69,17 +72,14 @@ export function DashboardPage() {
           <BrandMark href="/" />
           <div>
             <p className="eyebrow-row">Dashboard</p>
-            <h1 className="mt-5 font-[family-name:var(--font-heading)] text-[clamp(38px,4vw,56px)] font-light leading-[1.08]">Transactions at a glance.</h1>
+            <h1 className="mt-5 font-[family-name:var(--font-heading)] text-[clamp(38px,4vw,56px)] font-light leading-[1.08]">Transactions breakdown.</h1>
             <p className="body-muted mt-3 text-sm">
-              Workspace: {workspace.workspaceName} · Active range: {workspace.data.filter.label}
+              Workspace: {workspace.workspaceName} · Active range: {workspace.data.filter.label} · Kind: {activeKindLabel}
             </p>
           </div>
         </div>
         <PageHeaderActions>
           {workspace.isRefreshing ? <span className="body-muted text-xs uppercase tracking-[0.16em]">Refreshing</span> : null}
-          <Button variant="outline" asChild>
-            <AppLink href="/dashboard/trends">View trends</AppLink>
-          </Button>
           <Button variant="outline" asChild>
             <AppLink href="/profile/me">Back to profile</AppLink>
           </Button>
@@ -92,6 +92,13 @@ export function DashboardPage() {
           options={workspace.data.availableViews}
           onChange={(value) => {
             workspace.setViewMode(value);
+            workspace.setPage(1);
+          }}
+        />
+        <DashboardKindSelect
+          value={workspace.kind}
+          onChange={(value) => {
+            workspace.setKind(value);
             workspace.setPage(1);
           }}
         />
@@ -170,6 +177,8 @@ export function DashboardPage() {
         balance={summary.balance}
         currency={workspace.displayCurrency}
       />
+
+      <DashboardBreakdownPanel charts={workspace.data.charts} displayCurrency={workspace.displayCurrency} rates={workspace.data.rates} kind={workspace.kind} />
 
       <DashboardRecents
         transactions={workspace.data.transactions}

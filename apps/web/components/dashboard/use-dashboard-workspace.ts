@@ -84,7 +84,7 @@ function buildDashboardQuery(params: {
   return query;
 }
 
-type DashboardWorkspaceMode = "overview" | "trends";
+type DashboardWorkspaceMode = "overview";
 
 export function useDashboardWorkspace(mode: DashboardWorkspaceMode = "overview") {
   const [data, setData] = useState<DashboardResponse | null>(null);
@@ -121,11 +121,9 @@ export function useDashboardWorkspace(mode: DashboardWorkspaceMode = "overview")
       return;
     }
 
-    const hasAdvancedFilters = Boolean(
-      cached.filter.kind !== "ALL" || cached.filter.categoryId || cached.filter.actor !== "EVERYONE" || cached.filter.timeFrom || cached.filter.timeTo
-    );
+    const hasHiddenFilters = Boolean(cached.filter.categoryId || cached.filter.actor !== "EVERYONE" || cached.filter.timeFrom || cached.filter.timeTo);
 
-    if (!(mode === "overview" && hasAdvancedFilters)) {
+    if (!(mode === "overview" && hasHiddenFilters)) {
       setData(cached);
     }
     setDisplayCurrency(readDashboardDisplayCurrencyCache() ?? "UZS");
@@ -134,7 +132,7 @@ export function useDashboardWorkspace(mode: DashboardWorkspaceMode = "overview")
     setDraftFrom(cached.filter.from ?? "");
     setDraftTo(cached.filter.to ?? "");
     setDraftMonthKey(cached.filter.monthKey ?? "");
-    setKind(mode === "overview" ? "ALL" : cached.filter.kind ?? "ALL");
+    setKind(cached.filter.kind ?? "ALL");
     setCategoryId(mode === "overview" ? "" : cached.filter.categoryId ?? "");
     setActor(mode === "overview" ? "EVERYONE" : cached.filter.actor ?? "EVERYONE");
     setSearchDraft(cached.filter.search ?? "");
@@ -207,7 +205,7 @@ export function useDashboardWorkspace(mode: DashboardWorkspaceMode = "overview")
       setDraftFrom(payload.filter.from ?? "");
       setDraftTo(payload.filter.to ?? "");
       setDraftMonthKey(payload.filter.monthKey ?? "");
-      setKind(mode === "overview" ? "ALL" : payload.filter.kind);
+      setKind(payload.filter.kind);
       setCategoryId(mode === "overview" ? "" : payload.filter.categoryId ?? "");
       setActor(mode === "overview" ? "EVERYONE" : payload.filter.actor);
       setSearchDraft(payload.filter.search);
