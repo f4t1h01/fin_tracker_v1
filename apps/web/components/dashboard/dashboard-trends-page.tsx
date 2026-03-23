@@ -180,8 +180,6 @@ export function DashboardTrendsPage() {
         showKind={false}
         categoryId={workspace.categoryId}
         actor={workspace.actor}
-        timeFrom={workspace.timeFrom}
-        timeTo={workspace.timeTo}
         onKindChange={(value) => {
           workspace.setKind(value);
           workspace.setPage(1);
@@ -192,14 +190,6 @@ export function DashboardTrendsPage() {
         }}
         onActorChange={(value) => {
           workspace.setActor(value);
-          workspace.setPage(1);
-        }}
-        onTimeFromChange={(value) => {
-          workspace.setTimeFrom(value);
-          workspace.setPage(1);
-        }}
-        onTimeToChange={(value) => {
-          workspace.setTimeTo(value);
           workspace.setPage(1);
         }}
       />

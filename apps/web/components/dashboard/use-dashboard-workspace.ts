@@ -38,8 +38,6 @@ function buildDashboardQuery(params: {
   categoryId: string;
   actor: DashboardActor;
   search: string;
-  timeFrom: string;
-  timeTo: string;
 }) {
   const query = new URLSearchParams({
     viewMode: params.viewMode,
@@ -73,14 +71,6 @@ function buildDashboardQuery(params: {
     query.set("search", params.search);
   }
 
-  if (params.timeFrom) {
-    query.set("timeFrom", params.timeFrom);
-  }
-
-  if (params.timeTo) {
-    query.set("timeTo", params.timeTo);
-  }
-
   return query;
 }
 
@@ -99,8 +89,6 @@ export function useDashboardWorkspace(mode: DashboardWorkspaceMode = "overview")
   const [actor, setActor] = useState<DashboardActor>("EVERYONE");
   const [searchDraft, setSearchDraft] = useState("");
   const [search, setSearch] = useState("");
-  const [timeFrom, setTimeFrom] = useState("");
-  const [timeTo, setTimeTo] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [error, setError] = useState<string | null>(null);
@@ -122,7 +110,7 @@ export function useDashboardWorkspace(mode: DashboardWorkspaceMode = "overview")
     }
 
     const hasAdvancedFilters = Boolean(
-      cached.filter.kind !== "ALL" || cached.filter.categoryId || cached.filter.actor !== "EVERYONE" || cached.filter.timeFrom || cached.filter.timeTo
+      cached.filter.kind !== "ALL" || cached.filter.categoryId || cached.filter.actor !== "EVERYONE"
     );
 
     if (!(mode === "overview" && hasAdvancedFilters)) {
@@ -139,8 +127,6 @@ export function useDashboardWorkspace(mode: DashboardWorkspaceMode = "overview")
     setActor(mode === "overview" ? "EVERYONE" : cached.filter.actor ?? "EVERYONE");
     setSearchDraft(cached.filter.search ?? "");
     setSearch(cached.filter.search ?? "");
-    setTimeFrom(mode === "overview" ? "" : cached.filter.timeFrom ?? "");
-    setTimeTo(mode === "overview" ? "" : cached.filter.timeTo ?? "");
     setPage(cached.filter.page ?? 1);
     setPageSize(cached.filter.pageSize ?? 20);
   }, [mode]);
@@ -185,9 +171,7 @@ export function useDashboardWorkspace(mode: DashboardWorkspaceMode = "overview")
       kind,
       categoryId,
       actor,
-      search,
-      timeFrom,
-      timeTo
+      search
     });
 
     setIsRefreshing(true);
@@ -212,8 +196,6 @@ export function useDashboardWorkspace(mode: DashboardWorkspaceMode = "overview")
       setActor(mode === "overview" ? "EVERYONE" : payload.filter.actor);
       setSearchDraft(payload.filter.search);
       setSearch(payload.filter.search);
-      setTimeFrom(mode === "overview" ? "" : payload.filter.timeFrom ?? "");
-      setTimeTo(mode === "overview" ? "" : payload.filter.timeTo ?? "");
       setPage(payload.filter.page);
       setPageSize(payload.filter.pageSize);
     } catch (err) {
@@ -243,8 +225,6 @@ export function useDashboardWorkspace(mode: DashboardWorkspaceMode = "overview")
     pageSize,
     search,
     selectedPreset,
-    timeFrom,
-    timeTo,
     viewMode
   ]);
 
@@ -380,10 +360,6 @@ export function useDashboardWorkspace(mode: DashboardWorkspaceMode = "overview")
     searchDraft,
     setSearchDraft,
     search,
-    timeFrom,
-    setTimeFrom,
-    timeTo,
-    setTimeTo,
     page,
     setPage,
     pageSize,

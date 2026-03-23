@@ -29,13 +29,15 @@ export function useFloatingPanelPosition(options: UseFloatingPanelPositionOption
     const placeAbove = availableBelow < options.estimatedHeight && availableAbove > availableBelow;
     const top = placeAbove
       ? Math.max(16, rect.top - options.estimatedHeight - offset)
-      : Math.min(window.innerHeight - options.estimatedHeight - 16, rect.bottom + offset);
+      : rect.bottom + offset;
+    const maxHeight = Math.max(0, placeAbove ? availableAbove - offset : availableBelow - offset);
     const left = Math.max(16, Math.min(rect.left, window.innerWidth - width - 16));
 
     setStyle({
       left,
       opacity: 1,
       position: "fixed",
+      maxHeight,
       top,
       width
     });

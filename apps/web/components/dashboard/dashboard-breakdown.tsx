@@ -2,12 +2,10 @@
 
 import { useMemo, useState } from "react";
 
-import { ChartScrollLane } from "@/components/dashboard/chart-scroll-lane";
 import type { DashboardKind, DashboardResponse, SupportedCurrency } from "@/components/profile/types";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 
-type BreakdownChartMode = "BAR" | "PIE";
 type BreakdownValueMode = "ABSOLUTE" | "PERCENT";
 
 type DashboardBreakdownPanelProps = {
@@ -30,14 +28,6 @@ function convertAmount(amountInUzs: number, rate: number) {
 
 function formatAmount(value: number) {
   return value.toLocaleString(undefined, { maximumFractionDigits: 2 });
-}
-
-function renderValue(value: number, mode: BreakdownValueMode) {
-  if (mode === "PERCENT") {
-    return `${formatAmount(value)}%`;
-  }
-
-  return formatAmount(value);
 }
 
 function buildPieGradient(values: Array<{ share: number; color: string }>) {
@@ -95,7 +85,6 @@ function kindPillClass(kind: "EXPENSE" | "INCOME") {
 }
 
 export function DashboardBreakdownPanel({ charts, displayCurrency, rates, kind }: DashboardBreakdownPanelProps) {
-  const [chartMode, setChartMode] = useState<BreakdownChartMode>("BAR");
   const [valueMode, setValueMode] = useState<BreakdownValueMode>("ABSOLUTE");
 
   const displayRate = rates[displayCurrency];
@@ -120,8 +109,6 @@ export function DashboardBreakdownPanel({ charts, displayCurrency, rates, kind }
       }),
     [charts.breakdown.items, displayRate, kind]
   );
-
-  const breakdownPeak = valueMode === "ABSOLUTE" ? Math.max(1, ...breakdownItems.map((item) => item.displayAmount)) : 100;
   const breakdownPieSlices = breakdownItems.map((item) => ({ share: item.share, color: item.color }));
   const breakdownPieGradient = buildPieGradient(breakdownPieSlices);
 
@@ -132,18 +119,9 @@ export function DashboardBreakdownPanel({ charts, displayCurrency, rates, kind }
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <CardTitle>Transactions breakdown</CardTitle>
-              <CardDescription>Switch between bar and pie views. Colors follow transaction kind, and value mode changes between absolute amounts and shares.</CardDescription>
+              <CardDescription>Pie view for the current mix. Colors follow transaction kind, and value mode changes between absolute amounts and shares.</CardDescription>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <SegmentedControl
-                ariaLabel="Breakdown chart type"
-                value={chartMode}
-                onChange={(next) => setChartMode(next)}
-                options={[
-                  { value: "BAR", label: "Bar" },
-                  { value: "PIE", label: "Pie" }
-                ]}
-              />
               <SegmentedControl
                 ariaLabel="Breakdown value mode"
                 value={valueMode}
@@ -159,37 +137,6 @@ export function DashboardBreakdownPanel({ charts, displayCurrency, rates, kind }
         <CardContent className="min-w-0">
           {breakdownItems.length === 0 ? (
             <p className="body-muted text-sm">No transactions match this filter set.</p>
-          ) : chartMode === "BAR" ? (
-            <ChartScrollLane itemCount={breakdownItems.length} minItemWidth={112}>
-              {breakdownItems.map((item) => {
-                const barValue = valueMode === "ABSOLUTE" ? item.displayAmount : item.share;
-                const barHeight = Math.max(10, (barValue / breakdownPeak) * 100);
-
-                return (
-                  <div key={item.categoryId} className="flex min-w-[112px] flex-1 flex-col items-center gap-2">
-                    <div className="flex h-[240px] w-full items-end justify-center rounded-[20px] border border-[rgba(201,168,76,0.12)] bg-[color-mix(in_srgb,var(--gold)_7%,transparent)] px-2 pb-2 shadow-[0_10px_22px_rgba(26,20,16,0.04)]">
-                      <div className="flex h-full w-full items-end justify-center">
-                        <div
-                          className="flex w-10 items-end justify-center rounded-t-[16px] shadow-[0_8px_16px_rgba(26,20,16,0.1)]"
-                          style={{ height: `${barHeight}%`, backgroundColor: item.color }}
-                        >
-                          <span className="mb-1 text-[10px] font-semibold text-white">{renderValue(barValue, valueMode)}</span>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="space-y-1 text-center">
-                      <p className="text-[11px] font-medium leading-tight">{item.categoryName}</p>
-                      <p className={`inline-flex items-center justify-center rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] ${kindPillClass(item.itemKind)}`}>
-                        {kindLabel(item.itemKind)}
-                      </p>
-                      <p className="body-muted text-[11px]">
-                        {valueMode === "ABSOLUTE" ? `${formatAmount(item.displayAmount)} ${displayCurrency}` : `${formatAmount(item.share)}% of total`}
-                      </p>
-                    </div>
-                  </div>
-                );
-              })}
-            </ChartScrollLane>
           ) : (
             <div className="grid gap-6 lg:grid-cols-[minmax(0,240px)_minmax(0,1fr)] lg:items-center">
               <div className="mx-auto flex h-[220px] w-[220px] items-center justify-center rounded-full border border-white/10 bg-[color-mix(in_srgb,var(--gold)_6%,transparent)] p-4">
@@ -213,6 +160,9 @@ export function DashboardBreakdownPanel({ charts, displayCurrency, rates, kind }
                       <div>
                         <p className="font-medium">{item.categoryName}</p>
                         <p className="body-muted text-xs">{formatAmount(item.share)}% of filtered total</p>
+                        <p className={`mt-1 inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] ${kindPillClass(item.itemKind)}`}>
+                          {kindLabel(item.itemKind)}
+                        </p>
                       </div>
                     </div>
                     <p className="font-semibold">

@@ -94,9 +94,10 @@ const SelectField = React.forwardRef<HTMLSelectElement, SelectFieldProps>(({ cla
     setMounted(true);
   }, []);
 
+  const estimatedHeight = Math.min(256, Math.max(96, options.length * 40 + 16));
   const panelStyle = useFloatingPanelPosition({
     anchorRef: rootRef,
-    estimatedHeight: 280,
+    estimatedHeight,
     open,
     width: "anchor"
   });
