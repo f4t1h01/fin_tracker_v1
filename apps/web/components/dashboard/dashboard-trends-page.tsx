@@ -64,7 +64,7 @@ export function DashboardTrendsPage() {
   }
 
   return (
-    <main className="container-shell pb-16 pt-24">
+    <main className="container-shell overflow-x-hidden pb-16 pt-24">
       <header className="soft-rise mb-8 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="max-w-4xl space-y-4">
           <BrandMark href="/" />
