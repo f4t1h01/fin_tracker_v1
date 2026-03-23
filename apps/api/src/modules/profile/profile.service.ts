@@ -28,10 +28,12 @@ type DashboardDateRange = SummaryRange & {
 const defaultWeekStartsOn: WeekStartDay = "MONDAY";
 const dashboardViewModes = ["COUPLE", "PERSONAL"] as const;
 const categoryScopes = ["PERSONAL", "SHARED"] as const;
+const dashboardTrendGranularities = ["DAY", "WEEK", "MONTH"] as const;
 const dashboardTimeZone = "Asia/Tashkent";
 
 type CategoryScope = (typeof categoryScopes)[number];
 type TransactionKind = "EXPENSE" | "INCOME";
+type DashboardTrendGranularity = (typeof dashboardTrendGranularities)[number];
 
 type CategoryTreeNode = {
   id: string;
@@ -87,6 +89,15 @@ type DashboardTransactionRow = {
   userId: string;
 };
 
+type DashboardTrendItem = {
+  label: string;
+  start: string;
+  end: string;
+  income: number;
+  expense: number;
+  net: number;
+};
+
 type DashboardBreakdownItem = {
   categoryId: string;
   categoryName: string;
@@ -96,6 +107,10 @@ type DashboardBreakdownItem = {
 };
 
 type DashboardCharts = {
+  trend: {
+    granularity: DashboardTrendGranularity;
+    items: DashboardTrendItem[];
+  };
   breakdown: {
     items: DashboardBreakdownItem[];
   };
@@ -221,6 +236,41 @@ function matchesTimeWindow(value: Date, fromMinutes: number | null, toMinutes: n
   }
 
   return current <= (toMinutes ?? 0);
+}
+
+function getGranularity(start: Date, endExclusive: Date): DashboardTrendGranularity {
+  const spanDays = Math.max(1, Math.round((endExclusive.getTime() - start.getTime()) / 86400000));
+  if (spanDays <= 31) {
+    return "DAY";
+  }
+
+  return spanDays <= 90 ? "WEEK" : "MONTH";
+}
+
+function getBucketStart(date: Date, granularity: DashboardTrendGranularity, rangeStart: Date) {
+  if (granularity === "DAY") {
+    return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+  }
+
+  if (granularity === "MONTH") {
+    return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1));
+  }
+
+  const dayOffset = Math.floor((date.getTime() - rangeStart.getTime()) / 86400000);
+  const bucketStart = addUtcDays(rangeStart, Math.floor(dayOffset / 7) * 7);
+  return new Date(Date.UTC(bucketStart.getUTCFullYear(), bucketStart.getUTCMonth(), bucketStart.getUTCDate()));
+}
+
+function getBucketEnd(start: Date, granularity: DashboardTrendGranularity) {
+  if (granularity === "DAY") {
+    return addUtcDays(start, 1);
+  }
+
+  if (granularity === "MONTH") {
+    return new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1, 1));
+  }
+
+  return addUtcDays(start, 7);
 }
 
 function resolveWeekStartOffset(dayOfWeek: number, weekStartsOn: WeekStartDay) {
@@ -494,14 +544,64 @@ export class ProfileService {
     };
   }
 
-  private buildDashboardCharts(rows: DashboardTransactionRow[]): DashboardCharts {
-    const breakdownBuckets = new Map<string, { categoryId: string; categoryName: string; kind: TransactionKind; totalAmountInUzs: number }>();
-    let totalAmountInUzs = 0;
+  private buildDashboardCharts(rows: DashboardTransactionRow[], range: DashboardRangeResolution): DashboardCharts {
+    const granularity = getGranularity(range.start, range.endExclusive);
+    const buckets = new Map<string, DashboardTrendItem>();
+
+    let cursor = new Date(range.start.getTime());
+    while (cursor < range.endExclusive) {
+      const bucketStart = getBucketStart(cursor, granularity, range.start);
+      const bucketEnd = getBucketEnd(bucketStart, granularity);
+      const key = bucketStart.toISOString();
+      if (!buckets.has(key)) {
+        buckets.set(key, {
+          label:
+            granularity === "MONTH"
+              ? formatMonthLabel(bucketStart)
+              : granularity === "WEEK"
+                ? `${formatUtcDate(bucketStart)} - ${formatUtcDate(addUtcDays(bucketEnd, -1))}`
+                : formatUtcDate(bucketStart),
+          start: bucketStart.toISOString(),
+          end: bucketEnd.toISOString(),
+          income: 0,
+          expense: 0,
+          net: 0
+        });
+      }
+
+      cursor = bucketEnd;
+    }
 
     for (const row of rows) {
       const amount = decimalToNumber(row.amountInUzs);
-      totalAmountInUzs += amount;
+      const bucketStart = getBucketStart(row.happenedAt, granularity, range.start);
+      const key = bucketStart.toISOString();
+      const bucket = buckets.get(key);
+      if (!bucket) {
+        continue;
+      }
 
+      if (row.kind === "INCOME") {
+        bucket.income += amount;
+      } else {
+        bucket.expense += amount;
+      }
+    }
+
+    const trendItems = Array.from(buckets.values())
+      .sort((a, b) => a.start.localeCompare(b.start))
+      .map((bucket) => ({
+        ...bucket,
+        income: Number(bucket.income.toFixed(2)),
+        expense: Number(bucket.expense.toFixed(2)),
+        net: Number((bucket.income - bucket.expense).toFixed(2))
+      }));
+
+    const breakdownBuckets = new Map<string, { categoryId: string; categoryName: string; kind: TransactionKind; totalAmountInUzs: number }>();
+    let totalAmountInUzs = 0;
+    for (const row of rows) {
+      const amount = decimalToNumber(row.amountInUzs);
+      totalAmountInUzs += amount;
       const existing = breakdownBuckets.get(row.category.id);
       if (existing) {
         existing.totalAmountInUzs += amount;
@@ -524,6 +624,10 @@ export class ProfileService {
       }));
 
     return {
+      trend: {
+        granularity,
+        items: trendItems
+      },
       breakdown: {
         items: breakdownItems
       }
@@ -1209,7 +1313,7 @@ export class ProfileService {
     const page = query?.page ?? 1;
     const transactionsPage = this.buildDashboardTransactionsSlice(filteredRows, page, pageSize);
     const summary = this.summarizeDashboardTransactions(filteredRows, userId, range);
-    const charts = this.buildDashboardCharts(filteredRows);
+    const charts = this.buildDashboardCharts(filteredRows, range);
 
     const mappedTransactions = transactionsPage.items.map((row) => ({
       id: row.id,

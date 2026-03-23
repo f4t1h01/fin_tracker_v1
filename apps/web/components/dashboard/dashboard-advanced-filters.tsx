@@ -15,6 +15,7 @@ type DashboardAdvancedFiltersProps = {
   actor: DashboardActor;
   timeFrom: string;
   timeTo: string;
+  showKind?: boolean;
   onKindChange: (value: DashboardKind) => void;
   onCategoryChange: (value: string) => void;
   onActorChange: (value: DashboardActor) => void;
@@ -25,6 +26,10 @@ type DashboardAdvancedFiltersProps = {
 export function DashboardAdvancedFilters(props: DashboardAdvancedFiltersProps) {
   const expenseOptions = buildCategoryOptions(props.categoryCatalog, "EXPENSE");
   const incomeOptions = buildCategoryOptions(props.categoryCatalog, "INCOME");
+  const description =
+    props.showKind === false
+      ? "Narrow by category, actor, and time window without overcrowding the primary toolbar."
+      : "Narrow by transaction kind, category, actor, and time window without overcrowding the primary toolbar.";
 
   const renderCategoryOptions = () => {
     if (!props.categoryCatalog) {
@@ -95,20 +100,22 @@ export function DashboardAdvancedFilters(props: DashboardAdvancedFiltersProps) {
     <Card className="panel-soft mb-6">
       <CardHeader>
         <CardTitle>Filters</CardTitle>
-        <CardDescription>Narrow by transaction kind, category, actor, and time window without overcrowding the primary toolbar.</CardDescription>
+        <CardDescription>{description}</CardDescription>
       </CardHeader>
       <CardContent>
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-          <label className="space-y-1 text-sm">
-            <span className="field-label">Kind</span>
-            <SelectField value={props.kind} onChange={(event) => props.onKindChange(event.target.value as DashboardKind)}>
-              {dashboardKinds.map((item) => (
-                <option key={item} value={item}>
-                  {item === "ALL" ? "All" : item === "INCOME" ? "Income" : "Expense"}
-                </option>
-              ))}
-            </SelectField>
-          </label>
+          {props.showKind === false ? null : (
+            <label className="space-y-1 text-sm">
+              <span className="field-label">Kind</span>
+              <SelectField value={props.kind} onChange={(event) => props.onKindChange(event.target.value as DashboardKind)}>
+                {dashboardKinds.map((item) => (
+                  <option key={item} value={item}>
+                    {item === "ALL" ? "All" : item === "INCOME" ? "Income" : "Expense"}
+                  </option>
+                ))}
+              </SelectField>
+            </label>
+          )}
           <label className="space-y-1 text-sm">
             <span className="field-label">Category</span>
             <SelectField value={props.categoryId} onChange={(event) => props.onCategoryChange(event.target.value)}>

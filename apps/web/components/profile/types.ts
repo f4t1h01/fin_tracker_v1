@@ -217,6 +217,17 @@ export type DashboardResponse = {
     weekStartsOn: WeekStartDay;
   };
   charts: {
+    trend: {
+      granularity: "DAY" | "WEEK" | "MONTH";
+      items: Array<{
+        label: string;
+        start: string;
+        end: string;
+        income: number;
+        expense: number;
+        net: number;
+      }>;
+    };
     breakdown: {
       items: Array<{
         categoryId: string;

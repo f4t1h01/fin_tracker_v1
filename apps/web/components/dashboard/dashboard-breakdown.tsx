@@ -1,9 +1,14 @@
 "use client";
 
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { useMemo, useState } from "react";
 
 import { ChartScrollLane } from "@/components/dashboard/chart-scroll-lane";
 import type { DashboardKind, DashboardResponse, SupportedCurrency } from "@/components/profile/types";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { SegmentedControl } from "@/components/ui/segmented-control";
+
+type BreakdownChartMode = "BAR" | "PIE";
+type BreakdownValueMode = "ABSOLUTE" | "PERCENT";
 
 type DashboardBreakdownPanelProps = {
   charts: DashboardResponse["charts"];
@@ -12,8 +17,8 @@ type DashboardBreakdownPanelProps = {
   kind: DashboardKind;
 };
 
-const expenseColors = ["#ef4444", "#f97316", "#fb7185", "#dc2626", "#f43f5e", "#fb923c"];
-const incomeColors = ["#10b981", "#14b8a6", "#22c55e", "#06b6d4", "#34d399", "#2dd4bf"];
+const expenseColors = ["#ef4444", "#f97316", "#fb7185", "#dc2626", "#f43f5e", "#fb923c", "#e11d48", "#fb7185"];
+const incomeColors = ["#10b981", "#14b8a6", "#22c55e", "#06b6d4", "#34d399", "#2dd4bf", "#2dd4bf", "#a3e635"];
 
 function convertAmount(amountInUzs: number, rate: number) {
   if (rate <= 0) {
@@ -25,6 +30,34 @@ function convertAmount(amountInUzs: number, rate: number) {
 
 function formatAmount(value: number) {
   return value.toLocaleString(undefined, { maximumFractionDigits: 2 });
+}
+
+function renderValue(value: number, mode: BreakdownValueMode) {
+  if (mode === "PERCENT") {
+    return `${formatAmount(value)}%`;
+  }
+
+  return formatAmount(value);
+}
+
+function buildPieGradient(values: Array<{ share: number; color: string }>) {
+  if (values.length === 0) {
+    return "";
+  }
+
+  let cursor = 0;
+  const segments: string[] = [];
+
+  for (const [index, item] of values.entries()) {
+    const start = cursor;
+    const end = index === values.length - 1 ? 100 : Math.min(100, cursor + item.share);
+    if (end > start) {
+      segments.push(`${item.color} ${start}% ${end}%`);
+    }
+    cursor = end;
+  }
+
+  return segments.join(", ");
 }
 
 function getBreakdownAmount(item: DashboardResponse["charts"]["breakdown"]["items"][number]) {
@@ -62,41 +95,85 @@ function kindPillClass(kind: "EXPENSE" | "INCOME") {
 }
 
 export function DashboardBreakdownPanel({ charts, displayCurrency, rates, kind }: DashboardBreakdownPanelProps) {
+  const [chartMode, setChartMode] = useState<BreakdownChartMode>("BAR");
+  const [valueMode, setValueMode] = useState<BreakdownValueMode>("ABSOLUTE");
+
   const displayRate = rates[displayCurrency];
-  const breakdownItems = charts.breakdown.items.map((item, index) => {
-    const amountInUzs = getBreakdownAmount(item);
-    const itemKind = getBreakdownKind(item, kind);
-    return {
-      ...item,
-      amountInUzs,
-      itemKind,
-      color: getColor(itemKind, index)
-    };
-  });
-  const peak = Math.max(1, ...breakdownItems.map((item) => item.amountInUzs));
+  const displayTotal = useMemo(() => {
+    return charts.breakdown.items.reduce((sum, item) => sum + convertAmount(getBreakdownAmount(item), displayRate), 0);
+  }, [charts.breakdown.items, displayRate]);
+
+  const breakdownItems = useMemo(
+    () =>
+      charts.breakdown.items.map((item, index) => {
+        const amountInUzs = getBreakdownAmount(item);
+        const itemKind = getBreakdownKind(item, kind);
+        const displayAmount = convertAmount(amountInUzs, displayRate);
+
+        return {
+          ...item,
+          amountInUzs,
+          displayAmount,
+          itemKind,
+          color: getColor(itemKind, index)
+        };
+      }),
+    [charts.breakdown.items, displayRate, kind]
+  );
+
+  const breakdownPeak = valueMode === "ABSOLUTE" ? Math.max(1, ...breakdownItems.map((item) => item.displayAmount)) : 100;
+  const breakdownPieSlices = breakdownItems.map((item) => ({ share: item.share, color: item.color }));
+  const breakdownPieGradient = buildPieGradient(breakdownPieSlices);
 
   return (
     <section className="mb-6 grid w-full min-w-0 gap-4">
       <Card className="panel-soft w-full min-w-0 overflow-hidden">
         <CardHeader>
-          <CardTitle>Transactions breakdown</CardTitle>
-          <CardDescription>Totals by category for the active filters. Green bars are income, rose bars are expense.</CardDescription>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <CardTitle>Transactions breakdown</CardTitle>
+              <CardDescription>Switch between bar and pie views. Colors follow transaction kind, and value mode changes between absolute amounts and shares.</CardDescription>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <SegmentedControl
+                ariaLabel="Breakdown chart type"
+                value={chartMode}
+                onChange={(next) => setChartMode(next)}
+                options={[
+                  { value: "BAR", label: "Bar" },
+                  { value: "PIE", label: "Pie" }
+                ]}
+              />
+              <SegmentedControl
+                ariaLabel="Breakdown value mode"
+                value={valueMode}
+                onChange={(next) => setValueMode(next)}
+                options={[
+                  { value: "ABSOLUTE", label: "Absolute" },
+                  { value: "PERCENT", label: "Percent" }
+                ]}
+              />
+            </div>
+          </div>
         </CardHeader>
         <CardContent className="min-w-0">
           {breakdownItems.length === 0 ? (
             <p className="body-muted text-sm">No transactions match this filter set.</p>
-          ) : (
+          ) : chartMode === "BAR" ? (
             <ChartScrollLane itemCount={breakdownItems.length} minItemWidth={112}>
               {breakdownItems.map((item) => {
-                const barHeight = Math.max(10, (item.amountInUzs / peak) * 100);
-                const displayAmount = convertAmount(item.amountInUzs, displayRate);
+                const barValue = valueMode === "ABSOLUTE" ? item.displayAmount : item.share;
+                const barHeight = Math.max(10, (barValue / breakdownPeak) * 100);
 
                 return (
                   <div key={item.categoryId} className="flex min-w-[112px] flex-1 flex-col items-center gap-2">
                     <div className="flex h-[240px] w-full items-end justify-center rounded-[20px] border border-[rgba(201,168,76,0.12)] bg-[color-mix(in_srgb,var(--gold)_7%,transparent)] px-2 pb-2 shadow-[0_10px_22px_rgba(26,20,16,0.04)]">
                       <div className="flex h-full w-full items-end justify-center">
-                        <div className="flex w-10 items-end justify-center rounded-t-[16px] shadow-[0_8px_16px_rgba(26,20,16,0.1)]" style={{ height: `${barHeight}%`, backgroundColor: item.color }}>
-                          <span className="mb-1 text-[10px] font-semibold text-white">{formatAmount(displayAmount)}</span>
+                        <div
+                          className="flex w-10 items-end justify-center rounded-t-[16px] shadow-[0_8px_16px_rgba(26,20,16,0.1)]"
+                          style={{ height: `${barHeight}%`, backgroundColor: item.color }}
+                        >
+                          <span className="mb-1 text-[10px] font-semibold text-white">{renderValue(barValue, valueMode)}</span>
                         </div>
                       </div>
                     </div>
@@ -106,14 +183,45 @@ export function DashboardBreakdownPanel({ charts, displayCurrency, rates, kind }
                         {kindLabel(item.itemKind)}
                       </p>
                       <p className="body-muted text-[11px]">
-                        {formatAmount(displayAmount)} {displayCurrency}
+                        {valueMode === "ABSOLUTE" ? `${formatAmount(item.displayAmount)} ${displayCurrency}` : `${formatAmount(item.share)}% of total`}
                       </p>
-                      <p className="body-muted text-[11px]">{formatAmount(item.share)}% of total</p>
                     </div>
                   </div>
                 );
               })}
             </ChartScrollLane>
+          ) : (
+            <div className="grid gap-6 lg:grid-cols-[minmax(0,240px)_minmax(0,1fr)] lg:items-center">
+              <div className="mx-auto flex h-[220px] w-[220px] items-center justify-center rounded-full border border-white/10 bg-[color-mix(in_srgb,var(--gold)_6%,transparent)] p-4">
+                <div
+                  className="relative flex h-full w-full items-center justify-center rounded-full"
+                  style={{
+                    background: breakdownPieGradient ? `conic-gradient(${breakdownPieGradient})` : undefined
+                  }}
+                >
+                  <div className="flex h-[120px] w-[120px] flex-col items-center justify-center rounded-full border border-white/10 bg-[color-mix(in_srgb,var(--bg-base)_92%,transparent)] text-center shadow-[0_10px_24px_rgba(0,0,0,0.08)]">
+                    <p className="text-xs uppercase tracking-[0.16em] text-[var(--ink-soft)]">Total</p>
+                    <p className="mt-1 text-lg font-semibold">{valueMode === "ABSOLUTE" ? `${formatAmount(displayTotal)} ${displayCurrency}` : "100%"}</p>
+                  </div>
+                </div>
+              </div>
+              <div className="space-y-2">
+                {breakdownItems.map((item) => (
+                  <div key={item.categoryId} className="detail-box flex items-center justify-between gap-3 px-3 py-2 text-sm">
+                    <div className="flex items-center gap-3">
+                      <span className="h-3.5 w-3.5 rounded-full" style={{ backgroundColor: item.color }} />
+                      <div>
+                        <p className="font-medium">{item.categoryName}</p>
+                        <p className="body-muted text-xs">{formatAmount(item.share)}% of filtered total</p>
+                      </div>
+                    </div>
+                    <p className="font-semibold">
+                      {valueMode === "ABSOLUTE" ? `${formatAmount(item.displayAmount)} ${displayCurrency}` : `${formatAmount(item.share)}%`}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
           )}
         </CardContent>
       </Card>
