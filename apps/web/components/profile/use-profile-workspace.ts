@@ -907,7 +907,7 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
           amount: Number(editingTransaction.amount),
           kind: editingTransaction.kind,
           currency: editingTransaction.currency,
-          categoryId: editingTransaction.categoryId,
+          categoryId: editingTransaction.categoryId || undefined,
           categoryName: editingTransaction.categoryName,
           note: editingTransaction.note || undefined
         })

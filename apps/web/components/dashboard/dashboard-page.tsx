@@ -23,16 +23,20 @@ export function DashboardPage() {
   const workspace = useDashboardWorkspace("overview");
   const summary = workspace.summary;
   const isPageReady = Boolean(workspace.data || workspace.error);
+  const hasPartnerConnection = Boolean(workspace.data?.profile.activeCouple);
+  const effectiveViewMode = hasPartnerConnection ? workspace.viewMode : "PERSONAL";
 
   useRouteTransitionPageReady(isPageReady);
 
-  const metricsHeading = useMemo(() => (workspace.viewMode === "PERSONAL" ? "Personal lens" : "Shared lens"), [workspace.viewMode]);
+  const metricsHeading = useMemo(() => (effectiveViewMode === "PERSONAL" ? "Personal lens" : "Shared lens"), [effectiveViewMode]);
   const metricsDescription = useMemo(
     () =>
-      workspace.viewMode === "PERSONAL"
-        ? "See only your own income, expenses, and balance inside the selected range."
+      effectiveViewMode === "PERSONAL"
+        ? hasPartnerConnection
+          ? "See only your own income, expenses, and balance inside the selected range."
+          : "No partner is linked, so this dashboard shows personal totals only."
         : "See the combined workspace totals inside the selected range.",
-    [workspace.viewMode]
+    [effectiveViewMode, hasPartnerConnection]
   );
 
   if (!workspace.data && !workspace.error) {
@@ -86,10 +90,18 @@ export function DashboardPage() {
         </PageHeaderActions>
       </header>
 
+      {!hasPartnerConnection ? (
+        <Card className="panel-soft mb-6 border-[rgba(201,168,76,0.18)]">
+          <CardContent className="pt-6">
+            <p className="body-muted text-sm">No partner is linked. Dashboard metrics are purely personal until you connect one.</p>
+          </CardContent>
+        </Card>
+      ) : null}
+
       <section className="mb-6 flex flex-wrap items-end gap-3">
         <DashboardViewSelect
-          value={workspace.viewMode}
-          options={workspace.data.availableViews}
+          value={effectiveViewMode}
+          options={hasPartnerConnection ? workspace.data.availableViews : ["PERSONAL"]}
           onChange={(value) => {
             workspace.setViewMode(value);
             workspace.setPage(1);

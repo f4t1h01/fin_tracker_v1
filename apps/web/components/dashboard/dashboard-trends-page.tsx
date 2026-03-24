@@ -26,16 +26,21 @@ export function DashboardTrendsPage() {
   const workspace = useDashboardWorkspace("trends");
   const summary = workspace.summary;
   const isPageReady = Boolean(workspace.data || workspace.error);
+  const hasPartnerConnection = Boolean(workspace.data?.profile.activeCouple);
+  const effectiveViewMode = hasPartnerConnection ? workspace.viewMode : "PERSONAL";
+  const effectiveActor = hasPartnerConnection ? workspace.actor : "EVERYONE";
 
   useRouteTransitionPageReady(isPageReady);
 
-  const metricsHeading = useMemo(() => (workspace.viewMode === "PERSONAL" ? "Personal lens" : "Shared lens"), [workspace.viewMode]);
+  const metricsHeading = useMemo(() => (effectiveViewMode === "PERSONAL" ? "Personal lens" : "Shared lens"), [effectiveViewMode]);
   const metricsDescription = useMemo(
     () =>
-      workspace.viewMode === "PERSONAL"
-        ? "See only your own income, expenses, and balance inside the selected range."
+      effectiveViewMode === "PERSONAL"
+        ? hasPartnerConnection
+          ? "See only your own income, expenses, and balance inside the selected range."
+          : "No partner is linked, so trends show only personal activity."
         : "See the combined workspace totals inside the selected range.",
-    [workspace.viewMode]
+    [effectiveViewMode, hasPartnerConnection]
   );
   const activeKindLabel = workspace.kind === "ALL" ? "All transactions" : workspace.kind === "INCOME" ? "Income" : "Expense";
 
@@ -90,10 +95,18 @@ export function DashboardTrendsPage() {
         </PageHeaderActions>
       </header>
 
+      {!hasPartnerConnection ? (
+        <Card className="panel-soft mb-6 border-[rgba(201,168,76,0.18)]">
+          <CardContent className="pt-6">
+            <p className="body-muted text-sm">No partner is linked. Trends are showing personal-only metrics and filters.</p>
+          </CardContent>
+        </Card>
+      ) : null}
+
       <section className="mb-6 flex flex-wrap items-end gap-3">
         <DashboardViewSelect
-          value={workspace.viewMode}
-          options={workspace.data.availableViews}
+          value={effectiveViewMode}
+          options={hasPartnerConnection ? workspace.data.availableViews : ["PERSONAL"]}
           onChange={(value) => {
             workspace.setViewMode(value);
             workspace.setPage(1);
@@ -175,11 +188,12 @@ export function DashboardTrendsPage() {
 
       <DashboardAdvancedFilters
         categoryCatalog={workspace.data.filters.categories}
-        viewMode={workspace.viewMode}
+        viewMode={effectiveViewMode}
         kind={workspace.kind}
         showKind={false}
         categoryId={workspace.categoryId}
-        actor={workspace.actor}
+        actor={effectiveActor}
+        hasActivePartnerConnection={hasPartnerConnection}
         onKindChange={(value) => {
           workspace.setKind(value);
           workspace.setPage(1);

@@ -232,6 +232,20 @@ export function useDashboardWorkspace(mode: DashboardWorkspaceMode = "overview")
     void fetchDashboard();
   }, [fetchDashboard]);
 
+  useEffect(() => {
+    if (!data) {
+      return;
+    }
+
+    if (!data.profile.activeCouple && viewMode !== "PERSONAL") {
+      setViewMode("PERSONAL");
+    }
+
+    if (!data.profile.activeCouple && actor === "PARTNER") {
+      setActor("EVERYONE");
+    }
+  }, [actor, data, viewMode]);
+
   const summary = useMemo(() => {
     if (!data) {
       return null;

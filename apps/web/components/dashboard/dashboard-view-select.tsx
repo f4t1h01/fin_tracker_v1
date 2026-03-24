@@ -9,7 +9,7 @@ const viewLabels: Record<DashboardViewMode, string> = {
 
 type DashboardViewSelectProps = {
   value: DashboardViewMode;
-  options: DashboardViewMode[];
+  options: readonly DashboardViewMode[];
   onChange: (value: DashboardViewMode) => void;
 };
 

@@ -12,6 +12,7 @@ type DashboardAdvancedFiltersProps = {
   kind: DashboardKind;
   categoryId: string;
   actor: DashboardActor;
+  hasActivePartnerConnection: boolean;
   showKind?: boolean;
   onKindChange: (value: DashboardKind) => void;
   onCategoryChange: (value: string) => void;
@@ -23,8 +24,12 @@ export function DashboardAdvancedFilters(props: DashboardAdvancedFiltersProps) {
   const incomeOptions = buildCategoryOptions(props.categoryCatalog, "INCOME");
   const description =
     props.showKind === false
-      ? "Narrow by category and actor without overcrowding the primary toolbar."
-      : "Narrow by transaction kind, category, and actor without overcrowding the primary toolbar.";
+      ? props.hasActivePartnerConnection
+        ? "Narrow by category and actor without overcrowding the primary toolbar."
+        : "No partner is linked, so only personal category and actor filters are available."
+      : props.hasActivePartnerConnection
+        ? "Narrow by transaction kind, category, and actor without overcrowding the primary toolbar."
+        : "No partner is linked, so only personal filters are available.";
 
   const renderCategoryOptions = () => {
     if (!props.categoryCatalog) {
@@ -121,11 +126,13 @@ export function DashboardAdvancedFilters(props: DashboardAdvancedFiltersProps) {
           <label className="space-y-1 text-sm">
             <span className="field-label">Actor</span>
             <SelectField value={props.actor} onChange={(event) => props.onActorChange(event.target.value as DashboardActor)}>
-              {dashboardActors.map((item) => (
-                <option key={item} value={item}>
-                  {item === "EVERYONE" ? "Everyone" : item === "ME" ? "Me" : props.viewMode === "PERSONAL" ? "Partner unavailable" : "Partner"}
-                </option>
-              ))}
+              {dashboardActors.map((item) =>
+                item === "PARTNER" && !props.hasActivePartnerConnection ? null : (
+                  <option key={item} value={item}>
+                    {item === "EVERYONE" ? "Everyone" : item === "ME" ? "Me" : "Partner"}
+                  </option>
+                )
+              )}
             </SelectField>
           </label>
         </div>
