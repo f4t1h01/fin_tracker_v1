@@ -12,6 +12,15 @@ function formatBalance(value: number, currency: string) {
   return value < 0 ? `-${formatted}` : formatted;
 }
 
+function formatMonthLabel(summary: MonthlySummary | null) {
+  if (!summary) {
+    return "This month";
+  }
+
+  const value = new Date(Date.UTC(summary.year, summary.month - 1, 1));
+  return value.toLocaleString("en-US", { month: "long", year: "numeric", timeZone: "UTC" });
+}
+
 export function ProfileMetrics({ summary, hasPartnerConnection }: ProfileMetricsProps) {
   const balanceLabel = typeof summary?.personalBalance === "number" ? `${summary.personalBalance.toLocaleString()} ${summary.currency}` : "-";
   const totalBalance = typeof summary?.balance === "number" ? summary.balance : null;
@@ -24,6 +33,7 @@ export function ProfileMetrics({ summary, hasPartnerConnection }: ProfileMetrics
         <p className="body-muted text-sm">
           {hasPartnerConnection ? "Shared workspace totals are split into your part, your partner's part, and the total couple balance." : "No partner is linked, so these numbers reflect only your personal workspace."}
         </p>
+        <p className="body-muted text-xs uppercase tracking-[0.16em]">{formatMonthLabel(summary)}</p>
       </div>
       {hasPartnerConnection && summary ? (
         <div className="grid gap-4 md:grid-cols-3">
