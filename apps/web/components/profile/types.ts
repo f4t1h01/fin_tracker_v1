@@ -38,6 +38,7 @@ export type ProfileResponse = {
     coupleId: string;
     updatedAt: string;
   } | null;
+  hasPartnerConnection: boolean;
 };
 
 export type MonthlySummary = {
@@ -161,14 +162,7 @@ export type ProfileSnapshotResponse = {
 export type DashboardTransaction = TransactionListItem;
 
 export type DashboardResponse = {
-  profile: {
-    user: {
-      coupleCode: string;
-    };
-    activeCouple: {
-      name: string;
-    } | null;
-  };
+  profile: ProfileResponse;
   summary: {
     month: number;
     year: number;

@@ -1128,7 +1128,8 @@ export class ProfileService {
           coupleCode
         },
         activeCouple: null,
-        bind: user.coupleBind
+        bind: user.coupleBind,
+        hasPartnerConnection: Boolean(user.coupleBind)
       };
     }
 
@@ -1162,7 +1163,8 @@ export class ProfileService {
             role: activeCouple.memberships[0]?.role ?? "PARTNER"
           }
         : null,
-      bind: user.coupleBind
+      bind: user.coupleBind,
+      hasPartnerConnection: Boolean(user.coupleBind)
     };
   }
 

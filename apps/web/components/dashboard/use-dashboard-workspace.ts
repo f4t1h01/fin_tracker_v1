@@ -237,11 +237,11 @@ export function useDashboardWorkspace(mode: DashboardWorkspaceMode = "overview")
       return;
     }
 
-    if (!data.profile.activeCouple && viewMode !== "PERSONAL") {
+    if (!data.profile.hasPartnerConnection && viewMode !== "PERSONAL") {
       setViewMode("PERSONAL");
     }
 
-    if (!data.profile.activeCouple && actor === "PARTNER") {
+    if (!data.profile.hasPartnerConnection && actor === "PARTNER") {
       setActor("EVERYONE");
     }
   }, [actor, data, viewMode]);

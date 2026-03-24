@@ -23,7 +23,7 @@ export function DashboardPage() {
   const workspace = useDashboardWorkspace("overview");
   const summary = workspace.summary;
   const isPageReady = Boolean(workspace.data || workspace.error);
-  const hasPartnerConnection = Boolean(workspace.data?.profile.activeCouple);
+  const hasPartnerConnection = Boolean(workspace.data?.profile.hasPartnerConnection);
   const effectiveViewMode = hasPartnerConnection ? workspace.viewMode : "PERSONAL";
 
   useRouteTransitionPageReady(isPageReady);

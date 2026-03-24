@@ -51,7 +51,7 @@ export function ProfileMainPage() {
 
       {workspace.authError ? <Card className="mb-6 border-red-300/20 bg-red-500/10 dark:border-red-400/30 dark:bg-red-500/10"><CardContent className="pt-6"><p className="status-error text-sm">{workspace.authError}</p></CardContent></Card> : null}
 
-      <ProfileMetrics summary={workspace.summary} hasPartnerConnection={Boolean(workspace.profile.activeCouple)} />
+      <ProfileMetrics summary={workspace.summary} hasPartnerConnection={workspace.profile.hasPartnerConnection} />
 
       <TransactionEntry
         workspaceName={workspace.profile.activeCouple?.name ?? "Personal workspace"}

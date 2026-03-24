@@ -26,7 +26,7 @@ export function DashboardTrendsPage() {
   const workspace = useDashboardWorkspace("trends");
   const summary = workspace.summary;
   const isPageReady = Boolean(workspace.data || workspace.error);
-  const hasPartnerConnection = Boolean(workspace.data?.profile.activeCouple);
+  const hasPartnerConnection = Boolean(workspace.data?.profile.hasPartnerConnection);
   const effectiveViewMode = hasPartnerConnection ? workspace.viewMode : "PERSONAL";
   const effectiveActor = hasPartnerConnection ? workspace.actor : "EVERYONE";
 
