@@ -106,7 +106,8 @@ export function DashboardTrendsPage() {
       <section className="mb-6 flex flex-wrap items-end gap-3">
         <DashboardViewSelect
           value={effectiveViewMode}
-          options={hasPartnerConnection ? workspace.data.availableViews : ["PERSONAL"]}
+          options={workspace.data.availableViews}
+          disabledOptions={hasPartnerConnection ? [] : ["COUPLE"]}
           onChange={(value) => {
             workspace.setViewMode(value);
             workspace.setPage(1);

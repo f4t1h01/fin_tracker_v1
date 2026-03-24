@@ -99,13 +99,14 @@ export function DashboardPage() {
       ) : null}
 
       <section className="mb-6 flex flex-wrap items-end gap-3">
-        <DashboardViewSelect
-          value={effectiveViewMode}
-          options={hasPartnerConnection ? workspace.data.availableViews : ["PERSONAL"]}
-          onChange={(value) => {
-            workspace.setViewMode(value);
-            workspace.setPage(1);
-          }}
+      <DashboardViewSelect
+        value={effectiveViewMode}
+        options={workspace.data.availableViews}
+        disabledOptions={hasPartnerConnection ? [] : ["COUPLE"]}
+        onChange={(value) => {
+          workspace.setViewMode(value);
+          workspace.setPage(1);
+        }}
         />
         <label className="space-y-1 text-sm">
           <span className="field-label">Display currency</span>

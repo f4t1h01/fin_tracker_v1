@@ -15,7 +15,7 @@ type DashboardBreakdownPanelProps = {
   kind: DashboardKind;
 };
 
-const expenseColors = ["#4f46e5", "#6366f1", "#7c3aed", "#8b5cf6", "#2563eb", "#3b82f6", "#0ea5e9", "#06b6d4"];
+const expenseColors = ["#f43f5e", "#fb7185", "#e11d48", "#be123c", "#f87171", "#ef4444", "#dc2626", "#fda4af"];
 const incomeColors = ["#10b981", "#14b8a6", "#22c55e", "#06b6d4", "#34d399", "#2dd4bf", "#2dd4bf", "#a3e635"];
 
 function convertAmount(amountInUzs: number, rate: number) {
@@ -81,7 +81,7 @@ function kindLabel(kind: "EXPENSE" | "INCOME") {
 function kindPillClass(kind: "EXPENSE" | "INCOME") {
   return kind === "INCOME"
     ? "border-[rgba(16,185,129,0.2)] bg-[color-mix(in_srgb,rgba(16,185,129,0.14),transparent)] text-[var(--sage)]"
-    : "border-[rgba(79,70,229,0.2)] bg-[color-mix(in_srgb,rgba(79,70,229,0.12),transparent)] text-[rgb(79,70,229)]";
+    : "border-[rgba(244,63,94,0.22)] bg-[color-mix(in_srgb,rgba(244,63,94,0.12),transparent)] text-[var(--blush-deep)]";
 }
 
 export function DashboardBreakdownPanel({ charts, displayCurrency, rates, kind }: DashboardBreakdownPanelProps) {

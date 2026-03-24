@@ -20,33 +20,44 @@ type DashboardAdvancedFiltersProps = {
 };
 
 export function DashboardAdvancedFilters(props: DashboardAdvancedFiltersProps) {
-  const expenseOptions = buildCategoryOptions(props.categoryCatalog, "EXPENSE");
-  const incomeOptions = buildCategoryOptions(props.categoryCatalog, "INCOME");
+  const includeSharedLocked = !props.hasActivePartnerConnection;
+  const expenseOptions = buildCategoryOptions(props.categoryCatalog, "EXPENSE", { forceIncludeShared: includeSharedLocked });
+  const incomeOptions = buildCategoryOptions(props.categoryCatalog, "INCOME", { forceIncludeShared: includeSharedLocked });
   const description =
     props.showKind === false
       ? props.hasActivePartnerConnection
         ? "Narrow by category and actor without overcrowding the primary toolbar."
-        : "No partner is linked, so only personal category and actor filters are available."
+        : "No partner is linked, so shared fields stay visible but locked."
       : props.hasActivePartnerConnection
         ? "Narrow by transaction kind, category, and actor without overcrowding the primary toolbar."
-        : "No partner is linked, so only personal filters are available.";
+        : "No partner is linked, so shared fields stay visible but locked.";
 
   const renderCategoryOptions = () => {
     if (!props.categoryCatalog) {
       return null;
     }
 
+    const sharedDisabled = !props.hasActivePartnerConnection;
+
     if (props.kind === "INCOME") {
       return (
         <>
           {incomeOptions.personal.length > 0 ? (
             <optgroup label="Income / My categories">
-              {incomeOptions.personal.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
+              {incomeOptions.personal.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.label}
+                </option>
+              ))}
             </optgroup>
           ) : null}
           {incomeOptions.shared.length > 0 ? (
             <optgroup label="Income / Shared categories">
-              {incomeOptions.shared.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
+              {incomeOptions.shared.map((item) => (
+                <option key={item.id} value={item.id} disabled={sharedDisabled}>
+                  {item.label}
+                </option>
+              ))}
             </optgroup>
           ) : null}
         </>
@@ -58,12 +69,20 @@ export function DashboardAdvancedFilters(props: DashboardAdvancedFiltersProps) {
         <>
           {expenseOptions.personal.length > 0 ? (
             <optgroup label="Expense / My categories">
-              {expenseOptions.personal.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
+              {expenseOptions.personal.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.label}
+                </option>
+              ))}
             </optgroup>
           ) : null}
           {expenseOptions.shared.length > 0 ? (
             <optgroup label="Expense / Shared categories">
-              {expenseOptions.shared.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
+              {expenseOptions.shared.map((item) => (
+                <option key={item.id} value={item.id} disabled={sharedDisabled}>
+                  {item.label}
+                </option>
+              ))}
             </optgroup>
           ) : null}
         </>
@@ -74,22 +93,38 @@ export function DashboardAdvancedFilters(props: DashboardAdvancedFiltersProps) {
       <>
         {expenseOptions.personal.length > 0 ? (
           <optgroup label="Expense / My categories">
-            {expenseOptions.personal.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
+            {expenseOptions.personal.map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.label}
+              </option>
+            ))}
           </optgroup>
         ) : null}
         {expenseOptions.shared.length > 0 ? (
           <optgroup label="Expense / Shared categories">
-            {expenseOptions.shared.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
+            {expenseOptions.shared.map((item) => (
+              <option key={item.id} value={item.id} disabled={sharedDisabled}>
+                {item.label}
+              </option>
+            ))}
           </optgroup>
         ) : null}
         {incomeOptions.personal.length > 0 ? (
           <optgroup label="Income / My categories">
-            {incomeOptions.personal.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
+            {incomeOptions.personal.map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.label}
+              </option>
+            ))}
           </optgroup>
         ) : null}
         {incomeOptions.shared.length > 0 ? (
           <optgroup label="Income / Shared categories">
-            {incomeOptions.shared.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
+            {incomeOptions.shared.map((item) => (
+              <option key={item.id} value={item.id} disabled={sharedDisabled}>
+                {item.label}
+              </option>
+            ))}
           </optgroup>
         ) : null}
       </>
@@ -126,13 +161,11 @@ export function DashboardAdvancedFilters(props: DashboardAdvancedFiltersProps) {
           <label className="space-y-1 text-sm">
             <span className="field-label">Actor</span>
             <SelectField value={props.actor} onChange={(event) => props.onActorChange(event.target.value as DashboardActor)}>
-              {dashboardActors.map((item) =>
-                item === "PARTNER" && !props.hasActivePartnerConnection ? null : (
-                  <option key={item} value={item}>
-                    {item === "EVERYONE" ? "Everyone" : item === "ME" ? "Me" : "Partner"}
-                  </option>
-                )
-              )}
+              {dashboardActors.map((item) => (
+                <option key={item} value={item} disabled={item === "PARTNER" && !props.hasActivePartnerConnection}>
+                  {item === "EVERYONE" ? "Everyone" : item === "ME" ? "Me" : "Partner"}
+                </option>
+              ))}
             </SelectField>
           </label>
         </div>
