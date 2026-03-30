@@ -10,7 +10,8 @@ export const apiEnvSchema = sharedSchema.extend({
   API_JWT_SECRET: z.string().trim().min(24),
   TELEGRAM_BOT_TOKEN: z.string().trim().min(10),
   BOT_SHARED_SECRET: z.string().trim().min(16),
-  CORS_ORIGIN: z.string().trim().default("http://localhost:3000")
+  CORS_ORIGIN: z.string().trim().default("http://localhost:3000"),
+  OPENAI_API_KEY: z.string().trim().min(1).optional()
 });
 
 export const webEnvSchema = z.object({

@@ -413,6 +413,10 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
       return;
     }
 
+    if (categoryName.trim().length > 0) {
+      return;
+    }
+
     const preferredCategoryId = kind === "INCOME" ? categoryCatalog.preferences.defaultIncomeCategoryId : categoryCatalog.preferences.defaultExpenseCategoryId;
     if (!preferredCategoryId) {
       return;
@@ -430,7 +434,7 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
 
       return preferredCategoryId;
     });
-  }, [categoryCatalog, kind]);
+  }, [categoryCatalog, categoryName, kind]);
 
   const onThemeChange = async (theme: ThemeMode) => {
     if (!token) {

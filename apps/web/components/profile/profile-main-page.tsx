@@ -54,6 +54,7 @@ export function ProfileMainPage() {
       <ProfileMetrics summary={workspace.summary} hasPartnerConnection={workspace.profile.hasPartnerConnection} />
 
       <TransactionEntry
+        token={workspace.token}
         workspaceName={workspace.profile.activeCouple?.name ?? "Personal workspace"}
         kind={workspace.kind}
         setKind={workspace.setKind}
@@ -64,6 +65,8 @@ export function ProfileMainPage() {
         categoryCatalog={workspace.categoryCatalog}
         selectedCategoryId={workspace.selectedCategoryId}
         setSelectedCategoryId={workspace.setSelectedCategoryId}
+        categoryName={workspace.categoryName}
+        setCategoryName={workspace.setCategoryName}
         note={workspace.note}
         setNote={workspace.setNote}
         txMessage={workspace.txMessage}

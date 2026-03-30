@@ -1240,9 +1240,39 @@ html[data-theme="dark"] .field-control {
   box-shadow: 0 12px 28px color-mix(in srgb, var(--sage) 16%, transparent);
 }
 
+.voice-recorder-meter {
+  display: inline-flex;
+  align-items: end;
+  gap: 2px;
+  width: 20px;
+  height: 14px;
+}
+
+.voice-recorder-meter span {
+  width: 3px;
+  height: 100%;
+  border-radius: 999px;
+  background: currentColor;
+  transform-origin: center bottom;
+  animation: voiceRecorderMeter 900ms ease-in-out infinite;
+}
+
+.voice-recorder-meter span:nth-child(2) {
+  animation-delay: 120ms;
+}
+
+.voice-recorder-meter span:nth-child(3) {
+  animation-delay: 240ms;
+}
+
 @keyframes fadeUp {
   from { opacity: 0; transform: translateY(30px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes voiceRecorderMeter {
+  0%, 100% { transform: scaleY(0.45); opacity: 0.55; }
+  50% { transform: scaleY(1); opacity: 1; }
 }
 
 @keyframes fadeIn {

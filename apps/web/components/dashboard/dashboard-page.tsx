@@ -98,15 +98,15 @@ export function DashboardPage() {
         </Card>
       ) : null}
 
-      <section className="mb-6 flex flex-wrap items-end gap-3">
-      <DashboardViewSelect
-        value={effectiveViewMode}
-        options={workspace.data.availableViews}
-        disabledOptions={hasPartnerConnection ? [] : ["COUPLE"]}
-        onChange={(value) => {
-          workspace.setViewMode(value);
-          workspace.setPage(1);
-        }}
+      <section className="mb-6 grid gap-3 lg:grid-cols-[minmax(0,220px)_minmax(0,180px)_minmax(0,1fr)] lg:items-end">
+        <DashboardViewSelect
+          value={effectiveViewMode}
+          options={workspace.data.availableViews}
+          disabledOptions={hasPartnerConnection ? [] : ["COUPLE"]}
+          onChange={(value) => {
+            workspace.setViewMode(value);
+            workspace.setPage(1);
+          }}
         />
         <label className="space-y-1 text-sm">
           <span className="field-label">Display currency</span>
@@ -123,7 +123,7 @@ export function DashboardPage() {
           </SelectField>
         </label>
         <DashboardSearchField
-          className="min-w-[240px] flex-1"
+          className="w-full min-w-0"
           value={workspace.searchDraft}
           onChange={(value) => {
             workspace.setSearchDraft(value);

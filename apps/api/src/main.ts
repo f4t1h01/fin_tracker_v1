@@ -5,6 +5,7 @@ import { NestFactory } from "@nestjs/core";
 import { FastifyAdapter, NestFastifyApplication } from "@nestjs/platform-fastify";
 import { parseApiEnv } from "@repo/config";
 
+import { VOICE_UPLOAD_FILE_SIZE_LIMIT_BYTES } from "./modules/profile/voice/voice.constants";
 import { AppModule } from "./modules/app.module";
 
 async function bootstrap() {
@@ -24,6 +25,13 @@ async function bootstrap() {
   await app.register(corsPlugin, {
     origin: env.CORS_ORIGIN,
     credentials: true
+  });
+
+  const multipartPlugin = (await import("@fastify/multipart")).default as never;
+  await app.register(multipartPlugin, {
+    limits: {
+      fileSize: VOICE_UPLOAD_FILE_SIZE_LIMIT_BYTES
+    }
   });
 
   await app.listen({
