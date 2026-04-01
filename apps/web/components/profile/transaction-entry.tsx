@@ -1,3 +1,5 @@
+import { useState } from "react";
+
 import { PlusCircle } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -9,6 +11,7 @@ import { cn } from "@/lib/cn";
 import { buildCategoryOptions } from "./category-options";
 import { VoiceEntryPanel } from "./voice-entry/voice-entry-panel";
 import { supportedCurrencies, type CategoryCatalogResponse, type SupportedCurrency } from "./types";
+import type { VoiceDraftStage } from "./voice-entry/types";
 
 type TransactionEntryProps = {
   token: string;
@@ -35,6 +38,8 @@ type TransactionEntryProps = {
 export function TransactionEntry(props: TransactionEntryProps) {
   const options = buildCategoryOptions(props.categoryCatalog, props.kind);
   const hasCategoryNameFallback = props.categoryName.trim().length > 0;
+  const [voiceStage, setVoiceStage] = useState<VoiceDraftStage>("idle");
+  const isVoiceBackdropVisible = voiceStage === "recording" || voiceStage === "processing" || voiceStage === "transcribing" || voiceStage === "parsing";
   const applyVoiceDraft = (draft: {
     draft: {
       kind: "EXPENSE" | "INCOME" | null;
@@ -76,11 +81,15 @@ export function TransactionEntry(props: TransactionEntryProps) {
         <CardTitle className="flex items-center gap-2"><PlusCircle className="size-5 text-pop" />Add income or expense</CardTitle>
         <CardDescription>Transactions are saved to your active couple workspace: {props.workspaceName}</CardDescription>
       </CardHeader>
-      <CardContent>
-        <div className="mb-5">
-          <VoiceEntryPanel token={props.token} workspaceName={props.workspaceName} onDraftResolved={applyVoiceDraft} />
-        </div>
-        <form className="space-y-3" onSubmit={props.onSubmit}>
+      <CardContent className="relative">
+        <div
+          aria-hidden="true"
+          className={cn(
+            "pointer-events-none absolute inset-4 rounded-[28px] bg-[rgba(250,247,242,0.06)] backdrop-blur-sm transition-opacity duration-200 dark:bg-[rgba(18,16,14,0.18)]",
+            isVoiceBackdropVisible ? "opacity-100" : "opacity-0"
+          )}
+        />
+        <form className="relative z-10 space-y-4" onSubmit={props.onSubmit}>
           <div className="grid grid-cols-1 gap-3 md:grid-cols-6">
             <div className="space-y-1 text-sm md:col-span-6">
               <span className="field-label">Type</span>
@@ -144,7 +153,18 @@ export function TransactionEntry(props: TransactionEntryProps) {
             </label>
           </div>
           <label className="space-y-1 text-sm"><span className="field-label">Note (optional)</span><TextField value={props.note} onChange={(event) => props.setNote(event.target.value)} placeholder="short context" /></label>
-          <div className="flex flex-wrap items-center gap-3"><Button type="submit" disabled={props.isSubmittingTx} pending={props.isSubmittingTx} pendingText="Saving...">Save transaction</Button>{props.txMessage ? <p className="status-success text-sm">{props.txMessage}</p> : null}{props.txError ? <p className="status-error text-sm">{props.txError}</p> : null}</div>
+          <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+            <VoiceEntryPanel
+              token={props.token}
+              onDraftResolved={applyVoiceDraft}
+              onStageChange={setVoiceStage}
+            />
+            <div className="flex flex-wrap items-center gap-3 lg:justify-end">
+              <Button type="submit" disabled={props.isSubmittingTx} pending={props.isSubmittingTx} pendingText="Saving...">Save transaction</Button>
+              {props.txMessage ? <p className="status-success text-sm">{props.txMessage}</p> : null}
+              {props.txError ? <p className="status-error text-sm">{props.txError}</p> : null}
+            </div>
+          </div>
         </form>
       </CardContent>
     </Card>
