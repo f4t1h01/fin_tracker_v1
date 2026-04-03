@@ -7,11 +7,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { PageHeaderActions } from "@/components/ui/page-header-actions";
 
+import { AiFeaturesPanel } from "./ai-features-panel";
 import { ProfileAuthGateway } from "./profile-auth-gateway";
 import { ProfileLoadingState } from "./profile-loading-state";
 import { ProfileMetrics } from "./profile-metrics";
 import { RecentTransactions } from "./recent-transactions";
 import { TransactionEntry } from "./transaction-entry";
+import type { VoiceTransactionDraftResponse } from "./voice-entry/types";
 import { useProfileWorkspace } from "./use-profile-workspace";
 
 export function ProfileMainPage() {
@@ -31,6 +33,32 @@ export function ProfileMainPage() {
   if (!workspace.profile || !workspace.authMe) {
     return <ProfileLoadingState title="Loading your workspace" description={workspace.authError ?? "Fetching profile, balances, and recent activity..."} />;
   }
+
+  const applyVoiceDraft = (draft: VoiceTransactionDraftResponse) => {
+    if (draft.draft.kind) {
+      workspace.setKind(draft.draft.kind);
+    }
+
+    if (typeof draft.draft.amount === "number") {
+      workspace.setAmount(String(draft.draft.amount));
+    }
+
+    if (draft.draft.currency) {
+      workspace.setCurrency(draft.draft.currency);
+    }
+
+    if (draft.draft.categoryId) {
+      workspace.setSelectedCategoryId(draft.draft.categoryId);
+      workspace.setCategoryName("");
+    } else if (draft.draft.categoryNameCandidate) {
+      workspace.setSelectedCategoryId("");
+      workspace.setCategoryName(draft.draft.categoryNameCandidate);
+    }
+
+    if (draft.draft.note !== null) {
+      workspace.setNote(draft.draft.note);
+    }
+  };
 
   return (
     <main className="container-shell pb-16 pt-28">
@@ -52,6 +80,8 @@ export function ProfileMainPage() {
       {workspace.authError ? <Card className="mb-6 border-red-300/20 bg-red-500/10 dark:border-red-400/30 dark:bg-red-500/10"><CardContent className="pt-6"><p className="status-error text-sm">{workspace.authError}</p></CardContent></Card> : null}
 
       <ProfileMetrics summary={workspace.summary} hasPartnerConnection={workspace.profile.hasPartnerConnection} />
+
+      <AiFeaturesPanel token={workspace.token} onDraftResolved={applyVoiceDraft} />
 
       <TransactionEntry
         token={workspace.token}

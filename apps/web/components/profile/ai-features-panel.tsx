@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 
 import { ImagePlus, Mic, Sparkles, X } from "lucide-react";
 
@@ -49,19 +49,6 @@ export function AiFeaturesPanel(props: AiFeaturesPanelProps) {
     refs: [dialogRef]
   });
 
-  useEffect(() => {
-    if (!isOpen) {
-      return;
-    }
-
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-
-    return () => {
-      document.body.style.overflow = previousOverflow;
-    };
-  }, [isOpen]);
-
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-3">
@@ -88,7 +75,7 @@ export function AiFeaturesPanel(props: AiFeaturesPanelProps) {
             <div className="space-y-1">
               <p className="field-label">AI draft summary</p>
               <p className="body-muted text-sm">
-                These AI details are read-only. Edit the transaction fields above if you want to change kind, amount,
+                These AI details are read-only. Edit the transaction fields below if you want to change kind, amount,
                 category, or note before saving.
               </p>
             </div>
@@ -110,7 +97,7 @@ export function AiFeaturesPanel(props: AiFeaturesPanelProps) {
 
       {isOpen ? (
         <div className="fixed inset-0 z-[130]">
-          <div className="absolute inset-0 bg-[rgba(19,16,13,0.38)] backdrop-blur-xl" />
+          <div className="absolute inset-0 bg-transparent backdrop-blur-[22px]" />
 
           <div className="relative flex min-h-screen items-center justify-center px-4 py-8">
             <div
@@ -118,7 +105,7 @@ export function AiFeaturesPanel(props: AiFeaturesPanelProps) {
               role="dialog"
               aria-modal="true"
               aria-label="AI features"
-              className="panel-soft w-full max-w-xl rounded-[28px] border border-[rgba(201,168,76,0.18)] p-5 shadow-[0_28px_80px_rgba(26,20,16,0.24)]"
+              className="panel-soft w-full max-w-xl rounded-[28px] border border-[rgba(201,168,76,0.12)] p-5 shadow-[0_24px_56px_rgba(26,20,16,0.14)]"
             >
               <div className="flex items-start justify-between gap-4">
                 <div className="space-y-2">

@@ -1,6 +1,5 @@
 import { PlusCircle } from "lucide-react";
 
-import { AiFeaturesPanel } from "@/components/profile/ai-features-panel";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { SelectField } from "@/components/ui/select-field";
@@ -35,40 +34,6 @@ type TransactionEntryProps = {
 export function TransactionEntry(props: TransactionEntryProps) {
   const options = buildCategoryOptions(props.categoryCatalog, props.kind);
   const hasCategoryNameFallback = props.categoryName.trim().length > 0;
-  const applyVoiceDraft = (draft: {
-    draft: {
-      kind: "EXPENSE" | "INCOME" | null;
-      amount: number | null;
-      currency: SupportedCurrency | null;
-      categoryId: string | null;
-      categoryNameCandidate: string | null;
-      note: string | null;
-    };
-  }) => {
-    if (draft.draft.kind) {
-      props.setKind(draft.draft.kind);
-    }
-
-    if (typeof draft.draft.amount === "number") {
-      props.setAmount(String(draft.draft.amount));
-    }
-
-    if (draft.draft.currency) {
-      props.setCurrency(draft.draft.currency);
-    }
-
-    if (draft.draft.categoryId) {
-      props.setSelectedCategoryId(draft.draft.categoryId);
-      props.setCategoryName("");
-    } else if (draft.draft.categoryNameCandidate) {
-      props.setSelectedCategoryId("");
-      props.setCategoryName(draft.draft.categoryNameCandidate);
-    }
-
-    if (draft.draft.note !== null) {
-      props.setNote(draft.draft.note);
-    }
-  };
 
   return (
     <Card className="panel-soft">
@@ -141,16 +106,10 @@ export function TransactionEntry(props: TransactionEntryProps) {
             </label>
           </div>
           <label className="space-y-1 text-sm"><span className="field-label">Note (optional)</span><TextField value={props.note} onChange={(event) => props.setNote(event.target.value)} placeholder="short context" /></label>
-          <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-start">
-            <AiFeaturesPanel
-              token={props.token}
-              onDraftResolved={applyVoiceDraft}
-            />
-            <div className="flex flex-wrap items-center gap-3 xl:justify-end">
-              <Button type="submit" disabled={props.isSubmittingTx} pending={props.isSubmittingTx} pendingText="Saving...">Save transaction</Button>
-              {props.txMessage ? <p className="status-success text-sm">{props.txMessage}</p> : null}
-              {props.txError ? <p className="status-error text-sm">{props.txError}</p> : null}
-            </div>
+          <div className="flex flex-wrap items-center gap-3 justify-end">
+            <Button type="submit" disabled={props.isSubmittingTx} pending={props.isSubmittingTx} pendingText="Saving...">Save transaction</Button>
+            {props.txMessage ? <p className="status-success text-sm">{props.txMessage}</p> : null}
+            {props.txError ? <p className="status-error text-sm">{props.txError}</p> : null}
           </div>
         </form>
       </CardContent>
