@@ -15,6 +15,7 @@ type VoiceStatusProps = {
   draft: VoiceTransactionDraftResponse | null;
   error: string | null;
   onClearDraft: () => void;
+  title?: string;
 };
 
 function formatConfidence(value: number) {
@@ -35,7 +36,7 @@ export function VoiceStatus(props: VoiceStatusProps) {
     >
       <div className="flex items-start justify-between gap-3">
         <div className="space-y-1">
-          <p className="field-label">Voice status</p>
+          <p className="field-label">{props.title ?? "Voice status"}</p>
           <p className={cn("text-sm", props.stage === "error" ? "status-error" : "body-muted")}>
             {props.stage === "recording" ? `Recording ${String(props.recordingSeconds).padStart(2, "0")}s` : props.stageLabel}
           </p>
@@ -118,10 +119,10 @@ export function VoiceStatus(props: VoiceStatusProps) {
       ) : props.stage === "recording" ? (
         <div className="detail-box flex items-center gap-2 px-3 py-3 text-sm text-[var(--ink-soft)]">
           <LoaderCircle className="size-4 animate-spin text-pop" />
-          <span>The voice recorder is active. Speak naturally and keep one transaction per note. Keep recording for at least {VOICE_RECORDING_MIN_SECONDS} seconds.</span>
+          <span>The voice recorder is active. Speak naturally, keep one transaction per note, and record for at least {VOICE_RECORDING_MIN_SECONDS} seconds.</span>
         </div>
       ) : (
-        <p className="body-muted text-sm">Press the button above to record a short voice note. Keep it at least {VOICE_RECORDING_MIN_SECONDS} seconds so it is processed. The form below stays editable until you save.</p>
+        <p className="body-muted text-sm">Use the record button in this panel to capture one short voice note. Keep it at least {VOICE_RECORDING_MIN_SECONDS} seconds so it can be processed. The transaction form stays editable after AI fills it.</p>
       )}
 
       {!props.draft && !props.error && props.stage !== "recording" ? (
