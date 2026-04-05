@@ -828,7 +828,7 @@ html[data-theme="dark"] .floating-card {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 18px;
+  gap: 16px;
 }
 
 .avatar-circle {
@@ -855,20 +855,25 @@ html[data-theme="dark"] .floating-card {
 
 .code-bridge {
   display: flex;
-  min-width: 168px;
+  min-width: 156px;
   flex-direction: column;
   align-items: center;
   gap: 8px;
 }
 
 .code-box {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border-radius: 14px;
   border: 1px dashed rgba(201, 168, 76, 0.5);
-  padding: 14px 18px;
+  padding: 12px 16px;
   font-family: var(--font-heading), serif;
-  font-size: 22px;
-  letter-spacing: 0.3em;
+  font-size: 20px;
+  letter-spacing: 0.2em;
   color: var(--gold);
+  line-height: 1;
+  white-space: nowrap;
   animation: codePulse 2s ease-in-out infinite;
 }
 
@@ -1408,6 +1413,33 @@ html[data-theme="dark"] .field-control {
   .hero-visual,
   .cursor-orbit {
     display: none;
+  }
+
+  .connect-card {
+    gap: 20px;
+    padding: 32px 16px;
+  }
+
+  .connect-visual {
+    gap: 12px;
+  }
+
+  .avatar-circle {
+    width: 56px;
+    height: 56px;
+    font-size: 18px;
+  }
+
+  .code-bridge {
+    min-width: 0;
+    flex: 1 1 auto;
+    gap: 4px;
+  }
+
+  .code-box {
+    padding: 10px 12px;
+    font-size: 17px;
+    letter-spacing: 0.16em;
   }
 
   .feature-grid,
