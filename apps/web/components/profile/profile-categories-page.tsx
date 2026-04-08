@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 
 import { BrandMark } from "@/components/marketing/brand-mark";
-import { RouteActionStrip } from "@/components/navigation/route-action-strip";
+import { WorkspaceHeaderMenu } from "@/components/navigation/workspace-header-menu";
 import { useRouteTransitionPageReady } from "@/components/navigation/route-transition-provider";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -45,12 +45,7 @@ export function ProfileCategoriesPage() {
             <h1 className="mt-5 font-[family-name:var(--font-heading)] text-[clamp(38px,4vw,56px)] font-light leading-[1.08]">Category management</h1>
           </div>
         </div>
-        <RouteActionStrip
-          actions={[
-            { href: "/profile/me", label: "Transactions" },
-            { href: "/profile/me/manage", label: "Profile management" }
-          ]}
-        />
+        <WorkspaceHeaderMenu onThemeChange={workspace.onThemeChange} />
       </header>
 
       {workspace.authError ? (

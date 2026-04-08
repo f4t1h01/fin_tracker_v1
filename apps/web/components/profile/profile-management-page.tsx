@@ -3,9 +3,8 @@
 import { useEffect } from "react";
 
 import { BrandMark } from "@/components/marketing/brand-mark";
-import { RouteActionStrip } from "@/components/navigation/route-action-strip";
+import { WorkspaceHeaderMenu } from "@/components/navigation/workspace-header-menu";
 import { useRouteTransitionPageReady } from "@/components/navigation/route-transition-provider";
-import { ThemeToggle } from "@/components/theme-toggle";
 import { Card, CardContent } from "@/components/ui/card";
 
 import { AnalyticsPreferencesCard } from "./management/analytics-preferences-card";
@@ -50,14 +49,7 @@ export function ProfileManagementPage() {
             <h1 className="mt-5 font-[family-name:var(--font-heading)] text-[clamp(38px,4vw,56px)] font-light leading-[1.08]">{workspace.greeting}</h1>
           </div>
         </div>
-        <RouteActionStrip
-          actions={[
-            { href: "/profile/me", label: "Transactions" },
-            { href: "/profile/me/categories", label: "Categories" }
-          ]}
-        >
-          <ThemeToggle onChange={(theme) => void workspace.onThemeChange(theme)} />
-        </RouteActionStrip>
+        <WorkspaceHeaderMenu onThemeChange={workspace.onThemeChange} />
       </header>
 
       {workspace.authError ? (

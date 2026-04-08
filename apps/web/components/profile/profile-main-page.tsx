@@ -1,7 +1,7 @@
 "use client";
 
 import { BrandMark } from "@/components/marketing/brand-mark";
-import { RouteActionStrip } from "@/components/navigation/route-action-strip";
+import { WorkspaceHeaderMenu } from "@/components/navigation/workspace-header-menu";
 import { useRouteTransitionPageReady } from "@/components/navigation/route-transition-provider";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -66,13 +66,7 @@ export function ProfileMainPage() {
             <h1 className="mt-5 font-[family-name:var(--font-heading)] text-[clamp(38px,4vw,56px)] font-light leading-[1.08]">{workspace.greeting}</h1>
           </div>
         </div>
-        <RouteActionStrip
-          actions={[
-            { href: "/dashboard", label: "Dashboard" },
-            { href: "/profile/me/manage", label: "Profile management" },
-            { href: "/profile/me/categories", label: "Categories" }
-          ]}
-        />
+        <WorkspaceHeaderMenu onThemeChange={workspace.onThemeChange} />
       </header>
 
       {workspace.authError ? (
@@ -84,8 +78,6 @@ export function ProfileMainPage() {
       ) : null}
 
       <ProfileMetrics summary={workspace.summary} hasPartnerConnection={workspace.profile.hasPartnerConnection} />
-
-      <AiFeaturesPanel token={workspace.token} onDraftResolved={applyVoiceDraft} />
 
       <TransactionEntry
         workspaceName={workspace.profile.activeCouple?.name ?? "Personal workspace"}
@@ -118,6 +110,10 @@ export function ProfileMainPage() {
         onSaveEdit={workspace.onSaveEdit}
         onDeleteTransaction={workspace.onDeleteTransaction}
       />
+
+      <div className="mt-8">
+        <AiFeaturesPanel token={workspace.token} onDraftResolved={applyVoiceDraft} />
+      </div>
     </main>
   );
 }

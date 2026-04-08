@@ -54,15 +54,15 @@ export function AiFeaturesPanel(props: AiFeaturesPanelProps) {
       <div className="flex justify-center">
         <Button
           type="button"
-          variant="default"
-          className="min-h-14 rounded-full px-7 py-4 text-[14px] font-semibold tracking-[0.14em]"
+          variant="outline"
+          className="!rounded-full border-[rgba(201,168,76,0.28)] bg-[color-mix(in_srgb,var(--warm-white)_82%,transparent)] px-4 py-3 text-[12px] font-semibold tracking-[0.14em]"
           onClick={() => {
             setIsOpen(true);
             setActiveFeature("menu");
           }}
         >
-          <Sparkles className="size-5" />
-          AI tools
+          <Sparkles className="size-4" />
+          AI Features
         </Button>
       </div>
 

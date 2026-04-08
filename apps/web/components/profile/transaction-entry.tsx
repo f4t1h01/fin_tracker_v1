@@ -112,12 +112,6 @@ export function TransactionEntry(props: TransactionEntryProps) {
                 ) : null}
               </SelectField>
             </label>
-
-            <div className="flex items-end md:col-span-2">
-              <Button type="button" variant="outline" asChild className="w-full">
-                <AppLink href="/profile/me/categories">Manage categories</AppLink>
-              </Button>
-            </div>
           </div>
 
           <label className="space-y-1 text-sm">
@@ -125,18 +119,26 @@ export function TransactionEntry(props: TransactionEntryProps) {
             <TextField value={props.note} onChange={(event) => props.setNote(event.target.value)} placeholder="short context" />
           </label>
 
-          <div className="flex flex-col items-center gap-3 pt-2 text-center">
-            <Button
-              type="submit"
-              disabled={props.isSubmittingTx}
-              pending={props.isSubmittingTx}
-              pendingText="Saving..."
-              className="min-h-12 min-w-[220px] px-6 py-4 text-[14px] font-semibold uppercase tracking-[0.14em]"
-            >
-              Save transaction
-            </Button>
-            {props.txMessage ? <p className="status-success text-sm">{props.txMessage}</p> : null}
-            {props.txError ? <p className="status-error text-sm">{props.txError}</p> : null}
+          <div className="space-y-3 pt-3">
+            <p className="body-muted text-center text-sm md:text-left">Press if you didn't find a relevant category.</p>
+            <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-center">
+              <Button type="button" variant="outline" asChild className="w-full md:w-auto md:min-w-[220px]">
+                <AppLink href="/profile/me/categories">Manage categories</AppLink>
+              </Button>
+              <Button
+                type="submit"
+                disabled={props.isSubmittingTx}
+                pending={props.isSubmittingTx}
+                pendingText="Saving..."
+                className="min-h-12 w-full px-6 py-4 text-[14px] font-semibold uppercase tracking-[0.14em] md:w-auto md:min-w-[220px]"
+              >
+                Save transaction
+              </Button>
+            </div>
+            <div className="text-center">
+              {props.txMessage ? <p className="status-success text-sm">{props.txMessage}</p> : null}
+              {props.txError ? <p className="status-error text-sm">{props.txError}</p> : null}
+            </div>
           </div>
         </form>
       </CardContent>

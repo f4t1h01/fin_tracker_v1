@@ -14,7 +14,7 @@ const buttonVariants = cva(
         default:
           "primary-button [&>span]:relative [&>span]:z-[1]",
         outline:
-          "rounded-[2px] border border-[rgba(201,168,76,0.2)] bg-transparent px-5 py-3 text-[13px] uppercase tracking-[0.1em] text-[var(--ink-soft)] hover:-translate-y-0.5 hover:border-[var(--gold)] hover:text-[var(--ink)]",
+          "rounded-[12px] border border-[rgba(201,168,76,0.2)] bg-transparent px-5 py-3 text-[13px] uppercase tracking-[0.1em] text-[var(--ink-soft)] hover:-translate-y-0.5 hover:border-[var(--gold)] hover:text-[var(--ink)]",
         ghost:
           "rounded-[2px] px-3 py-2 text-[13px] uppercase tracking-[0.08em] text-[var(--ink-soft)] hover:text-[var(--ink)]",
         link:

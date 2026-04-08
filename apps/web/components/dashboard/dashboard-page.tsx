@@ -4,7 +4,7 @@ import { useMemo } from "react";
 import { Loader2 } from "lucide-react";
 
 import { BrandMark } from "@/components/marketing/brand-mark";
-import { RouteActionStrip } from "@/components/navigation/route-action-strip";
+import { WorkspaceHeaderMenu } from "@/components/navigation/workspace-header-menu";
 import { useRouteTransitionPageReady } from "@/components/navigation/route-transition-provider";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SelectField } from "@/components/ui/select-field";
@@ -65,13 +65,7 @@ export function DashboardPage() {
             <h1 className="mt-5 font-[family-name:var(--font-heading)] text-[clamp(38px,4vw,56px)] font-light leading-[1.08]">Transactions at a glance.</h1>
           </div>
         </div>
-        <RouteActionStrip
-          actions={[
-            { href: "/dashboard/trends", label: "Trends" },
-            { href: "/profile/me", label: "Transactions" },
-            { href: "/profile/me/manage", label: "Profile management" }
-          ]}
-        />
+        <WorkspaceHeaderMenu />
       </header>
 
       <section className="mb-6 grid gap-3 lg:grid-cols-[minmax(0,220px)_minmax(0,180px)_minmax(0,1fr)] lg:items-end">
