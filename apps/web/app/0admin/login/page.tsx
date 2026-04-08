@@ -92,14 +92,13 @@ export default function AdminLoginPage() {
         <div>
           <p className="eyebrow-row">Admin access</p>
           <h1 className="mt-5 font-[family-name:var(--font-heading)] text-[clamp(34px,4vw,52px)] font-light leading-[1.08]">Sign in to the operations workspace.</h1>
-          <p className="body-muted mt-3 max-w-2xl text-sm">This area is separate from member login and uses the dedicated admin account.</p>
         </div>
       </header>
 
       <Card className="panel-soft mx-auto w-full max-w-xl">
         <CardHeader>
           <CardTitle>Admin login</CardTitle>
-          <CardDescription>Use the dedicated admin email and password.</CardDescription>
+          <CardDescription>Use the admin account.</CardDescription>
         </CardHeader>
         <CardContent>
           <form className="space-y-3" onSubmit={onSubmit}>

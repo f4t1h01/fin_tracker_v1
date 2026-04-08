@@ -4,11 +4,9 @@ import { useMemo } from "react";
 import { Loader2 } from "lucide-react";
 
 import { BrandMark } from "@/components/marketing/brand-mark";
-import { AppLink } from "@/components/navigation/app-link";
+import { RouteActionStrip } from "@/components/navigation/route-action-strip";
 import { useRouteTransitionPageReady } from "@/components/navigation/route-transition-provider";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { PageHeaderActions } from "@/components/ui/page-header-actions";
 import { SelectField } from "@/components/ui/select-field";
 
 import { DashboardMetrics } from "./dashboard-metrics";
@@ -28,16 +26,7 @@ export function DashboardPage() {
 
   useRouteTransitionPageReady(isPageReady);
 
-  const metricsHeading = useMemo(() => (effectiveViewMode === "PERSONAL" ? "Personal lens" : "Shared lens"), [effectiveViewMode]);
-  const metricsDescription = useMemo(
-    () =>
-      effectiveViewMode === "PERSONAL"
-        ? hasPartnerConnection
-          ? "See only your own income, expenses, and balance inside the selected range."
-          : "No partner is linked, so this dashboard shows personal totals only."
-        : "See the combined workspace totals inside the selected range.",
-    [effectiveViewMode, hasPartnerConnection]
-  );
+  const metricsHeading = useMemo(() => (effectiveViewMode === "PERSONAL" ? "Personal view" : "Shared view"), [effectiveViewMode]);
 
   if (!workspace.data && !workspace.error) {
     return (
@@ -74,29 +63,16 @@ export function DashboardPage() {
           <div>
             <p className="eyebrow-row">Dashboard</p>
             <h1 className="mt-5 font-[family-name:var(--font-heading)] text-[clamp(38px,4vw,56px)] font-light leading-[1.08]">Transactions at a glance.</h1>
-            <p className="body-muted mt-3 text-sm">
-              Workspace: {workspace.workspaceName} · Active range: {workspace.data.filter.label}
-            </p>
           </div>
         </div>
-        <PageHeaderActions>
-          {workspace.isRefreshing ? <span className="body-muted text-xs uppercase tracking-[0.16em]">Refreshing</span> : null}
-          <Button variant="outline" asChild>
-            <AppLink href="/dashboard/trends">Open trends</AppLink>
-          </Button>
-          <Button variant="outline" asChild>
-            <AppLink href="/profile/me">Back to profile</AppLink>
-          </Button>
-        </PageHeaderActions>
+        <RouteActionStrip
+          actions={[
+            { href: "/dashboard/trends", label: "Trends" },
+            { href: "/profile/me", label: "Transactions" },
+            { href: "/profile/me/manage", label: "Profile management" }
+          ]}
+        />
       </header>
-
-      {!hasPartnerConnection ? (
-        <Card className="panel-soft mb-6 border-[rgba(201,168,76,0.18)]">
-          <CardContent className="pt-6">
-            <p className="body-muted text-sm">No partner is linked. Dashboard metrics are purely personal until you connect one.</p>
-          </CardContent>
-        </Card>
-      ) : null}
 
       <section className="mb-6 grid gap-3 lg:grid-cols-[minmax(0,220px)_minmax(0,180px)_minmax(0,1fr)] lg:items-end">
         <DashboardViewSelect
@@ -109,7 +85,7 @@ export function DashboardPage() {
           }}
         />
         <label className="space-y-1 text-sm">
-          <span className="field-label">Display currency</span>
+          <span className="field-label">Currency</span>
           <SelectField
             value={workspace.displayCurrency}
             onChange={(event) => workspace.setDisplayCurrency(event.target.value as typeof workspace.displayCurrency)}
@@ -175,14 +151,7 @@ export function DashboardPage() {
         }}
       />
 
-      <DashboardMetrics
-        heading={metricsHeading}
-        description={metricsDescription}
-        totalIncome={summary.totalIncome}
-        totalExpense={summary.totalExpense}
-        balance={summary.balance}
-        currency={workspace.displayCurrency}
-      />
+      <DashboardMetrics heading={metricsHeading} totalIncome={summary.totalIncome} totalExpense={summary.totalExpense} balance={summary.balance} currency={workspace.displayCurrency} />
 
       <DashboardRecents
         transactions={workspace.data.transactions}

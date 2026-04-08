@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TextField } from "@/components/ui/text-field";
 
 type PartnerConnectionCardProps = {
@@ -22,7 +22,7 @@ export function PartnerConnectionCard(props: PartnerConnectionCardProps) {
 
   return (
     <Card className="panel-soft">
-      <CardHeader><CardTitle>Partner connection</CardTitle><CardDescription>Review or update your current couple connection.</CardDescription></CardHeader>
+      <CardHeader><CardTitle>Partner connection</CardTitle></CardHeader>
       <CardContent>
         <form className="space-y-3" onSubmit={props.onBind}>
           <div className="detail-box text-sm">
@@ -44,7 +44,6 @@ export function PartnerConnectionCard(props: PartnerConnectionCardProps) {
             {props.bindMessage ? <p className="status-success text-sm">{props.bindMessage}</p> : null}
             {props.bindError ? <p className="status-error text-sm">{props.bindError}</p> : null}
           </div>
-          {canUnlink ? <p className="body-muted text-sm">Removing a partner stops future shared work and returns you to a personal workspace. Existing shared history stays preserved.</p> : null}
         </form>
       </CardContent>
     </Card>

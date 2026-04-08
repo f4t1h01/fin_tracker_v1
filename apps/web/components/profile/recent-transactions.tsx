@@ -19,8 +19,7 @@ type RecentTransactionsProps = {
 export function RecentTransactions(props: RecentTransactionsProps) {
   return (
     <TransactionListCard
-      title="Recent activity"
-      description="Latest 20 transactions from your active workspace."
+      title="Recent transactions"
       items={props.recent}
       isLoadingData={props.isLoadingData}
       isDeletingId={props.isDeletingId}

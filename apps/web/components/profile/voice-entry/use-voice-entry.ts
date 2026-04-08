@@ -222,17 +222,17 @@ export function useVoiceEntry(options: UseVoiceEntryOptions) {
       case "recording":
         return `Recording ${String(recordingSeconds).padStart(2, "0")}s / ${VOICE_RECORDING_LIMIT_SECONDS}s`;
       case "processing":
-        return "Preparing voice note...";
+        return "Preparing...";
       case "transcribing":
-        return "Transcribing speech...";
+        return "Transcribing...";
       case "parsing":
-        return "Extracting transaction fields...";
+        return "Reading fields...";
       case "ready":
-        return "Voice draft ready.";
+        return "Ready.";
       case "error":
-        return error ?? "Voice drafting failed.";
+        return error ?? "Draft failed.";
       default:
-        return "Press the button to record a short voice note.";
+        return "Ready to record.";
     }
   }, [error, recordingSeconds, stage]);
 

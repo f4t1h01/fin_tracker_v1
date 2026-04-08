@@ -37,9 +37,7 @@ export function VoiceStatus(props: VoiceStatusProps) {
       <div className="flex items-start justify-between gap-3">
         <div className="space-y-1">
           <p className="field-label">{props.title ?? "Voice status"}</p>
-          <p className={cn("text-sm", props.stage === "error" ? "status-error" : "body-muted")}>
-            {props.stage === "recording" ? `Recording ${String(props.recordingSeconds).padStart(2, "0")}s` : props.stageLabel}
-          </p>
+          <p className={cn("text-sm", props.stage === "error" ? "status-error" : "body-muted")}>{props.stage === "recording" ? `Recording ${String(props.recordingSeconds).padStart(2, "0")}s` : props.stageLabel}</p>
         </div>
         {hasDraft || props.error ? (
           <Button type="button" variant="ghost" onClick={props.onClearDraft}>
@@ -91,7 +89,7 @@ export function VoiceStatus(props: VoiceStatusProps) {
 
           {hasMissingFields ? (
             <div className="detail-box space-y-2 px-3 py-3 text-sm">
-              <p className="body-muted text-xs uppercase tracking-[0.16em]">Missing fields</p>
+              <p className="body-muted text-xs uppercase tracking-[0.16em]">Missing</p>
               <div className="flex flex-wrap gap-2">
                 {props.draft.draft.missingFields.map((field) => (
                   <span key={field} className="rounded-full border border-[rgba(201,168,76,0.16)] bg-[color-mix(in_srgb,var(--gold)_8%,transparent)] px-2.5 py-1 text-xs uppercase tracking-[0.08em] text-[var(--ink-soft)]">
@@ -119,16 +117,16 @@ export function VoiceStatus(props: VoiceStatusProps) {
       ) : props.stage === "recording" ? (
         <div className="detail-box flex items-center gap-2 px-3 py-3 text-sm text-[var(--ink-soft)]">
           <LoaderCircle className="size-4 animate-spin text-pop" />
-          <span>The voice recorder is active. Speak naturally, keep one transaction per note, and record for at least {VOICE_RECORDING_MIN_SECONDS} seconds.</span>
+          <span>Recording. Speak naturally for at least {VOICE_RECORDING_MIN_SECONDS} seconds.</span>
         </div>
       ) : (
-        <p className="body-muted text-sm">Use the record button in this panel to capture one short voice note. Keep it at least {VOICE_RECORDING_MIN_SECONDS} seconds so it can be processed. The transaction form stays editable after AI fills it.</p>
+        <p className="body-muted text-sm">Record one short voice note for one transaction.</p>
       )}
 
       {!props.draft && !props.error && props.stage !== "recording" ? (
         <div className="detail-box flex items-start gap-2 px-3 py-3 text-sm">
           <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-pop" />
-          <p className="body-muted">Voice notes work best when they describe a single income or expense with amount, currency, and category in one sentence.</p>
+          <p className="body-muted">Amount, currency, and category work best together.</p>
         </div>
       ) : null}
     </div>

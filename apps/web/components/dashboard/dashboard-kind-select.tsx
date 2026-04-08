@@ -16,7 +16,7 @@ type DashboardKindSelectProps = {
 export function DashboardKindSelect(props: DashboardKindSelectProps) {
   return (
     <label className="space-y-1 text-sm">
-      <span className="field-label">Transactions</span>
+      <span className="field-label">Kind</span>
       <SelectField value={props.value} onChange={(event) => props.onChange(event.target.value as DashboardKind)} className="min-w-[140px]">
         {dashboardKinds.map((item) => (
           <option key={item} value={item}>

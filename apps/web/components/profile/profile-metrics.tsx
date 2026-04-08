@@ -1,4 +1,4 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 import { type MonthlySummary } from "./types";
 
@@ -28,19 +28,12 @@ export function ProfileMetrics({ summary, hasPartnerConnection }: ProfileMetrics
 
   return (
     <section className="mb-6 space-y-4">
-      <div className="space-y-1">
-        <p className="eyebrow-row">{hasPartnerConnection ? "Couple balances" : "Personal balance"}</p>
-        <p className="body-muted text-sm">
-          {hasPartnerConnection ? "Shared workspace totals are split into your part, your partner's part, and the total couple balance." : "No partner is linked, so these numbers reflect only your personal workspace."}
-        </p>
-        <p className="body-muted text-xs uppercase tracking-[0.16em]">{formatMonthLabel(summary)}</p>
-      </div>
+      <p className="eyebrow-row">{formatMonthLabel(summary)}</p>
       {hasPartnerConnection && summary ? (
         <div className="grid gap-4 md:grid-cols-3">
           <Card className="metric-balance">
             <CardHeader className="pb-2">
               <CardTitle className="text-[22px]">Your balance</CardTitle>
-              <CardDescription>Your personal share in the current month.</CardDescription>
             </CardHeader>
             <CardContent className="pt-0">
               <div className="text-[clamp(28px,2.6vw,38px)] font-semibold">{balanceLabel}</div>
@@ -49,7 +42,6 @@ export function ProfileMetrics({ summary, hasPartnerConnection }: ProfileMetrics
           <Card className="metric-balance">
             <CardHeader className="pb-2">
               <CardTitle className="text-[22px]">Partner balance</CardTitle>
-              <CardDescription>Your partner's share in the current month.</CardDescription>
             </CardHeader>
             <CardContent className="pt-0">
               <div className="text-[clamp(28px,2.6vw,38px)] font-semibold">{partnerBalance !== null ? formatBalance(partnerBalance, summary.currency) : "-"}</div>
@@ -58,25 +50,13 @@ export function ProfileMetrics({ summary, hasPartnerConnection }: ProfileMetrics
           <Card className="metric-balance">
             <CardHeader className="pb-2">
               <CardTitle className="text-[22px]">Total couple balance</CardTitle>
-              <CardDescription>Combined workspace balance for the month.</CardDescription>
             </CardHeader>
             <CardContent className="pt-0">
               <div className="text-[clamp(28px,2.6vw,38px)] font-semibold">{totalBalance !== null ? formatBalance(totalBalance, summary.currency) : "-"}</div>
             </CardContent>
           </Card>
         </div>
-      ) : (
-        <Card className="metric-balance">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-[22px]">Your balance</CardTitle>
-            <CardDescription>Current month snapshot for your personal workspace.</CardDescription>
-          </CardHeader>
-          <CardContent className="pt-0">
-            <div className="text-[clamp(28px,2.6vw,38px)] font-semibold">{balanceLabel}</div>
-            <p className="body-muted mt-2 text-sm">This card stays personal until you connect a partner.</p>
-          </CardContent>
-        </Card>
-      )}
+      ) : null}
     </section>
   );
 }

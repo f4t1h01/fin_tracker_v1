@@ -2,7 +2,7 @@ import { AppLink } from "@/components/navigation/app-link";
 import { BrandMark } from "@/components/marketing/brand-mark";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TextField } from "@/components/ui/text-field";
 
 type ProfileAuthGatewayProps = {
@@ -38,8 +38,7 @@ export function ProfileAuthGateway(props: ProfileAuthGatewayProps) {
           <BrandMark href="/" />
           <div>
             <p className="eyebrow-row">Profile access</p>
-            <h1 className="mt-5 font-[family-name:var(--font-heading)] text-[clamp(38px,4vw,56px)] font-light leading-[1.08]">Sign in or create your account here.</h1>
-            <p className="body-muted mt-3 max-w-2xl text-sm">Use email first in the browser. Telegram can be linked later for chat-based access.</p>
+            <h1 className="mt-5 font-[family-name:var(--font-heading)] text-[clamp(38px,4vw,56px)] font-light leading-[1.08]">Sign in or create your account.</h1>
           </div>
         </div>
         <ThemeToggle />
@@ -56,46 +55,63 @@ export function ProfileAuthGateway(props: ProfileAuthGatewayProps) {
       <section className="grid gap-5 lg:grid-cols-[1.05fr_0.95fr]">
         <Card className="panel-soft">
           <CardHeader>
-            <CardTitle>Sign in with email</CardTitle>
-            <CardDescription>Use this when you already created your Duet website account.</CardDescription>
+            <CardTitle>Sign in</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <form className="space-y-3" onSubmit={props.onSubmitLogin}>
-              <label className="space-y-1 text-sm"><span className="field-label">Email</span><TextField required type="email" value={props.loginEmail} onChange={(event) => props.setLoginEmail(event.target.value)} placeholder="you@example.com" /></label>
-              <label className="space-y-1 text-sm"><span className="field-label">Password</span><TextField required type="password" value={props.loginPassword} onChange={(event) => props.setLoginPassword(event.target.value)} placeholder="Your password" /></label>
+              <label className="space-y-1 text-sm">
+                <span className="field-label">Email</span>
+                <TextField required type="email" value={props.loginEmail} onChange={(event) => props.setLoginEmail(event.target.value)} placeholder="you@example.com" />
+              </label>
+              <label className="space-y-1 text-sm">
+                <span className="field-label">Password</span>
+                <TextField required type="password" value={props.loginPassword} onChange={(event) => props.setLoginPassword(event.target.value)} placeholder="Your password" />
+              </label>
               <div className="flex flex-wrap items-center gap-3">
-                <Button type="submit" disabled={props.isSubmittingLogin} pending={props.isSubmittingLogin} pendingText="Signing in...">Sign in</Button>
+                <Button type="submit" disabled={props.isSubmittingLogin} pending={props.isSubmittingLogin} pendingText="Signing in...">
+                  Sign in
+                </Button>
                 {props.loginMessage ? <p className="status-success text-sm">{props.loginMessage}</p> : null}
                 {props.loginError ? <p className="status-error text-sm">{props.loginError}</p> : null}
               </div>
             </form>
-            {props.showCreateAccountAction ? <p className="body-muted text-sm">Account was not found. Please create it in the browser.</p> : null}
+            {props.showCreateAccountAction ? <p className="body-muted text-sm">Account not found. Create one below.</p> : null}
           </CardContent>
         </Card>
 
         <Card className="panel-soft">
           <CardHeader>
-            <CardTitle>Create account in browser</CardTitle>
-            <CardDescription>Create your Duet account directly on the website.</CardDescription>
+            <CardTitle>Create account</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <form className="space-y-3" onSubmit={props.onCreateAccount}>
-              <label className="space-y-1 text-sm"><span className="field-label">Name (optional)</span><TextField value={props.createFirstName} onChange={(event) => props.setCreateFirstName(event.target.value)} placeholder="Fatih" /></label>
-              <label className="space-y-1 text-sm"><span className="field-label">Email</span><TextField required type="email" value={props.createEmail} onChange={(event) => props.setCreateEmail(event.target.value)} placeholder="you@example.com" /></label>
-              <label className="space-y-1 text-sm"><span className="field-label">Password</span><TextField required type="password" minLength={8} value={props.createPassword} onChange={(event) => props.setCreatePassword(event.target.value)} placeholder="At least 8 characters" /></label>
-              <label className="space-y-1 text-sm"><span className="field-label">Confirm password</span><TextField required type="password" minLength={8} value={props.createConfirmPassword} onChange={(event) => props.setCreateConfirmPassword(event.target.value)} placeholder="Repeat password" /></label>
+              <label className="space-y-1 text-sm">
+                <span className="field-label">Name</span>
+                <TextField value={props.createFirstName} onChange={(event) => props.setCreateFirstName(event.target.value)} placeholder="Fatih" />
+              </label>
+              <label className="space-y-1 text-sm">
+                <span className="field-label">Email</span>
+                <TextField required type="email" value={props.createEmail} onChange={(event) => props.setCreateEmail(event.target.value)} placeholder="you@example.com" />
+              </label>
+              <label className="space-y-1 text-sm">
+                <span className="field-label">Password</span>
+                <TextField required type="password" minLength={8} value={props.createPassword} onChange={(event) => props.setCreatePassword(event.target.value)} placeholder="At least 8 characters" />
+              </label>
+              <label className="space-y-1 text-sm">
+                <span className="field-label">Confirm</span>
+                <TextField required type="password" minLength={8} value={props.createConfirmPassword} onChange={(event) => props.setCreateConfirmPassword(event.target.value)} placeholder="Repeat password" />
+              </label>
               <div className="flex flex-wrap items-center gap-3">
-                <Button type="submit" disabled={props.isCreatingAccount} pending={props.isCreatingAccount} pendingText="Creating...">Create account</Button>
+                <Button type="submit" disabled={props.isCreatingAccount} pending={props.isCreatingAccount} pendingText="Creating...">
+                  Create account
+                </Button>
                 {props.createAccountMessage ? <p className="status-success text-sm">{props.createAccountMessage}</p> : null}
                 {props.createAccountError ? <p className="status-error text-sm">{props.createAccountError}</p> : null}
               </div>
             </form>
-            <div className="detail-box space-y-2 text-sm">
-              <p>1. Create your account here in the browser.</p>
-              <p>2. Open your profile workspace right away.</p>
-              <p>3. Link Telegram later if you want in-chat access.</p>
-            </div>
-            <Button variant="outline" asChild><AppLink href="/">Back to overview</AppLink></Button>
+            <Button variant="outline" asChild>
+              <AppLink href="/">Back to overview</AppLink>
+            </Button>
           </CardContent>
         </Card>
       </section>

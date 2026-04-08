@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SelectField } from "@/components/ui/select-field";
 
 import { weekStartDays, type WeekStartDay } from "../types";
@@ -28,7 +28,6 @@ export function AnalyticsPreferencesCard(props: AnalyticsPreferencesCardProps) {
     <Card className="panel-soft">
       <CardHeader>
         <CardTitle>Analytics settings</CardTitle>
-        <CardDescription>Control how calendar-based dashboard filters decide where each week begins.</CardDescription>
       </CardHeader>
       <CardContent>
         <form className="space-y-3" onSubmit={props.onSavePreferences}>
@@ -42,7 +41,6 @@ export function AnalyticsPreferencesCard(props: AnalyticsPreferencesCardProps) {
               ))}
             </SelectField>
           </label>
-          <p className="body-muted text-sm">`This week` on the dashboard uses this preference, then counts from that start day up to today.</p>
           <div className="flex flex-wrap items-center gap-3">
             <Button type="submit" disabled={props.isSavingPreferences} pending={props.isSavingPreferences} pendingText="Saving...">Save settings</Button>
             {props.preferencesMessage ? <p className="status-success text-sm">{props.preferencesMessage}</p> : null}

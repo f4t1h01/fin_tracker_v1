@@ -27,7 +27,7 @@ type TransactionListPagination = {
 
 type TransactionListCardProps = {
   title: string;
-  description: string;
+  description?: string;
   items: RecentTransaction[];
   isLoadingData: boolean;
   isDeletingId: string | null;
@@ -127,9 +127,7 @@ export function TransactionListCard(props: TransactionListCardProps) {
             </CardTitle>
             {props.isLoadingData && props.items.length > 0 && !hasEditingTransaction ? <span className="body-muted text-xs uppercase tracking-[0.16em]">Refreshing</span> : null}
           </div>
-          <CardDescription>
-            {hasEditingTransaction ? "Only one transaction can be adjusted at a time. Save or discard to return to the list." : props.description}
-          </CardDescription>
+          {hasEditingTransaction ? <CardDescription>Save or discard to return.</CardDescription> : props.description ? <CardDescription>{props.description}</CardDescription> : null}
         </CardHeader>
         <CardContent>
           {props.statusMessage ? <p className="status-success mb-3 text-sm">{props.statusMessage}</p> : null}

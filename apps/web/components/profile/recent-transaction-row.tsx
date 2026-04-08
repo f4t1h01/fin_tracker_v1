@@ -35,8 +35,9 @@ export function RecentTransactionRow(props: RecentTransactionRowProps) {
           <p className={`font-semibold ${amountClass}`}>{props.item.kind === "INCOME" ? "+" : "-"}{amountNumber.toLocaleString()} {props.displayCurrency ?? props.item.currency}</p>
         </div>
         <p className="body-muted break-words text-xs">
-          {actor} - {props.item.note ?? "No note"} - {new Date(props.item.happenedAt).toLocaleString()}
-          {props.displayCurrency && props.rates ? ` · Original: ${originalAmount.toLocaleString()} ${props.item.currency}` : ""}
+          {actor} · {new Date(props.item.happenedAt).toLocaleDateString()}
+          {props.item.note ? ` · ${props.item.note}` : ""}
+          {props.displayCurrency && props.rates ? ` · ${originalAmount.toLocaleString()} ${props.item.currency}` : ""}
         </p>
       </div>
       <div className="mt-3 flex items-center gap-2">

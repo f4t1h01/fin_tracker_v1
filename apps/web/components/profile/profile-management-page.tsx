@@ -3,16 +3,13 @@
 import { useEffect } from "react";
 
 import { BrandMark } from "@/components/marketing/brand-mark";
-import { AppLink } from "@/components/navigation/app-link";
+import { RouteActionStrip } from "@/components/navigation/route-action-strip";
 import { useRouteTransitionPageReady } from "@/components/navigation/route-transition-provider";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { PageHeaderActions } from "@/components/ui/page-header-actions";
 
 import { AnalyticsPreferencesCard } from "./management/analytics-preferences-card";
 import { BoundAccountsCard } from "./management/bound-accounts-card";
-import { CategoryManagementCard } from "./management/category-management-card";
 import { PartnerConnectionCard } from "./management/partner-connection-card";
 import { PasswordSetupCard } from "./management/password-setup-card";
 import { ProfileDetailsCard } from "./management/profile-details-card";
@@ -51,66 +48,93 @@ export function ProfileManagementPage() {
           <div>
             <div className="eyebrow-row">Profile management</div>
             <h1 className="mt-5 font-[family-name:var(--font-heading)] text-[clamp(38px,4vw,56px)] font-light leading-[1.08]">{workspace.greeting}</h1>
-            <p className="body-muted mt-3 text-sm">Manage your details, account links, and appearance settings here.</p>
           </div>
         </div>
-        <PageHeaderActions>
+        <RouteActionStrip
+          actions={[
+            { href: "/profile/me", label: "Transactions" },
+            { href: "/profile/me/categories", label: "Categories" }
+          ]}
+        >
           <ThemeToggle onChange={(theme) => void workspace.onThemeChange(theme)} />
-          <Button variant="outline" asChild><AppLink href="/profile/me">Back to profile</AppLink></Button>
-        </PageHeaderActions>
+        </RouteActionStrip>
       </header>
 
-      {workspace.authError ? <Card className="mb-6 border-red-300/20 bg-red-500/10 dark:border-red-400/30 dark:bg-red-500/10"><CardContent className="pt-6"><p className="status-error text-sm">{workspace.authError}</p></CardContent></Card> : null}
+      {workspace.authError ? (
+        <Card className="mb-6 border-red-300/20 bg-red-500/10 dark:border-red-400/30 dark:bg-red-500/10">
+          <CardContent className="pt-6">
+            <p className="status-error text-sm">{workspace.authError}</p>
+          </CardContent>
+        </Card>
+      ) : null}
 
       <section className="grid gap-5 lg:grid-cols-2">
-        <ProfileDetailsCard detailsFirstName={workspace.detailsFirstName} setDetailsFirstName={workspace.setDetailsFirstName} detailsLastName={workspace.detailsLastName} setDetailsLastName={workspace.setDetailsLastName} detailsBirthday={workspace.detailsBirthday} setDetailsBirthday={workspace.setDetailsBirthday} telegramUsername={workspace.telegramUsername} isSavingDetails={workspace.isSavingDetails} detailsMessage={workspace.detailsMessage} detailsError={workspace.detailsError} onSaveDetails={workspace.onSaveDetails} />
-        <BoundAccountsCard email={workspace.authMe.email} hasPassword={workspace.authMe.hasPassword} telegramUsername={workspace.telegramUsername} telegramId={workspace.authMe.telegramId} telegramDisplayName={workspace.telegramDisplayName} telegramPhone={workspace.authMe.telegramPhone} telegramConnectUrl={workspace.telegramConnectUrl} />
+        <ProfileDetailsCard
+          detailsFirstName={workspace.detailsFirstName}
+          setDetailsFirstName={workspace.setDetailsFirstName}
+          detailsLastName={workspace.detailsLastName}
+          setDetailsLastName={workspace.setDetailsLastName}
+          detailsBirthday={workspace.detailsBirthday}
+          setDetailsBirthday={workspace.setDetailsBirthday}
+          telegramUsername={workspace.telegramUsername}
+          isSavingDetails={workspace.isSavingDetails}
+          detailsMessage={workspace.detailsMessage}
+          detailsError={workspace.detailsError}
+          onSaveDetails={workspace.onSaveDetails}
+        />
+        <BoundAccountsCard
+          email={workspace.authMe.email}
+          hasPassword={workspace.authMe.hasPassword}
+          telegramUsername={workspace.telegramUsername}
+          telegramId={workspace.authMe.telegramId}
+          telegramDisplayName={workspace.telegramDisplayName}
+          telegramPhone={workspace.authMe.telegramPhone}
+          telegramConnectUrl={workspace.telegramConnectUrl}
+        />
       </section>
 
       {!workspace.authMe.hasPassword ? (
         <section className="mt-6">
-          <PasswordSetupCard setupEmail={workspace.setupEmail} setSetupEmail={workspace.setSetupEmail} setupPassword={workspace.setupPassword} setSetupPassword={workspace.setSetupPassword} setupConfirmPassword={workspace.setupConfirmPassword} setSetupConfirmPassword={workspace.setSetupConfirmPassword} isSettingPassword={workspace.isSettingPassword} setupMessage={workspace.setupMessage} setupError={workspace.setupError} onSetupPassword={workspace.onSetupPassword} />
+          <PasswordSetupCard
+            setupEmail={workspace.setupEmail}
+            setSetupEmail={workspace.setSetupEmail}
+            setupPassword={workspace.setupPassword}
+            setSetupPassword={workspace.setSetupPassword}
+            setupConfirmPassword={workspace.setupConfirmPassword}
+            setSetupConfirmPassword={workspace.setSetupConfirmPassword}
+            isSettingPassword={workspace.isSettingPassword}
+            setupMessage={workspace.setupMessage}
+            setupError={workspace.setupError}
+            onSetupPassword={workspace.onSetupPassword}
+          />
         </section>
       ) : null}
 
       <section className="mt-6">
-        <PartnerConnectionCard userCoupleCode={workspace.profile.user.coupleCode ?? null} bindCode={workspace.bindCode} setBindCode={workspace.setBindCode} isBinding={workspace.isBinding} isUnbinding={workspace.isUnbinding} bindMessage={workspace.bindMessage} bindError={workspace.bindError} activeWorkspaceName={workspace.profile.activeCouple?.name ?? null} activeRole={workspace.profile.activeCouple?.role ?? null} insertedCode={workspace.profile.bind?.insertedCode ?? null} onBind={workspace.onBind} onUnbind={workspace.onUnbind} />
+        <PartnerConnectionCard
+          userCoupleCode={workspace.profile.user.coupleCode ?? null}
+          bindCode={workspace.bindCode}
+          setBindCode={workspace.setBindCode}
+          isBinding={workspace.isBinding}
+          isUnbinding={workspace.isUnbinding}
+          bindMessage={workspace.bindMessage}
+          bindError={workspace.bindError}
+          activeWorkspaceName={workspace.profile.activeCouple?.name ?? null}
+          activeRole={workspace.profile.activeCouple?.role ?? null}
+          insertedCode={workspace.profile.bind?.insertedCode ?? null}
+          onBind={workspace.onBind}
+          onUnbind={workspace.onUnbind}
+        />
       </section>
 
       <section className="mt-6">
-        <AnalyticsPreferencesCard weekStartsOn={workspace.weekStartsOn} setWeekStartsOn={workspace.setWeekStartsOn} isSavingPreferences={workspace.isSavingPreferences} preferencesMessage={workspace.preferencesMessage} preferencesError={workspace.preferencesError} onSavePreferences={workspace.onSavePreferences} />
-      </section>
-
-      <section className="mt-6">
-        <CategoryManagementCard
-          categoryCatalog={workspace.categoryCatalog}
-          hasActivePartnerConnection={Boolean(workspace.profile.bind?.insertedCode)}
-          showSharedCategoriesInPicker={workspace.showSharedCategoriesInPicker}
-          setShowSharedCategoriesInPicker={workspace.setShowSharedCategoriesInPicker}
-          defaultIncomeCategoryId={workspace.defaultIncomeCategoryId}
-          setDefaultIncomeCategoryId={workspace.setDefaultIncomeCategoryId}
-          defaultExpenseCategoryId={workspace.defaultExpenseCategoryId}
-          setDefaultExpenseCategoryId={workspace.setDefaultExpenseCategoryId}
-          isSavingCategoryPreferences={workspace.isSavingCategoryPreferences}
-          categoryPreferencesMessage={workspace.categoryPreferencesMessage}
-          categoryPreferencesError={workspace.categoryPreferencesError}
-          onSaveCategoryPreferences={workspace.onSaveCategoryPreferences}
-          categoryFormKind={workspace.categoryFormKind}
-          setCategoryFormKind={workspace.setCategoryFormKind}
-          categoryFormScope={workspace.categoryFormScope}
-          setCategoryFormScope={workspace.setCategoryFormScope}
-          categoryFormName={workspace.categoryFormName}
-          setCategoryFormName={workspace.setCategoryFormName}
-          categoryFormParentId={workspace.categoryFormParentId}
-          setCategoryFormParentId={workspace.setCategoryFormParentId}
-          isSavingCategory={workspace.isSavingCategory}
-          isDeletingCategoryId={workspace.isDeletingCategoryId}
-          isUpdatingCategoryVisibilityId={workspace.isUpdatingCategoryVisibilityId}
-          categoryMessage={workspace.categoryMessage}
-          categoryError={workspace.categoryError}
-          onCreateCategory={workspace.onCreateCategory}
-          onDeleteCategory={workspace.onDeleteCategory}
-          onToggleCategoryVisibility={workspace.onToggleCategoryVisibility}
+        <AnalyticsPreferencesCard
+          weekStartsOn={workspace.weekStartsOn}
+          setWeekStartsOn={workspace.setWeekStartsOn}
+          isSavingPreferences={workspace.isSavingPreferences}
+          preferencesMessage={workspace.preferencesMessage}
+          preferencesError={workspace.preferencesError}
+          onSavePreferences={workspace.onSavePreferences}
         />
       </section>
     </main>

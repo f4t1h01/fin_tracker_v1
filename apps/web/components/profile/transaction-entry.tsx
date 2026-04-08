@@ -1,5 +1,6 @@
 import { PlusCircle } from "lucide-react";
 
+import { AppLink } from "@/components/navigation/app-link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { SelectField } from "@/components/ui/select-field";
@@ -10,7 +11,6 @@ import { buildCategoryOptions } from "./category-options";
 import { supportedCurrencies, type CategoryCatalogResponse, type SupportedCurrency } from "./types";
 
 type TransactionEntryProps = {
-  token: string;
   workspaceName: string;
   kind: "EXPENSE" | "INCOME";
   setKind: (value: "EXPENSE" | "INCOME") => void;
@@ -21,8 +21,6 @@ type TransactionEntryProps = {
   categoryCatalog: CategoryCatalogResponse | null;
   selectedCategoryId: string;
   setSelectedCategoryId: (value: string) => void;
-  categoryName: string;
-  setCategoryName: (value: string) => void;
   note: string;
   setNote: (value: string) => void;
   txMessage: string | null;
@@ -33,13 +31,15 @@ type TransactionEntryProps = {
 
 export function TransactionEntry(props: TransactionEntryProps) {
   const options = buildCategoryOptions(props.categoryCatalog, props.kind);
-  const hasCategoryNameFallback = props.categoryName.trim().length > 0;
 
   return (
     <Card className="panel-soft">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2"><PlusCircle className="size-5 text-pop" />Add income or expense</CardTitle>
-        <CardDescription>Transactions are saved to your active couple workspace: {props.workspaceName}</CardDescription>
+        <CardTitle className="flex items-center gap-2">
+          <PlusCircle className="size-5 text-pop" />
+          Add transaction
+        </CardTitle>
+        <CardDescription>Workspace: {props.workspaceName}</CardDescription>
       </CardHeader>
       <CardContent>
         <form className="space-y-4" onSubmit={props.onSubmit}>
@@ -65,49 +65,76 @@ export function TransactionEntry(props: TransactionEntryProps) {
                 </button>
               </div>
             </div>
-            <label className="space-y-1 text-sm md:col-span-2"><span className="field-label">Amount</span><TextField required inputMode="decimal" min="0.01" step="0.01" value={props.amount} onChange={(event) => props.setAmount(event.target.value)} placeholder="45000" /></label>
-            <label className="space-y-1 text-sm md:col-span-2"><span className="field-label">Currency</span><SelectField value={props.currency} onChange={(event) => props.setCurrency(event.target.value as SupportedCurrency)}>{supportedCurrencies.map((item) => <option key={item} value={item}>{item}</option>)}</SelectField></label>
+
+            <label className="space-y-1 text-sm md:col-span-2">
+              <span className="field-label">Amount</span>
+              <TextField required inputMode="decimal" min="0.01" step="0.01" value={props.amount} onChange={(event) => props.setAmount(event.target.value)} placeholder="45000" />
+            </label>
+
+            <label className="space-y-1 text-sm md:col-span-2">
+              <span className="field-label">Currency</span>
+              <SelectField value={props.currency} onChange={(event) => props.setCurrency(event.target.value as SupportedCurrency)}>
+                {supportedCurrencies.map((item) => (
+                  <option key={item} value={item}>
+                    {item}
+                  </option>
+                ))}
+              </SelectField>
+            </label>
+
             <label className="space-y-1 text-sm md:col-span-2">
               <span className="field-label">Category</span>
-              <SelectField required={!hasCategoryNameFallback} value={props.selectedCategoryId} onChange={(event) => {
-                props.setSelectedCategoryId(event.target.value);
-                if (event.target.value) {
-                  props.setCategoryName("");
-                }
-              }}>
+              <SelectField
+                required
+                value={props.selectedCategoryId}
+                onChange={(event) => {
+                  props.setSelectedCategoryId(event.target.value);
+                }}
+              >
                 <option value="">Choose a category</option>
                 {options.personal.length > 0 ? (
                   <optgroup label="My categories">
-                    {options.personal.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
+                    {options.personal.map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.label}
+                      </option>
+                    ))}
                   </optgroup>
                 ) : null}
                 {options.shared.length > 0 ? (
                   <optgroup label="Shared categories">
-                    {options.shared.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
+                    {options.shared.map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.label}
+                      </option>
+                    ))}
                   </optgroup>
                 ) : null}
               </SelectField>
             </label>
-            <label className="space-y-1 text-sm md:col-span-6">
-              <span className="field-label">Category name (optional)</span>
-              <TextField
-                maxLength={60}
-                value={props.categoryName}
-                onChange={(event) => {
-                  const nextValue = event.target.value;
-                  props.setCategoryName(nextValue);
-                  if (nextValue.trim()) {
-                    props.setSelectedCategoryId("");
-                  }
-                }}
-                placeholder="Create a new category"
-              />
-              <p className="body-muted text-xs">Leave this empty to use the selected category. Fill it only if you want the transaction to create a new category on save.</p>
-            </label>
+
+            <div className="flex items-end md:col-span-2">
+              <Button type="button" variant="outline" asChild className="w-full">
+                <AppLink href="/profile/me/categories">Manage categories</AppLink>
+              </Button>
+            </div>
           </div>
-          <label className="space-y-1 text-sm"><span className="field-label">Note (optional)</span><TextField value={props.note} onChange={(event) => props.setNote(event.target.value)} placeholder="short context" /></label>
-          <div className="flex flex-wrap items-center gap-3 justify-end">
-            <Button type="submit" disabled={props.isSubmittingTx} pending={props.isSubmittingTx} pendingText="Saving...">Save transaction</Button>
+
+          <label className="space-y-1 text-sm">
+            <span className="field-label">Note</span>
+            <TextField value={props.note} onChange={(event) => props.setNote(event.target.value)} placeholder="short context" />
+          </label>
+
+          <div className="flex flex-col items-center gap-3 pt-2 text-center">
+            <Button
+              type="submit"
+              disabled={props.isSubmittingTx}
+              pending={props.isSubmittingTx}
+              pendingText="Saving..."
+              className="min-h-12 min-w-[220px] px-6 py-4 text-[14px] font-semibold uppercase tracking-[0.14em]"
+            >
+              Save transaction
+            </Button>
             {props.txMessage ? <p className="status-success text-sm">{props.txMessage}</p> : null}
             {props.txError ? <p className="status-error text-sm">{props.txError}</p> : null}
           </div>

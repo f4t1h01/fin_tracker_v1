@@ -139,7 +139,6 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
   const [kind, setKind] = useState<"EXPENSE" | "INCOME">("EXPENSE");
   const [amount, setAmount] = useState("");
   const [currency, setCurrency] = useState<SupportedCurrency>("UZS");
-  const [categoryName, setCategoryName] = useState("");
   const [selectedCategoryId, setSelectedCategoryId] = useState("");
   const [note, setNote] = useState("");
   const [txMessage, setTxMessage] = useState<string | null>(null);
@@ -413,10 +412,6 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
       return;
     }
 
-    if (categoryName.trim().length > 0) {
-      return;
-    }
-
     const preferredCategoryId = kind === "INCOME" ? categoryCatalog.preferences.defaultIncomeCategoryId : categoryCatalog.preferences.defaultExpenseCategoryId;
     if (!preferredCategoryId) {
       return;
@@ -434,7 +429,7 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
 
       return preferredCategoryId;
     });
-  }, [categoryCatalog, categoryName, kind]);
+  }, [categoryCatalog, kind]);
 
   const onThemeChange = async (theme: ThemeMode) => {
     if (!token) {
@@ -822,7 +817,6 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
           kind,
           currency,
           categoryId: selectedCategoryId || undefined,
-          categoryName: categoryName || undefined,
           note: note || undefined
         })
       });
@@ -830,7 +824,6 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
       await parseApiResponse<unknown>(response);
       setAmount("");
       setCurrency("UZS");
-      setCategoryName("");
       setSelectedCategoryId("");
       setNote("");
       setTxMessage(`${kind === "INCOME" ? "Income" : "Expense"} added.`);
@@ -1034,8 +1027,6 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
     setAmount,
     currency,
     setCurrency,
-    categoryName,
-    setCategoryName,
     selectedCategoryId,
     setSelectedCategoryId,
     categoryCatalog,

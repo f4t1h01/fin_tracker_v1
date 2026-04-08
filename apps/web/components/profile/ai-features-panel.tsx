@@ -51,36 +51,30 @@ export function AiFeaturesPanel(props: AiFeaturesPanelProps) {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="flex justify-center">
         <Button
           type="button"
-          variant="outline"
-          className="rounded-full border-[rgba(201,168,76,0.28)] bg-[color-mix(in_srgb,var(--warm-white)_82%,transparent)] px-4 py-3 text-[12px] font-semibold tracking-[0.14em]"
+          variant="default"
+          className="min-h-14 rounded-full px-7 py-4 text-[14px] font-semibold tracking-[0.14em]"
           onClick={() => {
             setIsOpen(true);
             setActiveFeature("menu");
           }}
         >
-          <Sparkles className="size-4" />
-          AI Features
+          <Sparkles className="size-5" />
+          AI tools
         </Button>
-        <p className="body-muted max-w-xl text-xs">
-          Use AI to draft the transaction first, then review the same form fields and save manually.
-        </p>
       </div>
 
       {hasInlineSummary ? (
         <div className="space-y-2">
           <div className="detail-box flex flex-wrap items-start justify-between gap-3">
             <div className="space-y-1">
-              <p className="field-label">AI draft summary</p>
-              <p className="body-muted text-sm">
-                These AI details are read-only. Edit the transaction fields below if you want to change kind, amount,
-                category, or note before saving.
-              </p>
+              <p className="field-label">AI draft</p>
+              <p className="body-muted text-sm">Review the draft before saving.</p>
             </div>
             <span className="rounded-full border border-[rgba(201,168,76,0.18)] bg-[color-mix(in_srgb,var(--gold)_10%,transparent)] px-3 py-1 text-[11px] uppercase tracking-[0.14em] text-[var(--ink-soft)]">
-              {voice.result ? "Draft ready" : "Needs retry"}
+              {voice.result ? "Ready" : "Retry"}
             </span>
           </div>
           <VoiceStatus
@@ -90,7 +84,7 @@ export function AiFeaturesPanel(props: AiFeaturesPanelProps) {
             recordingSeconds={voice.recordingSeconds}
             stage={voice.stage}
             stageLabel={voice.stageLabel}
-            title="AI draft details"
+            title="Draft status"
           />
         </div>
       ) : null}
@@ -104,19 +98,17 @@ export function AiFeaturesPanel(props: AiFeaturesPanelProps) {
               ref={dialogRef}
               role="dialog"
               aria-modal="true"
-              aria-label="AI features"
+              aria-label="AI tools"
               className="panel-soft w-full max-w-xl rounded-[28px] border border-[rgba(201,168,76,0.12)] p-5 shadow-[0_24px_56px_rgba(26,20,16,0.14)]"
             >
               <div className="flex items-start justify-between gap-4">
                 <div className="space-y-2">
                   <p className="eyebrow-row">AI tools</p>
-                  <h3 className="font-[family-name:var(--font-heading)] text-[clamp(28px,4vw,38px)] font-light leading-[1.08]">
-                    {activeFeature === "voice" ? "Voice transaction draft" : "Choose an AI feature"}
+                  <h3 className="font-[family-name:var(--font-heading)] text-[clamp(28px,4vw,36px)] font-light leading-[1.08]">
+                    {activeFeature === "voice" ? "Voice draft" : "Choose a tool"}
                   </h3>
                   <p className="body-muted max-w-lg text-sm">
-                    {activeFeature === "voice"
-                      ? "Record one transaction, let AI fill the form, then review and save manually."
-                      : "Start with voice drafting today. Image drafting stays visible here, but it is intentionally unavailable until the next batch."}
+                    {activeFeature === "voice" ? "Record one note, review the draft, then save it manually." : "Voice drafting is ready. Image drafting will come later."}
                   </p>
                 </div>
 
@@ -126,7 +118,7 @@ export function AiFeaturesPanel(props: AiFeaturesPanelProps) {
                   className="rounded-full border border-[rgba(201,168,76,0.14)] px-3 py-2"
                   onClick={closePanel}
                   disabled={isDismissLocked}
-                  aria-label="Close AI features"
+                  aria-label="Close AI tools"
                 >
                   <X className="size-4" />
                 </Button>
@@ -144,12 +136,8 @@ export function AiFeaturesPanel(props: AiFeaturesPanelProps) {
                         <Mic className="size-5" />
                       </span>
                       <span className="min-w-0 space-y-1">
-                        <span className="block text-[13px] font-semibold uppercase tracking-[0.14em] text-[var(--ink)]">
-                          Voice feature
-                        </span>
-                        <span className="body-muted block text-sm">
-                          Record a short note and prefill the same transaction form without changing your save flow.
-                        </span>
+                        <span className="block text-[13px] font-semibold uppercase tracking-[0.14em] text-[var(--ink)]">Voice draft</span>
+                        <span className="body-muted block text-sm">Record one transaction and fill the form from voice.</span>
                       </span>
                     </span>
                   </button>
@@ -164,12 +152,8 @@ export function AiFeaturesPanel(props: AiFeaturesPanelProps) {
                         <ImagePlus className="size-5" />
                       </span>
                       <span className="min-w-0 space-y-1">
-                        <span className="block text-[13px] font-semibold uppercase tracking-[0.14em] text-[var(--ink)]">
-                          Image feature
-                        </span>
-                        <span className="body-muted block text-sm">
-                          Currently unavailable. The entry point is ready, but the actual image workflow will be implemented later.
-                        </span>
+                        <span className="block text-[13px] font-semibold uppercase tracking-[0.14em] text-[var(--ink)]">Image draft</span>
+                        <span className="body-muted block text-sm">Coming later.</span>
                       </span>
                     </span>
                   </button>
@@ -184,15 +168,17 @@ export function AiFeaturesPanel(props: AiFeaturesPanelProps) {
                       onClick={() => setActiveFeature("menu")}
                       disabled={isDismissLocked}
                     >
-                      <span>Back to features</span>
+                      Back
                     </Button>
-                    <span className={cn(
-                      "rounded-full px-3 py-1 text-[11px] uppercase tracking-[0.14em]",
-                      voice.stage === "recording"
-                        ? "bg-rose-500/12 text-rose-700 dark:text-rose-100"
-                        : "border border-[rgba(201,168,76,0.18)] bg-[color-mix(in_srgb,var(--gold)_10%,transparent)] text-[var(--ink-soft)]"
-                    )}>
-                      {voice.stage === "recording" ? "Recording live" : voice.result ? "Draft filled" : "Voice workflow"}
+                    <span
+                      className={cn(
+                        "rounded-full px-3 py-1 text-[11px] uppercase tracking-[0.14em]",
+                        voice.stage === "recording"
+                          ? "bg-rose-500/12 text-rose-700 dark:text-rose-100"
+                          : "border border-[rgba(201,168,76,0.18)] bg-[color-mix(in_srgb,var(--gold)_10%,transparent)] text-[var(--ink-soft)]"
+                      )}
+                    >
+                      {voice.stage === "recording" ? "Recording" : voice.result ? "Ready" : "Voice"}
                     </span>
                   </div>
 
@@ -207,11 +193,8 @@ export function AiFeaturesPanel(props: AiFeaturesPanelProps) {
                     />
                   ) : (
                     <div className="detail-box space-y-2">
-                      <p className="field-label">Voice guidance</p>
-                      <p className="body-muted text-sm">
-                        Use one voice note for one transaction. After AI fills the draft, the transaction form stays
-                        editable and the final save still happens manually.
-                      </p>
+                      <p className="field-label">Voice hint</p>
+                      <p className="body-muted text-sm">One clip per transaction.</p>
                     </div>
                   )}
 
@@ -235,7 +218,7 @@ export function AiFeaturesPanel(props: AiFeaturesPanelProps) {
                         onClick={closePanel}
                         disabled={isDismissLocked}
                       >
-                        Continue to form
+                        Continue
                       </Button>
                     </div>
                   ) : null}

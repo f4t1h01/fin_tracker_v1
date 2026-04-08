@@ -1,7 +1,7 @@
 import { Eye, EyeOff } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SelectField } from "@/components/ui/select-field";
 import { TextField } from "@/components/ui/text-field";
 import { TogglePill } from "@/components/ui/toggle-pill";
@@ -58,7 +58,7 @@ function CategoryList(props: {
           <div key={kind} className="detail-box space-y-2 px-3 py-3">
             <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">{kind}</p>
             {items.length === 0 ? (
-              <p className="body-muted text-sm">No categories yet.</p>
+              <p className="body-muted text-sm">No categories.</p>
             ) : (
               <div className="space-y-2">
                 {items.map((item) => (
@@ -113,7 +113,6 @@ export function CategoryManagementCard(props: CategoryManagementCardProps) {
     <Card className="panel-soft">
       <CardHeader>
         <CardTitle>Category management</CardTitle>
-        <CardDescription>Create personal or shared categories, control picker visibility, and choose your defaults.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         <form className="space-y-4" onSubmit={props.onSaveCategoryPreferences}>
@@ -123,7 +122,6 @@ export function CategoryManagementCard(props: CategoryManagementCardProps) {
               label="Show shared couple categories in my transaction picker"
               onToggle={props.setShowSharedCategoriesInPicker}
             />
-            {!props.hasActivePartnerConnection ? <p className="body-muted text-sm">Shared categories become available after connecting a partner.</p> : null}
             <div className="grid gap-3 md:grid-cols-2">
               <label className="space-y-1 text-sm">
                 <span className="field-label">Default income category</span>
@@ -178,7 +176,6 @@ export function CategoryManagementCard(props: CategoryManagementCardProps) {
               <TextField required value={props.categoryFormName} onChange={(event) => props.setCategoryFormName(event.target.value)} placeholder="Groceries" />
             </label>
           </div>
-          <p className="body-muted text-sm">Choose a parent only when creating a subcategory. Shared categories are available only while a partner is connected.</p>
           <div className="flex flex-wrap items-center gap-3">
             <Button type="submit" disabled={props.isSavingCategory} pending={props.isSavingCategory} pendingText="Saving...">Add category</Button>
             {props.categoryMessage ? <p className="status-success text-sm">{props.categoryMessage}</p> : null}
@@ -195,7 +192,7 @@ export function CategoryManagementCard(props: CategoryManagementCardProps) {
               <div className="space-y-3">
                 <p className="text-sm font-medium">Shared categories</p>
                 <div className="detail-box px-3 py-3">
-                  <p className="body-muted text-sm">Connect a partner to create and use shared categories in this workspace.</p>
+                  <p className="body-muted text-sm">Connect a partner to use shared categories.</p>
                 </div>
               </div>
             )}

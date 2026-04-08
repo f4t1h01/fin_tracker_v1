@@ -1,6 +1,6 @@
 import { DatePicker } from "@/components/ui/date-picker";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TextField } from "@/components/ui/text-field";
 
 type ProfileDetailsCardProps = {
@@ -22,7 +22,6 @@ export function ProfileDetailsCard(props: ProfileDetailsCardProps) {
     <Card className="panel-soft">
       <CardHeader>
         <CardTitle>Your details</CardTitle>
-        <CardDescription>Keep your profile name and birthday up to date. Telegram username is shown as a linked identity.</CardDescription>
       </CardHeader>
       <CardContent>
         <form className="space-y-3" onSubmit={props.onSaveDetails}>

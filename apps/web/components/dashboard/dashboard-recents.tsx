@@ -25,7 +25,6 @@ export function DashboardRecents(props: DashboardRecentsProps) {
   return (
     <TransactionListCard
       title="Transactions"
-      description="Paginated activity slice for the current filter set. Stored in original currency, displayed here in your selected dashboard currency."
       items={props.transactions.items}
       isLoadingData={props.isLoadingData}
       isDeletingId={props.isDeletingId}
@@ -36,9 +35,7 @@ export function DashboardRecents(props: DashboardRecentsProps) {
       onStartEditing={props.onStartEditing}
       onSaveEdit={props.onSaveEdit}
       onDeleteTransaction={props.onDeleteTransaction}
-      emptyText="No transactions match the current filters."
-      statusMessage={props.statusMessage}
-      statusError={props.statusError}
+      emptyText="No matches."
       pagination={{
         page: props.transactions.page,
         totalPages: props.transactions.totalPages,
@@ -47,6 +44,8 @@ export function DashboardRecents(props: DashboardRecentsProps) {
       }}
       displayCurrency={props.displayCurrency}
       rates={props.rates}
+      statusMessage={props.statusMessage}
+      statusError={props.statusError}
     />
   );
 }

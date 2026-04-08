@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 type BoundAccountsCardProps = {
   email: string | null;
@@ -20,7 +20,6 @@ export function BoundAccountsCard(props: BoundAccountsCardProps) {
     <Card className="panel-soft">
       <CardHeader>
         <CardTitle>Bound accounts</CardTitle>
-        <CardDescription>Review your saved website and Telegram connections.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="detail-box space-y-2 text-sm">
@@ -32,9 +31,6 @@ export function BoundAccountsCard(props: BoundAccountsCardProps) {
           <p>Telegram user id: {hasRealTelegramUser ? props.telegramId : "Unavailable"}</p>
           <p>Telegram phone: {props.telegramPhone ?? "Not shared yet"}</p>
         </div>
-        {!isTelegramLinked ? (
-          <p className="body-muted text-sm">Use the button below to open Telegram with a signed link for this exact website account. Telegram can provide your user id, username, display name, and optional phone number after you share it.</p>
-        ) : null}
         <Button variant="outline" asChild><a href={props.telegramConnectUrl} target="_blank" rel="noreferrer">{actionLabel}</a></Button>
       </CardContent>
     </Card>

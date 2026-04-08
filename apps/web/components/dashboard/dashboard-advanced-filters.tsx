@@ -1,14 +1,11 @@
-"use client";
-
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SelectField } from "@/components/ui/select-field";
 
 import { buildCategoryOptions } from "@/components/profile/category-options";
-import { dashboardActors, dashboardKinds, type CategoryCatalogResponse, type DashboardActor, type DashboardKind, type DashboardViewMode } from "@/components/profile/types";
+import { dashboardActors, dashboardKinds, type CategoryCatalogResponse, type DashboardActor, type DashboardKind } from "@/components/profile/types";
 
 type DashboardAdvancedFiltersProps = {
   categoryCatalog: CategoryCatalogResponse | null;
-  viewMode: DashboardViewMode;
   kind: DashboardKind;
   categoryId: string;
   actor: DashboardActor;
@@ -23,14 +20,6 @@ export function DashboardAdvancedFilters(props: DashboardAdvancedFiltersProps) {
   const includeSharedLocked = !props.hasActivePartnerConnection;
   const expenseOptions = buildCategoryOptions(props.categoryCatalog, "EXPENSE", { forceIncludeShared: includeSharedLocked });
   const incomeOptions = buildCategoryOptions(props.categoryCatalog, "INCOME", { forceIncludeShared: includeSharedLocked });
-  const description =
-    props.showKind === false
-      ? props.hasActivePartnerConnection
-        ? "Narrow by category and actor without overcrowding the primary toolbar."
-        : "No partner is linked, so shared fields stay visible but locked."
-      : props.hasActivePartnerConnection
-        ? "Narrow by transaction kind, category, and actor without overcrowding the primary toolbar."
-        : "No partner is linked, so shared fields stay visible but locked.";
 
   const renderCategoryOptions = () => {
     if (!props.categoryCatalog) {
@@ -135,7 +124,6 @@ export function DashboardAdvancedFilters(props: DashboardAdvancedFiltersProps) {
     <Card className="panel-soft mb-6">
       <CardHeader>
         <CardTitle>Filters</CardTitle>
-        <CardDescription>{description}</CardDescription>
       </CardHeader>
       <CardContent>
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">

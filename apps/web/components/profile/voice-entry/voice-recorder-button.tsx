@@ -30,12 +30,12 @@ export function VoiceRecorderButton(props: VoiceRecorderButtonProps) {
         aria-pressed={props.isRecording}
         aria-label={props.isRecording ? "Stop voice recording" : "Start voice recording"}
         onClick={props.isRecording ? props.onStopRecording : props.onStartRecording}
-      >
+        >
         <span className={cn("flex size-9 shrink-0 items-center justify-center rounded-full border", props.isRecording ? "border-current/30 bg-current/10" : "border-current/15 bg-current/5")}>
           {props.isRecording ? <Square className="size-4" /> : <Mic className="size-4" />}
         </span>
         <span className="flex min-w-0 flex-1 flex-col items-start text-left leading-none">
-          <span className="text-[12px] font-semibold tracking-[0.1em] uppercase">{props.isRecording ? "Stop recording" : props.isRecorderSupported ? "Press to record" : "Recording unavailable"}</span>
+          <span className="text-[12px] font-semibold tracking-[0.1em] uppercase">{props.isRecording ? "Stop" : props.isRecorderSupported ? "Record" : "Unavailable"}</span>
           <span className="mt-1 flex items-center gap-2 text-[11px] font-medium tracking-[0.08em] opacity-85">
             {props.isRecording ? (
               <>

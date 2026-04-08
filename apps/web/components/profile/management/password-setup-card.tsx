@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TextField } from "@/components/ui/text-field";
 
 type PasswordSetupCardProps = {
@@ -18,7 +18,7 @@ type PasswordSetupCardProps = {
 export function PasswordSetupCard(props: PasswordSetupCardProps) {
   return (
     <Card className="panel-soft border-[rgba(201,168,76,0.2)] bg-[color-mix(in_srgb,var(--gold)_8%,var(--card-bg))]">
-      <CardHeader><CardTitle>Save email login</CardTitle><CardDescription>Finish this once if your account started elsewhere and still needs a browser password.</CardDescription></CardHeader>
+      <CardHeader><CardTitle>Save email login</CardTitle></CardHeader>
       <CardContent>
         <form className="grid gap-3 md:grid-cols-3" onSubmit={props.onSetupPassword}>
           <label className="space-y-1 text-sm"><span className="field-label">Email</span><TextField required type="email" value={props.setupEmail} onChange={(event) => props.setSetupEmail(event.target.value)} /></label>

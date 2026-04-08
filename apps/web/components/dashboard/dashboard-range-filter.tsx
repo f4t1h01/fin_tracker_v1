@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DatePicker } from "@/components/ui/date-picker";
 import { SelectField } from "@/components/ui/select-field";
 
@@ -47,13 +47,12 @@ export function DashboardRangeFilter(props: DashboardRangeFilterProps) {
   return (
     <Card className="panel-soft mb-6">
       <CardHeader>
-        <CardTitle>Range filter</CardTitle>
-        <CardDescription>Use calendar-based presets or pick an exact date span. Week-based results respect your {weekStartLabels[props.weekStartsOn]} start-day setting.</CardDescription>
+        <CardTitle>Range</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid gap-3 lg:grid-cols-[minmax(0,220px)_1fr]">
           <label className="space-y-1 text-sm">
-            <span className="field-label">Date range</span>
+            <span className="field-label">Range</span>
             <SelectField value={props.preset} onChange={(event) => props.onPresetChange(event.target.value as DashboardRangePreset)}>
               {dashboardRangePresets.map((preset) => (
                 <option key={preset} value={preset}>
@@ -74,7 +73,7 @@ export function DashboardRangeFilter(props: DashboardRangeFilterProps) {
               </label>
               <div className="flex items-end">
                 <Button type="button" disabled={props.isRefreshing || !props.draftFrom || !props.draftTo} onClick={props.onApplyCustom}>
-                  {props.isRefreshing ? "Applying..." : "Apply range"}
+                  {props.isRefreshing ? "Applying..." : "Apply"}
                 </Button>
               </div>
             </div>
@@ -86,22 +85,21 @@ export function DashboardRangeFilter(props: DashboardRangeFilterProps) {
               </label>
               <div className="flex items-end">
                 <Button type="button" disabled={props.isRefreshing || !props.draftMonthKey} onClick={props.onApplyMonth}>
-                  {props.isRefreshing ? "Applying..." : "Apply month"}
+                  {props.isRefreshing ? "Applying..." : "Apply"}
                 </Button>
               </div>
             </div>
           ) : (
-            <div className="detail-box flex items-center justify-between gap-3">
+            <div className="detail-box flex flex-wrap items-center justify-between gap-3">
               <div>
-                <p className="text-sm font-medium">Active range</p>
-                <p className="body-muted text-sm">{props.activeLabel}: {props.activeFrom} to {props.activeTo}</p>
+                <p className="text-sm font-medium">{props.activeLabel}</p>
+                <p className="body-muted text-sm">{props.activeFrom} to {props.activeTo}</p>
               </div>
               {props.isRefreshing ? <span className="body-muted text-xs uppercase tracking-[0.16em]">Refreshing</span> : null}
             </div>
           )}
         </div>
-        {isCustom ? <p className="body-muted text-sm">Custom range uses whole selected dates on the backend, from 00:00 on the first day through the next 00:00 after the end day.</p> : null}
-        {isSpecificMonth ? <p className="body-muted text-sm">Specific month uses a month-only picker, from the first day through the next month boundary.</p> : null}
+        <p className="body-muted text-xs uppercase tracking-[0.16em]">{weekStartLabels[props.weekStartsOn]} week start</p>
       </CardContent>
     </Card>
   );

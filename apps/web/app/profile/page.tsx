@@ -79,9 +79,6 @@ export default function ProfileEntryPage() {
             <h1 className="mt-5 font-[family-name:var(--font-heading)] text-[clamp(38px,4vw,56px)] font-light leading-[1.08]">
               {warmName ? `Good day, ${warmName}` : "Good day"}
             </h1>
-            <p className="body-muted mt-3 max-w-2xl text-sm">
-              This page is your profile entry point. Create your account directly in the browser, then use the Telegram WebApp later if you want faster in-chat access.
-            </p>
           </div>
         </div>
         <ThemeToggle />
@@ -90,13 +87,7 @@ export default function ProfileEntryPage() {
       <Card className="panel-soft mx-auto w-full max-w-3xl">
         <CardHeader>
           <CardTitle>{isLoading ? "Checking your session" : auth ? "You are signed in" : "You are not signed in"}</CardTitle>
-          <CardDescription>
-            {isLoading
-              ? "Looking for your saved browser session..."
-              : auth
-                ? "Open your private workspace or continue from the main overview."
-                : "Continue to your workspace page to sign in or create your account directly in the browser."}
-          </CardDescription>
+          <CardDescription>{isLoading ? "Checking saved session..." : auth ? "Open your workspace." : "Sign in or register."}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {auth ? (

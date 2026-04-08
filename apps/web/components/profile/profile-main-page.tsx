@@ -1,11 +1,9 @@
 "use client";
 
 import { BrandMark } from "@/components/marketing/brand-mark";
-import { AppLink } from "@/components/navigation/app-link";
+import { RouteActionStrip } from "@/components/navigation/route-action-strip";
 import { useRouteTransitionPageReady } from "@/components/navigation/route-transition-provider";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { PageHeaderActions } from "@/components/ui/page-header-actions";
 
 import { AiFeaturesPanel } from "./ai-features-panel";
 import { ProfileAuthGateway } from "./profile-auth-gateway";
@@ -49,10 +47,8 @@ export function ProfileMainPage() {
 
     if (draft.draft.categoryId) {
       workspace.setSelectedCategoryId(draft.draft.categoryId);
-      workspace.setCategoryName("");
-    } else if (draft.draft.categoryNameCandidate) {
+    } else {
       workspace.setSelectedCategoryId("");
-      workspace.setCategoryName(draft.draft.categoryNameCandidate);
     }
 
     if (draft.draft.note !== null) {
@@ -68,23 +64,30 @@ export function ProfileMainPage() {
           <div>
             <div className="eyebrow-row">Profile workspace</div>
             <h1 className="mt-5 font-[family-name:var(--font-heading)] text-[clamp(38px,4vw,56px)] font-light leading-[1.08]">{workspace.greeting}</h1>
-            <p className="body-muted mt-3 text-sm">Your personal finance view stays here, while partner connection details live in profile management.</p>
           </div>
         </div>
-        <PageHeaderActions>
-          <Button variant="outline" asChild><AppLink href="/dashboard">View dashboard</AppLink></Button>
-          <Button variant="outline" asChild><AppLink href="/profile/me/manage">Profile management</AppLink></Button>
-        </PageHeaderActions>
+        <RouteActionStrip
+          actions={[
+            { href: "/dashboard", label: "Dashboard" },
+            { href: "/profile/me/manage", label: "Profile management" },
+            { href: "/profile/me/categories", label: "Categories" }
+          ]}
+        />
       </header>
 
-      {workspace.authError ? <Card className="mb-6 border-red-300/20 bg-red-500/10 dark:border-red-400/30 dark:bg-red-500/10"><CardContent className="pt-6"><p className="status-error text-sm">{workspace.authError}</p></CardContent></Card> : null}
+      {workspace.authError ? (
+        <Card className="mb-6 border-red-300/20 bg-red-500/10 dark:border-red-400/30 dark:bg-red-500/10">
+          <CardContent className="pt-6">
+            <p className="status-error text-sm">{workspace.authError}</p>
+          </CardContent>
+        </Card>
+      ) : null}
 
       <ProfileMetrics summary={workspace.summary} hasPartnerConnection={workspace.profile.hasPartnerConnection} />
 
       <AiFeaturesPanel token={workspace.token} onDraftResolved={applyVoiceDraft} />
 
       <TransactionEntry
-        token={workspace.token}
         workspaceName={workspace.profile.activeCouple?.name ?? "Personal workspace"}
         kind={workspace.kind}
         setKind={workspace.setKind}
@@ -95,8 +98,6 @@ export function ProfileMainPage() {
         categoryCatalog={workspace.categoryCatalog}
         selectedCategoryId={workspace.selectedCategoryId}
         setSelectedCategoryId={workspace.setSelectedCategoryId}
-        categoryName={workspace.categoryName}
-        setCategoryName={workspace.setCategoryName}
         note={workspace.note}
         setNote={workspace.setNote}
         txMessage={workspace.txMessage}
