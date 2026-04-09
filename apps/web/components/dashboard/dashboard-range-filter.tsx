@@ -1,4 +1,3 @@
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DatePicker } from "@/components/ui/date-picker";
 import { SelectField } from "@/components/ui/select-field";
@@ -36,8 +35,6 @@ type DashboardRangeFilterProps = {
   onDraftFromChange: (value: string) => void;
   onDraftToChange: (value: string) => void;
   onDraftMonthKeyChange: (value: string) => void;
-  onApplyCustom: () => void;
-  onApplyMonth: () => void;
 };
 
 export function DashboardRangeFilter(props: DashboardRangeFilterProps) {
@@ -61,8 +58,9 @@ export function DashboardRangeFilter(props: DashboardRangeFilterProps) {
               ))}
             </SelectField>
           </label>
+
           {isCustom ? (
-            <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
+            <div className="grid gap-3 md:grid-cols-2">
               <label className="space-y-1 text-sm">
                 <span className="field-label">From</span>
                 <DatePicker value={props.draftFrom} onChange={props.onDraftFromChange} />
@@ -71,34 +69,25 @@ export function DashboardRangeFilter(props: DashboardRangeFilterProps) {
                 <span className="field-label">To</span>
                 <DatePicker value={props.draftTo} onChange={props.onDraftToChange} />
               </label>
-              <div className="flex items-end">
-                <Button type="button" disabled={props.isRefreshing || !props.draftFrom || !props.draftTo} onClick={props.onApplyCustom}>
-                  {props.isRefreshing ? "Applying..." : "Apply"}
-                </Button>
-              </div>
             </div>
           ) : isSpecificMonth ? (
-            <div className="grid gap-3 md:grid-cols-[minmax(0,220px)_auto]">
-              <label className="space-y-1 text-sm">
-                <span className="field-label">Month</span>
-                <DatePicker mode="month" value={props.draftMonthKey} onChange={props.onDraftMonthKeyChange} />
-              </label>
-              <div className="flex items-end">
-                <Button type="button" disabled={props.isRefreshing || !props.draftMonthKey} onClick={props.onApplyMonth}>
-                  {props.isRefreshing ? "Applying..." : "Apply"}
-                </Button>
-              </div>
-            </div>
+            <label className="space-y-1 text-sm md:max-w-[220px]">
+              <span className="field-label">Month</span>
+              <DatePicker mode="month" value={props.draftMonthKey} onChange={props.onDraftMonthKeyChange} />
+            </label>
           ) : (
             <div className="detail-box flex flex-wrap items-center justify-between gap-3">
               <div>
                 <p className="text-sm font-medium">{props.activeLabel}</p>
-                <p className="body-muted text-sm">{props.activeFrom} to {props.activeTo}</p>
+                <p className="body-muted text-sm">
+                  {props.activeFrom} to {props.activeTo}
+                </p>
               </div>
-              {props.isRefreshing ? <span className="body-muted text-xs uppercase tracking-[0.16em]">Refreshing</span> : null}
             </div>
           )}
         </div>
+
+        {props.isRefreshing ? <p className="body-muted text-xs uppercase tracking-[0.16em]">Refreshing</p> : null}
         <p className="body-muted text-xs uppercase tracking-[0.16em]">{weekStartLabels[props.weekStartsOn]} week start</p>
       </CardContent>
     </Card>

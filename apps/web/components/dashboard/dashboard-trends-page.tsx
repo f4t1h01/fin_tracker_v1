@@ -146,14 +146,6 @@ export function DashboardTrendsPage() {
           workspace.setDraftMonthKey(value);
           workspace.setPage(1);
         }}
-        onApplyCustom={() => {
-          workspace.setSelectedPreset("CUSTOM");
-          workspace.setPage(1);
-        }}
-        onApplyMonth={() => {
-          workspace.setSelectedPreset("SPECIFIC_MONTH");
-          workspace.setPage(1);
-        }}
       />
 
       <DashboardAdvancedFilters

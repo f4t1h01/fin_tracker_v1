@@ -56,7 +56,7 @@ export function WorkspaceHeaderMenu({ onThemeChange, className }: WorkspaceHeade
         type="button"
         variant="outline"
         className={cn(
-          "size-12 !rounded-full !px-0 !py-0 transition-colors duration-300",
+          "size-12 !rounded-[16px] !px-0 !py-0 transition-colors duration-300",
           isOpen
             ? "border-[var(--gold)] bg-[color-mix(in_srgb,var(--gold)_10%,transparent)] text-[var(--ink)]"
             : "border-[rgba(201,168,76,0.22)] bg-[color-mix(in_srgb,var(--warm-white)_82%,transparent)] text-[var(--ink-soft)]"
