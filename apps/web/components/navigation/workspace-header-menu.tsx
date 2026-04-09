@@ -78,7 +78,7 @@ export function WorkspaceHeaderMenu({ onThemeChange, className }: WorkspaceHeade
           isOpen ? "pointer-events-auto max-h-[32rem] translate-y-0 opacity-100" : "pointer-events-none max-h-0 -translate-y-2 opacity-0"
         )}
       >
-        <div className="panel-soft rounded-[24px] border border-[rgba(201,168,76,0.14)] bg-[color-mix(in_srgb,var(--warm-white)_88%,transparent)] p-3 shadow-[0_24px_56px_rgba(26,20,16,0.18)] backdrop-blur-[26px]">
+        <div className="rounded-[24px] border border-[rgba(201,168,76,0.14)] bg-[var(--surface-glass)] p-3 shadow-[0_24px_56px_rgba(26,20,16,0.16)] backdrop-blur-[14px] backdrop-saturate-150">
           <div className="space-y-2">
             {workspaceMenuItems.map((item) => {
               const active = isActiveRoute(pathname, item.href);
@@ -104,7 +104,7 @@ export function WorkspaceHeaderMenu({ onThemeChange, className }: WorkspaceHeade
             })}
           </div>
 
-          <div className="mt-3 rounded-[18px] border border-[rgba(201,168,76,0.12)] bg-[color-mix(in_srgb,var(--warm-white)_82%,transparent)] px-4 py-3">
+          <div className="mt-3 rounded-[18px] border border-[rgba(201,168,76,0.12)] bg-[var(--surface-glass-strong)] px-4 py-3">
             <div className="flex items-center justify-between gap-3">
               <p className="field-label">Theme</p>
               <ThemeToggle onChange={onThemeChange} />
