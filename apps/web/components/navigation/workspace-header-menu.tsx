@@ -32,7 +32,10 @@ const workspaceMenuItems: readonly WorkspaceMenuItem[] = [
 ];
 
 function isActiveRoute(pathname: string, href: string) {
-  return pathname === href || pathname.startsWith(`${href}/`);
+  const normalizedPathname = pathname.replace(/\/+$/, "") || "/";
+  const normalizedHref = href.replace(/\/+$/, "") || "/";
+
+  return normalizedPathname === normalizedHref;
 }
 
 export function WorkspaceHeaderMenu({ onThemeChange, className }: WorkspaceHeaderMenuProps) {

@@ -120,9 +120,13 @@ export function TransactionEntry(props: TransactionEntryProps) {
           </label>
 
           <div className="space-y-3 pt-3">
-            <p className="body-muted text-center text-sm md:text-left">Press if you didn't find a relevant category.</p>
-            <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-center">
-              <Button type="button" variant="outline" asChild className="w-full md:w-auto md:min-w-[220px]">
+            <p className="body-muted text-left text-sm">Press if you didn't find a relevant category.</p>
+            <div className="grid gap-3 md:grid-cols-[1fr_auto_1fr] md:items-end">
+              <Button
+                type="button"
+                asChild
+                className="min-h-12 w-full px-6 py-4 text-[14px] font-semibold uppercase tracking-[0.14em] md:min-w-[220px] md:justify-self-start"
+              >
                 <AppLink href="/profile/me/categories">Manage categories</AppLink>
               </Button>
               <Button
@@ -130,7 +134,7 @@ export function TransactionEntry(props: TransactionEntryProps) {
                 disabled={props.isSubmittingTx}
                 pending={props.isSubmittingTx}
                 pendingText="Saving..."
-                className="min-h-12 w-full px-6 py-4 text-[14px] font-semibold uppercase tracking-[0.14em] md:w-auto md:min-w-[220px]"
+                className="min-h-12 w-full px-6 py-4 text-[14px] font-semibold uppercase tracking-[0.14em] md:min-w-[220px] md:justify-self-center"
               >
                 Save transaction
               </Button>

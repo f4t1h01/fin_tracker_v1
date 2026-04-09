@@ -98,21 +98,23 @@ export function ProfileMainPage() {
         onSubmit={workspace.onCreateTransaction}
       />
 
-      <RecentTransactions
-        recent={workspace.recent}
-        isLoadingData={workspace.isLoadingData}
-        isDeletingId={workspace.isDeletingId}
-        editingTransaction={workspace.editingTransaction}
-        categoryCatalog={workspace.categoryCatalog}
-        setEditingTransaction={workspace.setEditingTransaction}
-        isSavingEdit={workspace.isSavingEdit}
-        onStartEditing={workspace.startEditing}
-        onSaveEdit={workspace.onSaveEdit}
-        onDeleteTransaction={workspace.onDeleteTransaction}
-      />
+      <div className="mt-6">
+        <AiFeaturesPanel token={workspace.token} onDraftResolved={applyVoiceDraft} />
+      </div>
 
       <div className="mt-8">
-        <AiFeaturesPanel token={workspace.token} onDraftResolved={applyVoiceDraft} />
+        <RecentTransactions
+          recent={workspace.recent}
+          isLoadingData={workspace.isLoadingData}
+          isDeletingId={workspace.isDeletingId}
+          editingTransaction={workspace.editingTransaction}
+          categoryCatalog={workspace.categoryCatalog}
+          setEditingTransaction={workspace.setEditingTransaction}
+          isSavingEdit={workspace.isSavingEdit}
+          onStartEditing={workspace.startEditing}
+          onSaveEdit={workspace.onSaveEdit}
+          onDeleteTransaction={workspace.onDeleteTransaction}
+        />
       </div>
     </main>
   );
