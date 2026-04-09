@@ -74,11 +74,11 @@ export function WorkspaceHeaderMenu({ onThemeChange, className }: WorkspaceHeade
 
       <div
         className={cn(
-          "absolute right-0 top-full z-[145] mt-3 w-[min(24rem,calc(100vw-2rem))] overflow-hidden transition-[max-height,opacity,transform] duration-300 ease-out",
+          "absolute right-0 top-full z-[145] mt-3 w-[min(24rem,calc(100vw-2rem))] transition-[max-height,opacity,transform] duration-300 ease-out",
           isOpen ? "pointer-events-auto max-h-[32rem] translate-y-0 opacity-100" : "pointer-events-none max-h-0 -translate-y-2 opacity-0"
         )}
       >
-        <div className="rounded-[24px] border border-[rgba(201,168,76,0.14)] bg-[var(--surface-glass)] p-3 shadow-[0_24px_56px_rgba(26,20,16,0.16)] backdrop-blur-[14px] backdrop-saturate-150">
+        <div className="overflow-hidden rounded-[24px] border border-[rgba(201,168,76,0.14)] bg-[var(--surface-glass)] p-3 shadow-[0_24px_56px_rgba(26,20,16,0.16)] backdrop-blur-[14px] backdrop-saturate-150">
           <div className="space-y-2">
             {workspaceMenuItems.map((item) => {
               const active = isActiveRoute(pathname, item.href);
