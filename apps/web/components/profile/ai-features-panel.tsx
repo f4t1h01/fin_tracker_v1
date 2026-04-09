@@ -90,16 +90,14 @@ export function AiFeaturesPanel(props: AiFeaturesPanelProps) {
       ) : null}
 
       {isOpen ? (
-        <div className="fixed inset-0 z-[130] overflow-y-auto">
-          <div className="absolute inset-0 bg-transparent backdrop-blur-[22px]" />
-
-          <div className="relative flex min-h-full items-start justify-center px-4 py-4 md:items-center md:py-8">
+        <div className="fixed inset-0 z-[130] overflow-y-auto overscroll-contain bg-[color-mix(in_srgb,var(--dark-ink)_16%,transparent)] p-4 backdrop-blur-[32px] backdrop-saturate-150 md:p-8">
+          <div className="flex min-h-full items-center justify-center">
             <div
               ref={dialogRef}
               role="dialog"
               aria-modal="true"
               aria-label="AI tools"
-              className="panel-soft flex max-h-[calc(100dvh-2rem)] w-full max-w-xl flex-col overflow-hidden rounded-[28px] border border-[rgba(201,168,76,0.12)] p-5 shadow-[0_24px_56px_rgba(26,20,16,0.14)]"
+              className="panel-soft flex max-h-[calc(100dvh-2rem)] w-full max-w-xl flex-col overflow-hidden rounded-[28px] border border-[rgba(201,168,76,0.12)] p-5 shadow-[0_24px_56px_rgba(26,20,16,0.18)] md:max-h-[calc(100dvh-4rem)]"
             >
               <div className="flex shrink-0 items-start justify-between gap-4">
                 <div className="space-y-2">
