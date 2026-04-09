@@ -1,4 +1,4 @@
-import { PlusCircle } from "lucide-react";
+import { ArrowRight, PlusCircle } from "lucide-react";
 
 import { AppLink } from "@/components/navigation/app-link";
 import { Button } from "@/components/ui/button";
@@ -125,7 +125,7 @@ export function TransactionEntry(props: TransactionEntryProps) {
               <Button
                 type="button"
                 asChild
-                className="min-h-12 w-full px-6 py-4 text-[14px] font-semibold uppercase tracking-[0.14em] md:w-auto"
+                className="min-h-12 w-full justify-start px-6 py-4 text-[14px] font-semibold uppercase tracking-[0.14em] md:w-auto"
               >
                 <AppLink href="/profile/me/categories">Manage categories</AppLink>
               </Button>
@@ -134,9 +134,10 @@ export function TransactionEntry(props: TransactionEntryProps) {
                 disabled={props.isSubmittingTx}
                 pending={props.isSubmittingTx}
                 pendingText="Saving..."
-                className="min-h-12 w-full px-6 py-4 text-[14px] font-semibold uppercase tracking-[0.14em] md:w-auto"
+                className="min-h-12 w-full justify-start px-6 py-4 text-[14px] font-semibold uppercase tracking-[0.14em] md:w-auto md:min-w-[220px] [&>span]:flex [&>span]:w-full [&>span]:items-center [&>span]:gap-2"
               >
                 Save transaction
+                <ArrowRight className="ml-auto size-4" />
               </Button>
             </div>
             <div className="text-center">

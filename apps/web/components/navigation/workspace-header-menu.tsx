@@ -54,12 +54,12 @@ export function WorkspaceHeaderMenu({ onThemeChange, className }: WorkspaceHeade
   });
 
   return (
-    <div ref={menuRef} className={cn("relative isolate shrink-0", className)}>
+    <div ref={menuRef} className={cn("relative isolate z-[140] shrink-0", className)}>
       <Button
         type="button"
         variant="outline"
         className={cn(
-          "relative z-[50] size-12 !rounded-[16px] !px-0 !py-0 transition-colors duration-300",
+          "relative z-[150] size-12 !rounded-[16px] !px-0 !py-0 transition-colors duration-300",
           isOpen
             ? "border-[var(--gold)] bg-[color-mix(in_srgb,var(--gold)_10%,transparent)] text-[var(--ink)]"
             : "border-[rgba(201,168,76,0.22)] bg-[color-mix(in_srgb,var(--warm-white)_82%,transparent)] text-[var(--ink-soft)]"
@@ -72,21 +72,13 @@ export function WorkspaceHeaderMenu({ onThemeChange, className }: WorkspaceHeade
         {isOpen ? <X className="size-5" /> : <Menu className="size-5" />}
       </Button>
 
-      {isOpen ? (
-        <div
-          className="fixed inset-0 z-[35] bg-[color-mix(in_srgb,var(--dark-ink)_16%,transparent)] backdrop-blur-[30px] backdrop-saturate-150"
-          onClick={() => setIsOpen(false)}
-          aria-hidden="true"
-        />
-      ) : null}
-
       <div
         className={cn(
-          "absolute right-0 top-full z-[40] mt-3 w-[min(24rem,calc(100vw-2rem))] overflow-hidden transition-[max-height,opacity,transform] duration-300 ease-out",
+          "absolute right-0 top-full z-[145] mt-3 w-[min(24rem,calc(100vw-2rem))] overflow-hidden transition-[max-height,opacity,transform] duration-300 ease-out",
           isOpen ? "pointer-events-auto max-h-[32rem] translate-y-0 opacity-100" : "pointer-events-none max-h-0 -translate-y-2 opacity-0"
         )}
       >
-        <div className="panel-soft rounded-[24px] border border-[rgba(201,168,76,0.14)] bg-[color-mix(in_srgb,var(--warm-white)_94%,transparent)] p-3 shadow-[0_24px_56px_rgba(26,20,16,0.18)] backdrop-blur-[18px]">
+        <div className="panel-soft rounded-[24px] border border-[rgba(201,168,76,0.14)] bg-[color-mix(in_srgb,var(--warm-white)_88%,transparent)] p-3 shadow-[0_24px_56px_rgba(26,20,16,0.18)] backdrop-blur-[26px]">
           <div className="space-y-2">
             {workspaceMenuItems.map((item) => {
               const active = isActiveRoute(pathname, item.href);
