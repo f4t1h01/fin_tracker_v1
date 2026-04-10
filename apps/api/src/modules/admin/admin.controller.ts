@@ -23,6 +23,9 @@ import { AdminSqlService } from "./admin-sql.service";
 import { AdminMutationService } from "./admin-mutation.service";
 import { AdminAdminPasswordResetDto } from "./dto/admin-admin-password-reset.dto";
 import { AdminAdminStatusDto } from "./dto/admin-admin-status.dto";
+import { AdminAiPricingQueryDto } from "./dto/admin-ai-pricing-query.dto";
+import { AdminAiPricingRetireDto } from "./dto/admin-ai-pricing-retire.dto";
+import { AdminAiPricingUpsertDto } from "./dto/admin-ai-pricing-upsert.dto";
 import { AdminAiUsageQueryDto } from "./dto/admin-ai-usage-query.dto";
 import { AdminAuditQueryDto } from "./dto/admin-audit-query.dto";
 import { AdminCategoriesQueryDto } from "./dto/admin-categories-query.dto";
@@ -218,6 +221,33 @@ export class AdminController {
   @Get("ai-usage/summary")
   aiUsageSummary(@Query() query: AdminAiUsageQueryDto) {
     return this.readService.aiUsageSummary(query);
+  }
+
+  @UseGuards(AdminSessionGuard)
+  @Get("ai-pricing")
+  aiPricing(@Query() query: AdminAiPricingQueryDto) {
+    return this.readService.aiPricingList(query);
+  }
+
+  @UseGuards(AdminSessionGuard)
+  @Post("ai-pricing")
+  setAiPricing(
+    @Body() dto: AdminAiPricingUpsertDto,
+    @CurrentAdmin() admin: { email: string },
+    @Req() request: FastifyRequest
+  ) {
+    return this.mutationService.setAiModelPricing(dto, admin.email, getRequestMeta(request));
+  }
+
+  @UseGuards(AdminSessionGuard)
+  @Post("ai-pricing/:id/retire")
+  retireAiPricing(
+    @Param("id") id: string,
+    @Body() dto: AdminAiPricingRetireDto,
+    @CurrentAdmin() admin: { email: string },
+    @Req() request: FastifyRequest
+  ) {
+    return this.mutationService.retireAiModelPricing(id, dto, admin.email, getRequestMeta(request));
   }
 
   @UseGuards(AdminSessionGuard)

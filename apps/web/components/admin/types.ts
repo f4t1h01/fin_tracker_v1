@@ -333,6 +333,25 @@ export type AdminAiUsageListResponse = AdminPaginated<{
   couple: { id: string; name: string } | null;
 }>;
 
+export type AdminAiPricingListItem = {
+  id: string;
+  provider: string;
+  model: string;
+  textInputMicrosPer1m: number;
+  audioInputMicrosPer1m: number;
+  textOutputMicrosPer1m: number;
+  audioOutputMicrosPer1m: number;
+  notes: string | null;
+  effectiveFrom: string;
+  retiredAt: string | null;
+  createdByAdminEmail: string | null;
+  createdAt: string;
+};
+
+export type AdminAiPricingListResponse = AdminPaginated<AdminAiPricingListItem> & {
+  currentByModel: AdminAiPricingListItem[];
+};
+
 export type AdminAuditListResponse = AdminPaginated<{
   id: string;
   adminEmail: string | null;

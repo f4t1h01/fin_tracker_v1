@@ -38,8 +38,10 @@ export class ProfileVoiceService {
     });
     const coupleId = activeBind?.coupleId ?? null;
 
-    const transcriptionPricing = this.aiUsageService.getModelPricing(OPENAI_TRANSCRIPTION_MODEL);
-    const extractionPricing = this.aiUsageService.getModelPricing(OPENAI_EXTRACTION_MODEL);
+    const [transcriptionPricing, extractionPricing] = await Promise.all([
+      this.aiUsageService.getModelPricing(OPENAI_TRANSCRIPTION_MODEL),
+      this.aiUsageService.getModelPricing(OPENAI_EXTRACTION_MODEL)
+    ]);
     let transcription;
 
     try {

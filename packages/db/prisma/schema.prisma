@@ -56,6 +56,27 @@ model User {
   updatedAt         DateTime      @updatedAt
 }
 
+model AiModelPricing {
+  id                          String      @id @default(cuid())
+  provider                    String      @default("OPENAI")
+  model                       String
+  textInputMicrosPer1m        BigInt?     @map("text_input_micros_per_1m")
+  audioInputMicrosPer1m       BigInt?     @map("audio_input_micros_per_1m")
+  textOutputMicrosPer1m       BigInt?     @map("text_output_micros_per_1m")
+  audioOutputMicrosPer1m      BigInt?     @map("audio_output_micros_per_1m")
+  notes                       String?
+  effectiveFrom               DateTime    @default(now()) @map("effective_from")
+  retiredAt                   DateTime?   @map("retired_at")
+  createdByAdminEmail         String?     @map("created_by_admin_email")
+  createdAt                   DateTime    @default(now()) @map("created_at")
+  aiUsageLogs                 AiUsageLog[]
+
+  @@index([provider, model, effectiveFrom])
+  @@index([provider, model, retiredAt])
+  @@index([createdAt])
+  @@map("ai_model_pricing")
+}
+
 model ZeroAdmin {
   email        String   @id
   passwordHash String   @map("password_hash")
@@ -96,6 +117,8 @@ model AiUsageLog {
   user                        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
   coupleId                    String?  @map("couple_id")
   couple                      Couple?  @relation(fields: [coupleId], references: [id], onDelete: SetNull)
+  aiModelPricingId            String?  @map("ai_model_pricing_id")
+  aiModelPricing              AiModelPricing? @relation(fields: [aiModelPricingId], references: [id], onDelete: SetNull)
   inputTokens                 Int?     @map("input_tokens")
   outputTokens                Int?     @map("output_tokens")
   totalTokens                 Int?     @map("total_tokens")
@@ -123,6 +146,7 @@ model AiUsageLog {
   @@index([providerRequestId])
   @@index([userId, createdAt])
   @@index([coupleId, createdAt])
+  @@index([aiModelPricingId])
   @@map("ai_usage_log")
 }
 

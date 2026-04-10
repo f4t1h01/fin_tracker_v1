@@ -102,6 +102,29 @@ export class AdminReadService {
     return where;
   }
 
+  private buildAiPricingWhere(query?: { model?: string; status?: string }) {
+    const where: Record<string, unknown> = {
+      provider: "OPENAI"
+    };
+
+    if (query?.model?.trim()) {
+      where.model = query.model.trim();
+    }
+
+    if (query?.status?.trim()) {
+      const normalized = query.status.trim().toUpperCase();
+      if (normalized === "ACTIVE") {
+        where.retiredAt = null;
+      } else if (normalized === "RETIRED") {
+        where.NOT = {
+          retiredAt: null
+        };
+      }
+    }
+
+    return where;
+  }
+
   private buildAuditWhere(query?: AdminAuditQueryDto) {
     const where: Record<string, unknown> = {};
 
@@ -1060,6 +1083,65 @@ export class AdminReadService {
         createdAt: item.createdAt.toISOString(),
         user: item.user,
         couple: item.couple
+      })),
+      page,
+      pageSize,
+      totalItems,
+      totalPages: Math.max(1, Math.ceil(totalItems / pageSize))
+    };
+  }
+
+  async aiPricingList(query?: { model?: string; status?: string; page?: number; pageSize?: number }) {
+    const where = this.buildAiPricingWhere(query);
+    const { page, pageSize } = this.normalizeQueryPage(query);
+
+    const [items, totalItems, activeItems] = await Promise.all([
+      this.db.aiModelPricing.findMany({
+        where,
+        orderBy: [{ effectiveFrom: "desc" }, { createdAt: "desc" }],
+        skip: (page - 1) * pageSize,
+        take: pageSize
+      }),
+      this.db.aiModelPricing.count({ where }),
+      this.db.aiModelPricing.findMany({
+        where: {
+          provider: "OPENAI",
+          retiredAt: null
+        },
+        orderBy: [{ model: "asc" }, { effectiveFrom: "desc" }, { createdAt: "desc" }]
+      })
+    ]);
+
+    const uniqueActiveItems = activeItems.filter((item: any, index: number, array: any[]) => array.findIndex((candidate) => candidate.model === item.model) === index);
+
+    return {
+      currentByModel: uniqueActiveItems.map((item: any) => ({
+        id: item.id,
+        provider: item.provider,
+        model: item.model,
+        textInputMicrosPer1m: Number(item.textInputMicrosPer1m ?? 0n),
+        audioInputMicrosPer1m: Number(item.audioInputMicrosPer1m ?? 0n),
+        textOutputMicrosPer1m: Number(item.textOutputMicrosPer1m ?? 0n),
+        audioOutputMicrosPer1m: Number(item.audioOutputMicrosPer1m ?? 0n),
+        notes: item.notes,
+        effectiveFrom: item.effectiveFrom.toISOString(),
+        retiredAt: item.retiredAt?.toISOString() ?? null,
+        createdByAdminEmail: item.createdByAdminEmail,
+        createdAt: item.createdAt.toISOString()
+      })),
+      items: items.map((item: any) => ({
+        id: item.id,
+        provider: item.provider,
+        model: item.model,
+        textInputMicrosPer1m: Number(item.textInputMicrosPer1m ?? 0n),
+        audioInputMicrosPer1m: Number(item.audioInputMicrosPer1m ?? 0n),
+        textOutputMicrosPer1m: Number(item.textOutputMicrosPer1m ?? 0n),
+        audioOutputMicrosPer1m: Number(item.audioOutputMicrosPer1m ?? 0n),
+        notes: item.notes,
+        effectiveFrom: item.effectiveFrom.toISOString(),
+        retiredAt: item.retiredAt?.toISOString() ?? null,
+        createdByAdminEmail: item.createdByAdminEmail,
+        createdAt: item.createdAt.toISOString()
       })),
       page,
       pageSize,

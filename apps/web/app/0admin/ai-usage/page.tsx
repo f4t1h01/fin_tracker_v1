@@ -1,10 +1,12 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
 import { AdminFrame } from "@/components/admin/admin-frame";
 import { adminFetch, buildAdminQuery, formatNumber, formatUsdMicros } from "@/components/admin/client";
 import type { AdminAiUsageListResponse, AdminAiUsageSummaryResponse } from "@/components/admin/types";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SelectField } from "@/components/ui/select-field";
 import { TextField } from "@/components/ui/text-field";
@@ -54,7 +56,15 @@ export default function AdminAiUsagePage() {
   }, [query]);
 
   return (
-    <AdminFrame title="AI expenditure" description="Per-call OpenAI usage, spend, and model breakdown for tracked AI features.">
+    <AdminFrame
+      title="AI expenditure"
+      description="Per-call OpenAI usage, spend, and model breakdown for tracked AI features."
+      actions={
+        <Button asChild variant="outline">
+          <Link href="/0admin/ai-pricing">Manage pricing</Link>
+        </Button>
+      }
+    >
       <Card className="panel-soft mb-6">
         <CardHeader><CardTitle>Filters</CardTitle></CardHeader>
         <CardContent className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">

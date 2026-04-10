@@ -19,6 +19,7 @@ const navItems = [
   { href: "/0admin/transactions", label: "Transactions" },
   { href: "/0admin/categories", label: "Categories" },
   { href: "/0admin/ai-usage", label: "AI usage" },
+  { href: "/0admin/ai-pricing", label: "AI pricing" },
   { href: "/0admin/sql", label: "SQL" },
   { href: "/0admin/security", label: "Security" },
   { href: "/0admin/audit", label: "Audit" }

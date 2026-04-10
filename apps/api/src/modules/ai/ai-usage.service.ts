@@ -1,5 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import { getAiModelPricing, parseApiEnv, type AiModelPricing } from "@repo/config";
+import { type AiModelPricing } from "@repo/config";
 
 import { PrismaService } from "../prisma/prisma.service";
 import type { AiUsageLogPayload, AiUsageTokenBreakdown } from "./ai-usage.types";
@@ -34,20 +34,29 @@ function computeMicros(tokens: number | null, unitPriceMicrosPer1m: bigint | nul
 
 @Injectable()
 export class AiUsageService {
-  private readonly pricingByModel: Record<string, AiModelPricing> = getAiModelPricing(process.env);
+  constructor(private readonly prisma: PrismaService) {}
 
-  constructor(private readonly prisma: PrismaService) {
-    parseApiEnv(process.env);
-  }
-
-  getModelPricing(model: string): AiModelPricing {
-    const pricing = this.pricingByModel[model];
+  async getModelPricing(model: string): Promise<AiModelPricing | null> {
+    const pricing = await this.prisma.client.aiModelPricing.findFirst({
+      where: {
+        provider: "OPENAI",
+        model,
+        retiredAt: null
+      },
+      orderBy: [{ effectiveFrom: "desc" }, { createdAt: "desc" }]
+    });
 
     if (!pricing) {
-      throw new Error(`Missing AI pricing configuration for model "${model}"`);
+      return null;
     }
 
-    return pricing;
+    return {
+      id: pricing.id,
+      textInputMicrosPer1m: pricing.textInputMicrosPer1m ?? undefined,
+      audioInputMicrosPer1m: pricing.audioInputMicrosPer1m ?? undefined,
+      textOutputMicrosPer1m: pricing.textOutputMicrosPer1m ?? undefined,
+      audioOutputMicrosPer1m: pricing.audioOutputMicrosPer1m ?? undefined
+    };
   }
 
   async log(payload: AiUsageLogPayload) {
@@ -87,6 +96,7 @@ export class AiUsageService {
         providerRequestId: payload.providerRequestId ?? null,
         userId: payload.userId ?? null,
         coupleId: payload.coupleId ?? null,
+        aiModelPricingId: payload.pricingId ?? payload.pricing?.id ?? null,
         inputTokens,
         outputTokens,
         totalTokens,

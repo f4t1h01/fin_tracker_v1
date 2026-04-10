@@ -5,6 +5,8 @@ import { PrismaService } from "../prisma/prisma.service";
 import { AdminAuditService, type AdminRequestMeta } from "./admin-audit.service";
 import { AdminAuthService } from "./admin-auth.service";
 import { AdminAdminPasswordResetDto } from "./dto/admin-admin-password-reset.dto";
+import { AdminAiPricingRetireDto } from "./dto/admin-ai-pricing-retire.dto";
+import { AdminAiPricingUpsertDto } from "./dto/admin-ai-pricing-upsert.dto";
 import { AdminAdminStatusDto } from "./dto/admin-admin-status.dto";
 import { AdminCategoryCorrectionDto } from "./dto/admin-category-correction.dto";
 import { AdminInvalidateInviteDto } from "./dto/admin-invalidate-invite.dto";
@@ -36,6 +38,141 @@ export class AdminMutationService {
 
   private get db(): any {
     return this.prisma.client as any;
+  }
+
+  private toBigInt(value: number | null | undefined) {
+    if (!Number.isFinite(value)) {
+      return null;
+    }
+
+    return BigInt(Math.trunc(value as number));
+  }
+
+  async setAiModelPricing(dto: AdminAiPricingUpsertDto, currentAdminEmail: string, requestMeta: AdminRequestMeta) {
+    const model = dto.model.trim();
+    const effectiveFrom = dto.effectiveFrom ? new Date(dto.effectiveFrom) : new Date();
+
+    if (Number.isNaN(effectiveFrom.valueOf())) {
+      throw new BadRequestException("Effective from timestamp is invalid");
+    }
+
+    if (
+      dto.textInputMicrosPer1m === undefined &&
+      dto.audioInputMicrosPer1m === undefined &&
+      dto.textOutputMicrosPer1m === undefined &&
+      dto.audioOutputMicrosPer1m === undefined
+    ) {
+      throw new BadRequestException("Provide at least one pricing field");
+    }
+
+    const activeExisting = await this.db.aiModelPricing.findFirst({
+      where: {
+        provider: "OPENAI",
+        model,
+        retiredAt: null
+      },
+      orderBy: [{ effectiveFrom: "desc" }, { createdAt: "desc" }]
+    });
+
+    const created = await this.db.$transaction(async (tx: any) => {
+      if (activeExisting) {
+        await tx.aiModelPricing.update({
+          where: { id: activeExisting.id },
+          data: {
+            retiredAt: effectiveFrom
+          }
+        });
+      }
+
+      return tx.aiModelPricing.create({
+        data: {
+          provider: "OPENAI",
+          model,
+          textInputMicrosPer1m: this.toBigInt(dto.textInputMicrosPer1m),
+          audioInputMicrosPer1m: this.toBigInt(dto.audioInputMicrosPer1m),
+          textOutputMicrosPer1m: this.toBigInt(dto.textOutputMicrosPer1m),
+          audioOutputMicrosPer1m: this.toBigInt(dto.audioOutputMicrosPer1m),
+          notes: dto.notes?.trim() || null,
+          effectiveFrom,
+          createdByAdminEmail: currentAdminEmail
+        }
+      });
+    });
+
+    await this.audit.log({
+      adminEmail: currentAdminEmail,
+      actionType: "AI_MODEL_PRICING_SET",
+      targetType: "AI_MODEL_PRICING",
+      targetId: created.id,
+      reason: dto.notes,
+      requestMeta,
+      beforeState: activeExisting
+        ? {
+            previousPricingId: activeExisting.id,
+            retiredAt: effectiveFrom.toISOString()
+          }
+        : null,
+      afterState: {
+        model: created.model,
+        effectiveFrom: created.effectiveFrom.toISOString(),
+        textInputMicrosPer1m: created.textInputMicrosPer1m?.toString() ?? null,
+        audioInputMicrosPer1m: created.audioInputMicrosPer1m?.toString() ?? null,
+        textOutputMicrosPer1m: created.textOutputMicrosPer1m?.toString() ?? null,
+        audioOutputMicrosPer1m: created.audioOutputMicrosPer1m?.toString() ?? null
+      },
+      outcome: "SUCCESS"
+    });
+
+    return {
+      id: created.id,
+      model: created.model,
+      effectiveFrom: created.effectiveFrom.toISOString()
+    };
+  }
+
+  async retireAiModelPricing(id: string, dto: AdminAiPricingRetireDto, currentAdminEmail: string, requestMeta: AdminRequestMeta) {
+    const pricing = await this.db.aiModelPricing.findUnique({
+      where: { id }
+    });
+
+    if (!pricing) {
+      throw new BadRequestException("Pricing record not found");
+    }
+
+    if (pricing.retiredAt) {
+      throw new BadRequestException("Pricing record is already retired");
+    }
+
+    const retiredAt = new Date();
+    const updated = await this.db.aiModelPricing.update({
+      where: { id },
+      data: {
+        retiredAt
+      }
+    });
+
+    await this.audit.log({
+      adminEmail: currentAdminEmail,
+      actionType: "AI_MODEL_PRICING_RETIRE",
+      targetType: "AI_MODEL_PRICING",
+      targetId: id,
+      reason: dto.reason,
+      requestMeta,
+      beforeState: {
+        model: pricing.model,
+        retiredAt: null
+      },
+      afterState: {
+        model: updated.model,
+        retiredAt: updated.retiredAt?.toISOString() ?? null
+      },
+      outcome: "SUCCESS"
+    });
+
+    return {
+      id: updated.id,
+      retiredAt: updated.retiredAt?.toISOString() ?? null
+    };
   }
 
   async updateAdminStatus(email: string, dto: AdminAdminStatusDto, currentAdminEmail: string, requestMeta: AdminRequestMeta) {
