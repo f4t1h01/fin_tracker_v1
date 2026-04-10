@@ -1,5 +1,7 @@
 import { BadGatewayException } from "@nestjs/common";
 
+import type { AiUsageTokenBreakdown } from "../../ai/ai-usage.types";
+import { OpenAiRequestError } from "./openai-request-error";
 import { OPENAI_EXTRACTION_MODEL } from "./voice.constants";
 import { buildVoiceCategoryContext, type VoiceCategoryCatalog } from "./voice-category-matcher";
 import { parseVoiceTransactionExtraction, voiceTransactionExtractionJsonSchema, type VoiceTransactionExtraction } from "./voice-transaction-draft.schema";
@@ -58,25 +60,87 @@ function extractResponsesText(payload: unknown) {
 async function readJsonResponse(response: Response) {
   const text = await response.text();
   let payload: unknown;
+  const providerRequestId = response.headers.get("x-request-id");
 
   try {
     payload = JSON.parse(text);
   } catch {
-    throw new BadGatewayException("OpenAI returned an invalid extraction response");
+    throw new OpenAiRequestError("OpenAI returned an invalid extraction response", {
+      providerRequestId
+    });
   }
+
+  const usage = extractUsage(payload);
 
   if (!response.ok) {
-    throw new BadGatewayException(readOpenAiErrorMessage(payload, response.status));
+    throw new OpenAiRequestError(readOpenAiErrorMessage(payload, response.status), {
+      usage,
+      providerRequestId
+    });
   }
 
-  return payload;
+  return {
+    payload,
+    usage,
+    providerRequestId:
+      providerRequestId ??
+      (typeof payload === "object" && payload !== null && "id" in payload && typeof (payload as { id?: unknown }).id === "string"
+        ? (payload as { id: string }).id
+        : null)
+  };
+}
+
+function extractUsage(payload: unknown): AiUsageTokenBreakdown {
+  if (typeof payload !== "object" || payload === null) {
+    return {};
+  }
+
+  const usage = (payload as {
+    usage?: {
+      input_tokens?: unknown;
+      output_tokens?: unknown;
+      total_tokens?: unknown;
+      input_tokens_details?: {
+        cached_tokens?: unknown;
+      };
+      output_tokens_details?: {
+        text_tokens?: unknown;
+        audio_tokens?: unknown;
+      };
+    };
+  }).usage;
+
+  if (!usage || typeof usage !== "object") {
+    return {};
+  }
+
+  const inputTokens = typeof usage.input_tokens === "number" ? usage.input_tokens : null;
+  const outputTokens = typeof usage.output_tokens === "number" ? usage.output_tokens : null;
+  const totalTokens = typeof usage.total_tokens === "number" ? usage.total_tokens : null;
+  const outputTextTokens = typeof usage.output_tokens_details?.text_tokens === "number" ? usage.output_tokens_details.text_tokens : outputTokens;
+  const outputAudioTokens = typeof usage.output_tokens_details?.audio_tokens === "number" ? usage.output_tokens_details.audio_tokens : null;
+  const inputCachedTokens = typeof usage.input_tokens_details?.cached_tokens === "number" ? usage.input_tokens_details.cached_tokens : null;
+
+  return {
+    inputTokens,
+    outputTokens,
+    totalTokens,
+    inputTextTokens: inputTokens,
+    inputCachedTokens,
+    outputTextTokens,
+    outputAudioTokens
+  };
 }
 
 export async function extractVoiceTransactionDraft(params: {
   apiKey: string;
   transcript: string;
   catalog: VoiceCategoryCatalog;
-}): Promise<VoiceTransactionExtraction> {
+}): Promise<{
+  draft: VoiceTransactionExtraction;
+  usage: AiUsageTokenBreakdown;
+  providerRequestId: string | null;
+}> {
   const categoryContext = buildVoiceCategoryContext(params.catalog);
   const prompt = [
     "You extract a single finance transaction draft from a voice note.",
@@ -114,7 +178,7 @@ export async function extractVoiceTransactionDraft(params: {
     })
   });
 
-  const payload = await readJsonResponse(response);
+  const { payload, usage, providerRequestId } = await readJsonResponse(response);
   const outputText = extractResponsesText(payload);
 
   let parsed: unknown;
@@ -124,5 +188,9 @@ export async function extractVoiceTransactionDraft(params: {
     throw new BadGatewayException("OpenAI extraction returned invalid JSON");
   }
 
-  return parseVoiceTransactionExtraction(parsed);
+  return {
+    draft: parseVoiceTransactionExtraction(parsed),
+    usage,
+    providerRequestId
+  };
 }

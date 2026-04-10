@@ -234,3 +234,57 @@ export type DashboardResponse = {
     };
   };
 };
+
+export type AdminAiUsageSummaryResponse = {
+  totals: {
+    requests: number;
+    inputTokens: number;
+    outputTokens: number;
+    totalTokens: number;
+    totalCostMicros: number;
+  };
+  perModel: Array<{
+    model: string;
+    requests: number;
+    inputTokens: number;
+    outputTokens: number;
+    totalTokens: number;
+    totalCostMicros: number;
+  }>;
+};
+
+export type AdminAiUsageListResponse = {
+  items: Array<{
+    id: string;
+    provider: string;
+    feature: string;
+    operation: string;
+    status: string;
+    model: string;
+    endpoint: string;
+    correlationId: string;
+    providerRequestId: string | null;
+    inputTokens: number;
+    outputTokens: number;
+    totalTokens: number;
+    inputCostMicros: number;
+    outputCostMicros: number;
+    totalCostMicros: number;
+    errorMessage: string | null;
+    createdAt: string;
+    user: {
+      id: string;
+      firstName: string | null;
+      username: string | null;
+      email: string | null;
+    } | null;
+    couple: {
+      id: string;
+      name: string;
+    } | null;
+  }>;
+  page: number;
+  pageSize: number;
+  totalItems: number;
+  totalPages: number;
+};

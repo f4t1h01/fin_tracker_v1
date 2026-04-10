@@ -7,26 +7,44 @@ import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 import { pipeline } from "node:stream/promises";
 
+import type { AiUsageTokenBreakdown } from "../../ai/ai-usage.types";
+import { OpenAiRequestError } from "./openai-request-error";
 import { OPENAI_TRANSCRIPTION_MODEL } from "./voice.constants";
 
 async function readJsonResponse(response: Response) {
   const text = await response.text();
   let payload: unknown;
+  const providerRequestId = response.headers.get("x-request-id");
 
   try {
     payload = JSON.parse(text);
   } catch {
-    throw new BadGatewayException("OpenAI returned an invalid transcription response");
+    throw new OpenAiRequestError("OpenAI returned an invalid transcription response", {
+      providerRequestId
+    });
   }
+
+  const usage = extractUsage(payload);
 
   if (!response.ok) {
     const message = typeof payload === "object" && payload !== null && "error" in payload && typeof (payload as { error?: { message?: unknown } }).error?.message === "string"
       ? (payload as { error: { message: string } }).error.message
       : `OpenAI transcription failed with status ${response.status}`;
-    throw new BadGatewayException(message);
+    throw new OpenAiRequestError(message, {
+      usage,
+      providerRequestId
+    });
   }
 
-  return payload;
+  return {
+    payload,
+    usage,
+    providerRequestId:
+      providerRequestId ??
+      (typeof payload === "object" && payload !== null && "id" in payload && typeof (payload as { id?: unknown }).id === "string"
+        ? (payload as { id: string }).id
+        : null)
+  };
 }
 
 function resolveVoiceExtension(filename: string, mimetype: string) {
@@ -54,10 +72,67 @@ function resolveVoiceExtension(filename: string, mimetype: string) {
   return ".webm";
 }
 
+function extractUsage(payload: unknown): AiUsageTokenBreakdown {
+  if (typeof payload !== "object" || payload === null) {
+    return {};
+  }
+
+  const usage = (payload as {
+    usage?: {
+      input_tokens?: unknown;
+      output_tokens?: unknown;
+      total_tokens?: unknown;
+      input_token_details?: {
+        text_tokens?: unknown;
+        audio_tokens?: unknown;
+        cached_tokens?: unknown;
+      };
+      output_token_details?: {
+        text_tokens?: unknown;
+        audio_tokens?: unknown;
+      };
+      input_tokens_details?: {
+        text_tokens?: unknown;
+        audio_tokens?: unknown;
+        cached_tokens?: unknown;
+      };
+      output_tokens_details?: {
+        text_tokens?: unknown;
+        audio_tokens?: unknown;
+      };
+    };
+  }).usage;
+
+  if (!usage || typeof usage !== "object") {
+    return {};
+  }
+
+  const inputDetails = usage.input_token_details ?? usage.input_tokens_details;
+  const outputDetails = usage.output_token_details ?? usage.output_tokens_details;
+  const inputTokens = typeof usage.input_tokens === "number" ? usage.input_tokens : null;
+  const outputTokens = typeof usage.output_tokens === "number" ? usage.output_tokens : null;
+  const totalTokens = typeof usage.total_tokens === "number" ? usage.total_tokens : null;
+
+  return {
+    inputTokens,
+    outputTokens,
+    totalTokens,
+    inputTextTokens: typeof inputDetails?.text_tokens === "number" ? inputDetails.text_tokens : null,
+    inputAudioTokens: typeof inputDetails?.audio_tokens === "number" ? inputDetails.audio_tokens : inputTokens,
+    inputCachedTokens: typeof inputDetails?.cached_tokens === "number" ? inputDetails.cached_tokens : null,
+    outputTextTokens: typeof outputDetails?.text_tokens === "number" ? outputDetails.text_tokens : outputTokens,
+    outputAudioTokens: typeof outputDetails?.audio_tokens === "number" ? outputDetails.audio_tokens : null
+  };
+}
+
 export async function transcribeVoiceAudio(params: {
   apiKey: string;
   file: MultipartFile;
-}) {
+}): Promise<{
+  transcript: string;
+  usage: AiUsageTokenBreakdown;
+  providerRequestId: string | null;
+}> {
   const tempDir = await mkdtemp(join(tmpdir(), "fin-tracker-voice-"));
   const extension = resolveVoiceExtension(params.file.filename, params.file.mimetype ?? "");
   const tempPath = join(tempDir, `${randomUUID()}${extension}`);
@@ -83,7 +158,7 @@ export async function transcribeVoiceAudio(params: {
       body: form
     });
 
-    const payload = await readJsonResponse(response);
+    const { payload, usage, providerRequestId } = await readJsonResponse(response);
     const transcript = typeof payload === "object" && payload !== null && "text" in payload && typeof (payload as { text?: unknown }).text === "string"
       ? (payload as { text: string }).text.trim()
       : "";
@@ -92,7 +167,11 @@ export async function transcribeVoiceAudio(params: {
       throw new BadGatewayException("Voice transcription returned no text");
     }
 
-    return transcript;
+    return {
+      transcript,
+      usage,
+      providerRequestId
+    };
   } finally {
     await rm(tempDir, { recursive: true, force: true });
   }

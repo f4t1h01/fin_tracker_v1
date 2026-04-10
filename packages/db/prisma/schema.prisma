@@ -51,6 +51,7 @@ model User {
   ownedCategories   Category[]    @relation("OwnedCategories")
   createdCouples    Couple[]      @relation("CreatedCouples")
   createdInvites    Invite[]      @relation("CreatedInvites")
+  aiUsageLogs       AiUsageLog[]
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
 }
@@ -58,6 +59,8 @@ model User {
 model ZeroAdmin {
   email        String   @id
   passwordHash String   @map("password_hash")
+  isActive     Boolean  @default(true) @map("is_active")
+  lastLoginAt  DateTime? @map("last_login_at")
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
@@ -74,8 +77,75 @@ model Couple {
   categories   Category[]
   transactions Transaction[]
   invites      Invite[]
+  aiUsageLogs  AiUsageLog[]
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
+}
+
+model AiUsageLog {
+  id                          String   @id @default(cuid())
+  provider                    String
+  feature                     String
+  operation                   String
+  status                      String
+  model                       String
+  endpoint                    String
+  correlationId               String   @map("correlation_id")
+  providerRequestId           String?  @map("provider_request_id")
+  userId                      String?  @map("user_id")
+  user                        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  coupleId                    String?  @map("couple_id")
+  couple                      Couple?  @relation(fields: [coupleId], references: [id], onDelete: SetNull)
+  inputTokens                 Int?     @map("input_tokens")
+  outputTokens                Int?     @map("output_tokens")
+  totalTokens                 Int?     @map("total_tokens")
+  inputTextTokens             Int?     @map("input_text_tokens")
+  inputAudioTokens            Int?     @map("input_audio_tokens")
+  inputCachedTokens           Int?     @map("input_cached_tokens")
+  outputTextTokens            Int?     @map("output_text_tokens")
+  outputAudioTokens           Int?     @map("output_audio_tokens")
+  textInputPriceMicrosPer1m   BigInt?  @map("text_input_price_micros_per_1m")
+  audioInputPriceMicrosPer1m  BigInt?  @map("audio_input_price_micros_per_1m")
+  textOutputPriceMicrosPer1m  BigInt?  @map("text_output_price_micros_per_1m")
+  audioOutputPriceMicrosPer1m BigInt?  @map("audio_output_price_micros_per_1m")
+  inputCostMicros             BigInt?  @map("input_cost_micros")
+  outputCostMicros            BigInt?  @map("output_cost_micros")
+  totalCostMicros             BigInt?  @map("total_cost_micros")
+  errorMessage                String?  @map("error_message")
+  createdAt                   DateTime @default(now()) @map("created_at")
+
+  @@index([createdAt])
+  @@index([model])
+  @@index([feature])
+  @@index([operation])
+  @@index([status])
+  @@index([correlationId])
+  @@index([providerRequestId])
+  @@index([userId, createdAt])
+  @@index([coupleId, createdAt])
+  @@map("ai_usage_log")
+}
+
+model AdminAuditLog {
+  id              String   @id @default(cuid())
+  adminEmail      String?  @map("admin_email")
+  actionType      String   @map("action_type")
+  targetType      String?  @map("target_type")
+  targetId        String?  @map("target_id")
+  reason          String?
+  requestMetadata Json?    @map("request_metadata")
+  beforeState     Json?    @map("before_state")
+  afterState      Json?    @map("after_state")
+  outcome         String
+  errorMessage    String?  @map("error_message")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  @@index([createdAt])
+  @@index([adminEmail, createdAt])
+  @@index([actionType, createdAt])
+  @@index([targetType, targetId])
+  @@index([outcome, createdAt])
+  @@map("admin_audit_log")
 }
 
 model CoupleBind {

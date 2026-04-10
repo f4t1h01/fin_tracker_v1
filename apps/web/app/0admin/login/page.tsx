@@ -5,31 +5,11 @@ import { useRouter } from "next/navigation";
 
 import { BrandMark } from "@/components/marketing/brand-mark";
 import { useRouteTransitionPageReady } from "@/components/navigation/route-transition-provider";
+import { adminFetch } from "@/components/admin/client";
+import type { AdminSession } from "@/components/admin/types";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { TextField } from "@/components/ui/text-field";
-import { webEnv } from "@/lib/env";
-
-const adminTokenKey = "cf_admin_token";
-
-async function parseApiResponse<T>(response: Response): Promise<T> {
-  if (response.ok) {
-    return (await response.json()) as T;
-  }
-
-  let errorMessage = `Request failed with status ${response.status}`;
-
-  try {
-    const payload = (await response.json()) as { message?: string | string[] };
-    if (Array.isArray(payload.message)) {
-      errorMessage = payload.message.join(", ");
-    } else if (payload.message) {
-      errorMessage = payload.message;
-    }
-  } catch {}
-
-  throw new Error(errorMessage);
-}
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -41,24 +21,11 @@ export default function AdminLoginPage() {
   useRouteTransitionPageReady(true);
 
   useEffect(() => {
-    const token = localStorage.getItem(adminTokenKey);
-
-    if (!token) {
-      return;
-    }
-
-    void fetch(`${webEnv.apiUrl}/0admin/me`, {
-      headers: {
-        Authorization: `Bearer ${token}`
-      }
-    }).then((response) => {
-      if (response.ok) {
-        router.replace("/0admin/me");
-        return;
-      }
-
-      localStorage.removeItem(adminTokenKey);
-    });
+    void adminFetch<AdminSession>("/0admin/me")
+      .then(() => {
+        router.replace("/0admin");
+      })
+      .catch(() => null);
   }, [router]);
 
   const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -67,17 +34,11 @@ export default function AdminLoginPage() {
     setIsSubmitting(true);
 
     try {
-      const response = await fetch(`${webEnv.apiUrl}/0admin/login`, {
+      await adminFetch("/0admin/login", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
         body: JSON.stringify({ email, password })
       });
-
-      const payload = await parseApiResponse<{ accessToken: string }>(response);
-      localStorage.setItem(adminTokenKey, payload.accessToken);
-      router.replace("/0admin/me");
+      router.replace("/0admin");
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "Could not sign in");
     } finally {
@@ -98,7 +59,7 @@ export default function AdminLoginPage() {
       <Card className="panel-soft mx-auto w-full max-w-xl">
         <CardHeader>
           <CardTitle>Admin login</CardTitle>
-          <CardDescription>Use the admin account.</CardDescription>
+          <CardDescription>Cookie-backed session login for the back office.</CardDescription>
         </CardHeader>
         <CardContent>
           <form className="space-y-3" onSubmit={onSubmit}>

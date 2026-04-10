@@ -1,11 +1,28 @@
 import { Module } from "@nestjs/common";
+import { Reflector } from "@nestjs/core";
 
-import { AdminJwtGuard } from "./admin-jwt.guard";
+import { AdminAuditService } from "./admin-audit.service";
+import { AdminAuthService } from "./admin-auth.service";
 import { AdminController } from "./admin.controller";
-import { AdminService } from "./admin.service";
+import { AdminMutationService } from "./admin-mutation.service";
+import { AdminRateLimitGuard } from "./admin-rate-limit.guard";
+import { AdminRateLimitService } from "./admin-rate-limit.service";
+import { AdminReadService } from "./admin-read.service";
+import { AdminSessionGuard } from "./admin-session.guard";
+import { AdminSqlService } from "./admin-sql.service";
 
 @Module({
   controllers: [AdminController],
-  providers: [AdminService, AdminJwtGuard]
+  providers: [
+    AdminAuditService,
+    AdminAuthService,
+    AdminReadService,
+    AdminMutationService,
+    AdminSqlService,
+    AdminSessionGuard,
+    AdminRateLimitService,
+    AdminRateLimitGuard,
+    Reflector
+  ]
 })
 export class AdminModule {}

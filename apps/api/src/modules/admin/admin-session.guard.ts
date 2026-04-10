@@ -2,17 +2,21 @@ import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from
 import { parseApiEnv } from "@repo/config";
 import { verify } from "jsonwebtoken";
 
+import { parseCookieHeader } from "./admin-cookie.util";
+import { adminSessionCookieName } from "./admin-session.constants";
+
 @Injectable()
-export class AdminJwtGuard implements CanActivate {
+export class AdminSessionGuard implements CanActivate {
   canActivate(context: ExecutionContext): boolean {
     const request = context.switchToHttp().getRequest();
-    const authHeader: string | undefined = request.headers.authorization;
+    const cookieHeader = request.headers.cookie;
+    const cookies = parseCookieHeader(typeof cookieHeader === "string" ? cookieHeader : undefined);
+    const token = cookies[adminSessionCookieName];
 
-    if (!authHeader?.startsWith("Bearer ")) {
-      throw new UnauthorizedException("Missing bearer token");
+    if (!token) {
+      throw new UnauthorizedException("Missing admin session");
     }
 
-    const token = authHeader.replace("Bearer ", "").trim();
     const env = parseApiEnv(process.env);
 
     try {
@@ -22,7 +26,7 @@ export class AdminJwtGuard implements CanActivate {
       };
 
       if (payload.type !== "admin" || typeof payload.sub !== "string" || !payload.sub) {
-        throw new UnauthorizedException("Invalid admin token");
+        throw new UnauthorizedException("Invalid admin session");
       }
 
       request.admin = {
@@ -35,7 +39,7 @@ export class AdminJwtGuard implements CanActivate {
         throw error;
       }
 
-      throw new UnauthorizedException("Invalid admin token");
+      throw new UnauthorizedException("Invalid admin session");
     }
   }
 }
