@@ -99,6 +99,10 @@ export function useDashboardWorkspace(mode: DashboardWorkspaceMode = "overview")
   const [txMessage, setTxMessage] = useState<string | null>(null);
   const [txError, setTxError] = useState<string | null>(null);
 
+  const hasPartnerConnection = data?.profile.hasPartnerConnection;
+  const effectiveViewMode = hasPartnerConnection === false ? "PERSONAL" : viewMode;
+  const effectiveActor = hasPartnerConnection === false ? "EVERYONE" : actor;
+
   useClientLayoutEffect(() => {
     const cached = readDashboardCache();
     if (!cached || !("transactions" in cached) || !("charts" in cached) || !("filters" in cached)) {
@@ -161,7 +165,7 @@ export function useDashboardWorkspace(mode: DashboardWorkspaceMode = "overview")
     }
 
     const query = buildDashboardQuery({
-      viewMode,
+      viewMode: effectiveViewMode,
       page,
       pageSize,
       selectedPreset,
@@ -170,7 +174,7 @@ export function useDashboardWorkspace(mode: DashboardWorkspaceMode = "overview")
       draftMonthKey,
       kind,
       categoryId,
-      actor,
+      actor: effectiveActor,
       search
     });
 
@@ -214,7 +218,8 @@ export function useDashboardWorkspace(mode: DashboardWorkspaceMode = "overview")
       setIsRefreshing(false);
     }
   }, [
-    actor,
+    effectiveActor,
+    effectiveViewMode,
     categoryId,
     draftFrom,
     draftMonthKey,
@@ -224,27 +229,12 @@ export function useDashboardWorkspace(mode: DashboardWorkspaceMode = "overview")
     page,
     pageSize,
     search,
-    selectedPreset,
-    viewMode
+    selectedPreset
   ]);
 
   useEffect(() => {
     void fetchDashboard();
   }, [fetchDashboard]);
-
-  useEffect(() => {
-    if (!data) {
-      return;
-    }
-
-    if (!data.profile.hasPartnerConnection && viewMode !== "PERSONAL") {
-      setViewMode("PERSONAL");
-    }
-
-    if (!data.profile.hasPartnerConnection && actor === "PARTNER") {
-      setActor("EVERYONE");
-    }
-  }, [actor, data, viewMode]);
 
   const summary = useMemo(() => {
     if (!data) {
@@ -252,16 +242,16 @@ export function useDashboardWorkspace(mode: DashboardWorkspaceMode = "overview")
     }
 
     const rate = data.rates[displayCurrency];
-    const income = viewMode === "PERSONAL" ? data.summary.personalIncome : data.summary.totalIncome;
-    const expense = viewMode === "PERSONAL" ? data.summary.personalExpense : data.summary.totalExpense;
-    const balance = viewMode === "PERSONAL" ? data.summary.personalBalance : data.summary.balance;
+    const income = effectiveViewMode === "PERSONAL" ? data.summary.personalIncome : data.summary.totalIncome;
+    const expense = effectiveViewMode === "PERSONAL" ? data.summary.personalExpense : data.summary.totalExpense;
+    const balance = effectiveViewMode === "PERSONAL" ? data.summary.personalBalance : data.summary.balance;
 
     return {
       totalIncome: convertAmount(income, rate),
       totalExpense: convertAmount(expense, rate),
       balance: convertAmount(balance, rate)
     };
-  }, [data, displayCurrency, viewMode]);
+  }, [data, displayCurrency, effectiveViewMode]);
 
   const startEditing = (item: RecentTransaction) => {
     setTxMessage(null);

@@ -61,7 +61,7 @@ export function DashboardTrendsPage() {
 
   return (
     <main className="container-shell pb-16 pt-24">
-      <header className="soft-rise mb-8 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+      <header className="soft-rise mb-8 flex flex-wrap items-start justify-between gap-4">
         <div className="max-w-4xl space-y-4">
           <BrandMark href="/" />
           <div>
