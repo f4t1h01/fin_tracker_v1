@@ -1184,7 +1184,10 @@ export class ProfileService {
   }
 
   async getProfile(userId: string) {
-    const hasBirthdayColumn = await this.hasBirthdayColumn();
+    const [hasBirthdayColumn, hasDashboardRateCurrenciesColumn] = await Promise.all([
+      this.hasBirthdayColumn(),
+      this.hasDashboardRateCurrenciesColumn()
+    ]);
     const user = await this.prisma.client.user.findUnique({
       where: { id: userId },
       select: {
@@ -1194,6 +1197,7 @@ export class ProfileService {
         lastName: true,
         username: true,
         ...(hasBirthdayColumn ? { birthday: true } : {}),
+        ...(hasDashboardRateCurrenciesColumn ? { dashboardRateCurrencies: true } : {}),
         coupleCode: true,
         coupleBind: {
           select: {
@@ -1212,6 +1216,9 @@ export class ProfileService {
 
     const coupleCode = user.coupleCode ?? (await this.ensureUserCoupleCode(userId));
     const activeCoupleId = await this.resolveActiveCoupleId(userId, false);
+    const dashboardRateCurrencies = hasDashboardRateCurrenciesColumn
+      ? parseStoredDashboardRateCurrencies((user as { dashboardRateCurrencies?: string | null }).dashboardRateCurrencies)
+      : [...defaultDashboardRateCurrencies];
 
     if (!activeCoupleId) {
       return {
@@ -1225,6 +1232,7 @@ export class ProfileService {
           coupleCode
         },
         activeCouple: null,
+        dashboardRateCurrencies,
         bind: user.coupleBind,
         hasPartnerConnection: Boolean(user.coupleBind)
       };
@@ -1260,6 +1268,7 @@ export class ProfileService {
             role: activeCouple.memberships[0]?.role ?? "PARTNER"
           }
         : null,
+      dashboardRateCurrencies,
       bind: user.coupleBind,
       hasPartnerConnection: Boolean(user.coupleBind)
     };

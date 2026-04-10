@@ -6,7 +6,10 @@ import { parseApiResponse } from "@/components/profile/api";
 import {
   clearDashboardCache,
   clearDashboardDisplayCurrencyCache,
-  clearProfileSnapshotCache
+  clearDashboardRateCurrenciesCache,
+  clearProfileSnapshotCache,
+  normalizeDashboardRateCurrencies,
+  syncDashboardRateCurrenciesCache
 } from "@/components/profile/cache";
 import {
   tokenKey,
@@ -37,6 +40,7 @@ export function useDashboardRatesWorkspace() {
     localStorage.removeItem(tokenKey);
     clearDashboardCache();
     clearDashboardDisplayCurrencyCache();
+    clearDashboardRateCurrenciesCache();
     clearProfileSnapshotCache();
     window.location.replace("/profile/me");
   }, []);
@@ -64,8 +68,10 @@ export function useDashboardRatesWorkspace() {
       });
 
       const payload = await parseApiResponse<DashboardRatesResponse>(response);
-      setData(payload);
-      setDraftCurrencies(payload.selectedCurrencies);
+      const nextSelectedCurrencies = normalizeDashboardRateCurrencies(payload.selectedCurrencies);
+      syncDashboardRateCurrenciesCache(nextSelectedCurrencies);
+      setData({ ...payload, selectedCurrencies: nextSelectedCurrencies });
+      setDraftCurrencies(nextSelectedCurrencies);
       setError(null);
       setMessage(null);
     } catch (err) {
@@ -121,8 +127,10 @@ export function useDashboardRatesWorkspace() {
       });
 
       const payload = await parseApiResponse<DashboardRatesResponse>(response);
-      setData(payload);
-      setDraftCurrencies(payload.selectedCurrencies);
+      const nextSelectedCurrencies = normalizeDashboardRateCurrencies(payload.selectedCurrencies);
+      syncDashboardRateCurrenciesCache(nextSelectedCurrencies);
+      setData({ ...payload, selectedCurrencies: nextSelectedCurrencies });
+      setDraftCurrencies(nextSelectedCurrencies);
       setMessage("Exchange rates updated.");
     } catch (err) {
       const message = err instanceof Error ? err.message : "Could not update exchange rates";

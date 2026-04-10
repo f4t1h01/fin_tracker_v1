@@ -96,7 +96,7 @@ export function DashboardTrendsPage() {
             onChange={(event) => workspace.setDisplayCurrency(event.target.value as typeof workspace.displayCurrency)}
             className="min-w-[112px]"
           >
-            {workspace.data.supportedCurrencies.map((item) => (
+            {workspace.preferredCurrencies.map((item) => (
               <option key={item} value={item}>
                 {item}
               </option>

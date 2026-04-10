@@ -7,7 +7,19 @@ import { persistTheme, type ThemeMode } from "@/lib/theme";
 
 import { findCategoryOptionById } from "./category-options";
 import { parseApiResponse } from "./api";
-import { clearDashboardCache, clearProfileSnapshotCache, readProfileSnapshotCache, writeProfileSnapshotCache } from "./cache";
+import {
+  clearDashboardCache,
+  clearDashboardDisplayCurrencyCache,
+  clearDashboardRateCurrenciesCache,
+  clearProfileSnapshotCache,
+  clampDashboardRateCurrency,
+  dashboardRateCurrenciesUpdatedEvent,
+  normalizeDashboardRateCurrencies,
+  readDashboardRateCurrenciesCache,
+  readProfileSnapshotCache,
+  writeDashboardRateCurrenciesCache,
+  writeProfileSnapshotCache
+} from "./cache";
 import { getTashkentGreeting } from "./greeting";
 import { clearPendingTelegramContext, detectTelegramContextFromWindow, readPendingTelegramContext, writePendingTelegramContext, type PendingTelegramContext } from "./telegram-context";
 import {
@@ -112,6 +124,7 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
   const [summary, setSummary] = useState<MonthlySummary | null>(null);
   const [recent, setRecent] = useState<RecentTransaction[]>([]);
   const [categoryCatalog, setCategoryCatalog] = useState<CategoryCatalogResponse | null>(null);
+  const [preferredCurrencies, setPreferredCurrencies] = useState<SupportedCurrency[]>(() => readDashboardRateCurrenciesCache());
   const [isLoadingData, setIsLoadingData] = useState(false);
   const [showSharedCategoriesInPicker, setShowSharedCategoriesInPicker] = useState(true);
   const [defaultIncomeCategoryId, setDefaultIncomeCategoryId] = useState("");
@@ -138,7 +151,7 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
 
   const [kind, setKind] = useState<"EXPENSE" | "INCOME">("EXPENSE");
   const [amount, setAmount] = useState("");
-  const [currency, setCurrency] = useState<SupportedCurrency>("UZS");
+  const [currency, setCurrency] = useState<SupportedCurrency>(() => readDashboardRateCurrenciesCache()[0] ?? "UZS");
   const [selectedCategoryId, setSelectedCategoryId] = useState("");
   const [note, setNote] = useState("");
   const [txMessage, setTxMessage] = useState<string | null>(null);
@@ -149,6 +162,17 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
   const [isDeletingId, setIsDeletingId] = useState<string | null>(null);
 
   const today = useMemo(() => new Date(), []);
+
+  const updatePreferredCurrencies = useCallback((value?: readonly string[] | null) => {
+    const nextPreferredCurrencies = normalizeDashboardRateCurrencies(value);
+    writeDashboardRateCurrenciesCache(nextPreferredCurrencies);
+    setPreferredCurrencies(nextPreferredCurrencies);
+    setCurrency((current) => clampDashboardRateCurrency(current, nextPreferredCurrencies));
+    setEditingTransaction((current) =>
+      current ? { ...current, currency: clampDashboardRateCurrency(current.currency, nextPreferredCurrencies) } : current
+    );
+    return nextPreferredCurrencies;
+  }, []);
 
   const applySnapshot = useCallback((snapshot: ProfileSnapshotResponse) => {
     const normalizedSnapshot: ProfileSnapshotResponse = {
@@ -169,6 +193,9 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
         } satisfies CategoryCatalogResponse)
     };
 
+    const nextPreferredCurrencies = updatePreferredCurrencies(normalizedSnapshot.profile.dashboardRateCurrencies);
+    normalizedSnapshot.profile.dashboardRateCurrencies = nextPreferredCurrencies;
+
     writeProfileSnapshotCache(normalizedSnapshot);
     setProfile(normalizedSnapshot.profile);
     setSummary(normalizedSnapshot.summary);
@@ -186,14 +213,17 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
     if (normalizedSnapshot.auth.email) {
       setSetupEmail((current) => current || normalizedSnapshot.auth.email || "");
     }
-  }, []);
+  }, [updatePreferredCurrencies]);
 
   const clearSession = useCallback(() => {
     localStorage.removeItem(tokenKey);
     localStorage.removeItem(authSourceKey);
     clearProfileSnapshotCache();
     clearDashboardCache();
+    clearDashboardDisplayCurrencyCache();
+    clearDashboardRateCurrenciesCache();
     clearPendingTelegramContext();
+    const nextPreferredCurrencies = readDashboardRateCurrenciesCache();
     setToken(null);
     setAuthMe(null);
     setProfile(null);
@@ -209,6 +239,9 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
     setDefaultIncomeCategoryId("");
     setDefaultExpenseCategoryId("");
     setSelectedCategoryId("");
+    setPreferredCurrencies(nextPreferredCurrencies);
+    setCurrency(nextPreferredCurrencies[0] ?? "UZS");
+    setEditingTransaction(null);
   }, []);
 
   const ensureCanonicalProfileUrl = useCallback((targetPath = canonicalProfilePath) => {
@@ -235,11 +268,11 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
         if (message === "Invalid token" || message === "Missing bearer token") {
           clearSession();
         }
-      setAuthError(message);
-    } finally {
-      setIsLoadingData(false);
-    }
-  },
+        setAuthError(message);
+      } finally {
+        setIsLoadingData(false);
+      }
+    },
     [applySnapshot, clearSession, today]
   );
 
@@ -311,6 +344,15 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
       setIsAuthenticating(false);
     }
   }, [applySnapshot]);
+
+  useEffect(() => {
+    const listener = (event: Event) => {
+      updatePreferredCurrencies((event as CustomEvent<SupportedCurrency[]>).detail);
+    };
+
+    window.addEventListener(dashboardRateCurrenciesUpdatedEvent, listener as EventListener);
+    return () => window.removeEventListener(dashboardRateCurrenciesUpdatedEvent, listener as EventListener);
+  }, [updatePreferredCurrencies]);
 
   useEffect(() => {
     const bootstrap = async () => {
@@ -823,7 +865,7 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
 
       await parseApiResponse<unknown>(response);
       setAmount("");
-      setCurrency("UZS");
+      setCurrency(preferredCurrencies[0] ?? "UZS");
       setSelectedCategoryId("");
       setNote("");
       setTxMessage(`${kind === "INCOME" ? "Income" : "Expense"} added.`);
@@ -875,15 +917,15 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
   const startEditing = (item: RecentTransaction) => {
     setTxMessage(null);
     setTxError(null);
-      setEditingTransaction({
-        id: item.id,
-        amount: String(item.amount),
-        kind: item.kind,
-        currency: item.currency,
-        categoryId: item.category.id,
-        categoryName: item.category.name,
-        note: item.note ?? ""
-      });
+    setEditingTransaction({
+      id: item.id,
+      amount: String(item.amount),
+      kind: item.kind,
+      currency: clampDashboardRateCurrency(item.currency, preferredCurrencies),
+      categoryId: item.category.id,
+      categoryName: item.category.name,
+      note: item.note ?? ""
+    });
   };
 
   const onSaveEdit = async (event: FormEvent<HTMLFormElement>) => {
@@ -963,6 +1005,7 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
     isLoadingData,
     greeting,
     supportedCurrencies,
+    preferredCurrencies,
     loginEmail,
     setLoginEmail,
     loginPassword,

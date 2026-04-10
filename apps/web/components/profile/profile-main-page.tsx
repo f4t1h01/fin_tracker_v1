@@ -12,6 +12,7 @@ import { ProfileMetrics } from "./profile-metrics";
 import { RecentTransactions } from "./recent-transactions";
 import { TransactionEntry } from "./transaction-entry";
 import type { VoiceTransactionDraftResponse } from "./voice-entry/types";
+import { clampDashboardRateCurrency } from "./cache";
 import { useProfileWorkspace } from "./use-profile-workspace";
 
 export function ProfileMainPage() {
@@ -42,7 +43,7 @@ export function ProfileMainPage() {
     }
 
     if (draft.draft.currency) {
-      workspace.setCurrency(draft.draft.currency);
+      workspace.setCurrency(clampDashboardRateCurrency(draft.draft.currency, workspace.preferredCurrencies));
     }
 
     if (draft.draft.categoryId) {
@@ -87,6 +88,7 @@ export function ProfileMainPage() {
         setAmount={workspace.setAmount}
         currency={workspace.currency}
         setCurrency={workspace.setCurrency}
+        currencyOptions={workspace.preferredCurrencies}
         categoryCatalog={workspace.categoryCatalog}
         selectedCategoryId={workspace.selectedCategoryId}
         setSelectedCategoryId={workspace.setSelectedCategoryId}
@@ -109,6 +111,7 @@ export function ProfileMainPage() {
           isDeletingId={workspace.isDeletingId}
           editingTransaction={workspace.editingTransaction}
           categoryCatalog={workspace.categoryCatalog}
+          currencyOptions={workspace.preferredCurrencies}
           setEditingTransaction={workspace.setEditingTransaction}
           isSavingEdit={workspace.isSavingEdit}
           onStartEditing={workspace.startEditing}

@@ -85,7 +85,7 @@ export function DashboardPage() {
             onChange={(event) => workspace.setDisplayCurrency(event.target.value as typeof workspace.displayCurrency)}
             className="min-w-[112px]"
           >
-            {workspace.data.supportedCurrencies.map((item) => (
+            {workspace.preferredCurrencies.map((item) => (
               <option key={item} value={item}>
                 {item}
               </option>
@@ -148,6 +148,7 @@ export function DashboardPage() {
         isDeletingId={workspace.isDeletingId}
         editingTransaction={workspace.editingTransaction}
         categoryCatalog={workspace.data.filters.categories}
+        currencyOptions={workspace.preferredCurrencies}
         setEditingTransaction={workspace.setEditingTransaction}
         isSavingEdit={workspace.isSavingEdit}
         onStartEditing={workspace.startEditing}

@@ -8,7 +8,7 @@ import { TextField } from "@/components/ui/text-field";
 import { cn } from "@/lib/cn";
 
 import { buildCategoryOptions } from "./category-options";
-import { supportedCurrencies, type CategoryCatalogResponse, type SupportedCurrency } from "./types";
+import type { CategoryCatalogResponse, SupportedCurrency } from "./types";
 
 type TransactionEntryProps = {
   workspaceName: string;
@@ -18,6 +18,7 @@ type TransactionEntryProps = {
   setAmount: (value: string) => void;
   currency: SupportedCurrency;
   setCurrency: (value: SupportedCurrency) => void;
+  currencyOptions: readonly SupportedCurrency[];
   categoryCatalog: CategoryCatalogResponse | null;
   selectedCategoryId: string;
   setSelectedCategoryId: (value: string) => void;
@@ -74,7 +75,7 @@ export function TransactionEntry(props: TransactionEntryProps) {
             <label className="space-y-1 text-sm md:col-span-2">
               <span className="field-label">Currency</span>
               <SelectField value={props.currency} onChange={(event) => props.setCurrency(event.target.value as SupportedCurrency)}>
-                {supportedCurrencies.map((item) => (
+                {props.currencyOptions.map((item) => (
                   <option key={item} value={item}>
                     {item}
                   </option>

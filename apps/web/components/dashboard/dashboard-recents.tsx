@@ -12,6 +12,7 @@ type DashboardRecentsProps = {
   isDeletingId: string | null;
   editingTransaction: EditableTransaction | null;
   categoryCatalog: CategoryCatalogResponse | null;
+  currencyOptions: readonly SupportedCurrency[];
   setEditingTransaction: (value: EditableTransaction | null) => void;
   isSavingEdit: boolean;
   onStartEditing: (item: DashboardResponse["transactions"]["items"][number]) => void;
@@ -30,6 +31,7 @@ export function DashboardRecents(props: DashboardRecentsProps) {
       isDeletingId={props.isDeletingId}
       editingTransaction={props.editingTransaction}
       categoryCatalog={props.categoryCatalog}
+      currencyOptions={props.currencyOptions}
       setEditingTransaction={props.setEditingTransaction}
       isSavingEdit={props.isSavingEdit}
       onStartEditing={props.onStartEditing}

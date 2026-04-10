@@ -1,7 +1,7 @@
 import type { FormEvent } from "react";
 
-import type { CategoryCatalogResponse, EditableTransaction, RecentTransaction } from "./types";
 import { TransactionListCard } from "@/components/transactions/transaction-list-card";
+import type { CategoryCatalogResponse, EditableTransaction, RecentTransaction, SupportedCurrency } from "./types";
 
 type RecentTransactionsProps = {
   recent: RecentTransaction[];
@@ -9,6 +9,7 @@ type RecentTransactionsProps = {
   isDeletingId: string | null;
   editingTransaction: EditableTransaction | null;
   categoryCatalog: CategoryCatalogResponse | null;
+  currencyOptions: readonly SupportedCurrency[];
   setEditingTransaction: (value: EditableTransaction | null) => void;
   isSavingEdit: boolean;
   onStartEditing: (item: RecentTransaction) => void;
@@ -25,6 +26,7 @@ export function RecentTransactions(props: RecentTransactionsProps) {
       isDeletingId={props.isDeletingId}
       editingTransaction={props.editingTransaction}
       categoryCatalog={props.categoryCatalog}
+      currencyOptions={props.currencyOptions}
       setEditingTransaction={props.setEditingTransaction}
       isSavingEdit={props.isSavingEdit}
       onStartEditing={props.onStartEditing}

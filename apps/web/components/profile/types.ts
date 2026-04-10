@@ -44,6 +44,7 @@ export type ProfileResponse = {
     name: string;
     role: "OWNER" | "PARTNER";
   } | null;
+  dashboardRateCurrencies: SupportedCurrency[];
   bind: {
     insertedCode: string;
     userCoupleCode: string;

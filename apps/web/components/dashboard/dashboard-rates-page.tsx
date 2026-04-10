@@ -156,7 +156,7 @@ export function DashboardRatesPage() {
           <span className="text-sm text-[var(--ink-soft)]">{selectedRates.length} selected</span>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2">
           {selectedRates.map((item) => (
             <Card key={item.currency} className="panel-soft h-full">
               <CardHeader className="space-y-3">
@@ -178,7 +178,7 @@ export function DashboardRatesPage() {
                 </div>
               </CardHeader>
               <CardContent className="space-y-3">
-                <p className="font-[family-name:var(--font-heading)] text-[clamp(28px,4vw,42px)] font-light leading-[1]">
+                <p className="font-[family-name:var(--font-body)] text-[clamp(28px,4vw,42px)] font-medium leading-[1] tabular-nums">
                   1 {item.currency} = {formatRate(item.rate)} UZS
                 </p>
                 <p className="text-sm leading-6 text-[var(--ink-soft)]">Updated {lastUpdatedAtLabel}</p>

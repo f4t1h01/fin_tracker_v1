@@ -7,11 +7,17 @@ import { parseApiResponse } from "@/components/profile/api";
 import {
   clearDashboardCache,
   clearDashboardDisplayCurrencyCache,
+  clearDashboardRateCurrenciesCache,
   clearProfileSnapshotCache,
+  clampDashboardRateCurrency,
+  dashboardRateCurrenciesUpdatedEvent,
+  normalizeDashboardRateCurrencies,
   readDashboardCache,
   readDashboardDisplayCurrencyCache,
+  readDashboardRateCurrenciesCache,
   writeDashboardCache,
-  writeDashboardDisplayCurrencyCache
+  writeDashboardDisplayCurrencyCache,
+  writeDashboardRateCurrenciesCache
 } from "@/components/profile/cache";
 import { tokenKey, type DashboardActor, type DashboardKind, type DashboardRangePreset, type DashboardResponse, type DashboardViewMode, type EditableTransaction, type RecentTransaction, type SupportedCurrency } from "@/components/profile/types";
 import { webEnv } from "@/lib/env";
@@ -78,7 +84,10 @@ type DashboardWorkspaceMode = "overview" | "trends";
 
 export function useDashboardWorkspace(mode: DashboardWorkspaceMode = "overview") {
   const [data, setData] = useState<DashboardResponse | null>(null);
-  const [displayCurrency, setDisplayCurrency] = useState<SupportedCurrency>("UZS");
+  const [preferredCurrencies, setPreferredCurrencies] = useState<SupportedCurrency[]>(() => readDashboardRateCurrenciesCache());
+  const [displayCurrency, setDisplayCurrency] = useState<SupportedCurrency>(() =>
+    clampDashboardRateCurrency(readDashboardDisplayCurrencyCache() ?? "UZS", readDashboardRateCurrenciesCache())
+  );
   const [viewMode, setViewMode] = useState<DashboardViewMode>("COUPLE");
   const [selectedPreset, setSelectedPreset] = useState<DashboardRangePreset>("THIS_WEEK");
   const [draftFrom, setDraftFrom] = useState("");
@@ -103,13 +112,21 @@ export function useDashboardWorkspace(mode: DashboardWorkspaceMode = "overview")
   const effectiveViewMode = hasPartnerConnection === false ? "PERSONAL" : viewMode;
   const effectiveActor = hasPartnerConnection === false ? "EVERYONE" : actor;
 
+  const updatePreferredCurrencies = useCallback((value?: readonly string[] | null) => {
+    const nextPreferredCurrencies = normalizeDashboardRateCurrencies(value);
+    writeDashboardRateCurrenciesCache(nextPreferredCurrencies);
+    setPreferredCurrencies(nextPreferredCurrencies);
+    setDisplayCurrency((current) => clampDashboardRateCurrency(current, nextPreferredCurrencies));
+    return nextPreferredCurrencies;
+  }, []);
+
   useClientLayoutEffect(() => {
     const cached = readDashboardCache();
+    const nextPreferredCurrencies = updatePreferredCurrencies(readDashboardRateCurrenciesCache());
+    const cachedCurrency = readDashboardDisplayCurrencyCache();
+    setDisplayCurrency(clampDashboardRateCurrency(cachedCurrency ?? "UZS", nextPreferredCurrencies));
+
     if (!cached || !("transactions" in cached) || !("charts" in cached) || !("filters" in cached)) {
-      const cachedCurrency = readDashboardDisplayCurrencyCache();
-      if (cachedCurrency) {
-        setDisplayCurrency(cachedCurrency);
-      }
       return;
     }
 
@@ -120,7 +137,6 @@ export function useDashboardWorkspace(mode: DashboardWorkspaceMode = "overview")
     if (!(mode === "overview" && hasAdvancedFilters)) {
       setData(cached);
     }
-    setDisplayCurrency(readDashboardDisplayCurrencyCache() ?? "UZS");
     setViewMode(cached.filter.viewMode ?? "COUPLE");
     setSelectedPreset(cached.filter.preset);
     setDraftFrom(cached.filter.from ?? "");
@@ -133,7 +149,16 @@ export function useDashboardWorkspace(mode: DashboardWorkspaceMode = "overview")
     setSearch(cached.filter.search ?? "");
     setPage(cached.filter.page ?? 1);
     setPageSize(cached.filter.pageSize ?? 20);
-  }, [mode]);
+  }, [mode, updatePreferredCurrencies]);
+
+  useEffect(() => {
+    const listener = (event: Event) => {
+      updatePreferredCurrencies((event as CustomEvent<SupportedCurrency[]>).detail);
+    };
+
+    window.addEventListener(dashboardRateCurrenciesUpdatedEvent, listener as EventListener);
+    return () => window.removeEventListener(dashboardRateCurrenciesUpdatedEvent, listener as EventListener);
+  }, [updatePreferredCurrencies]);
 
   useEffect(() => {
     writeDashboardDisplayCurrencyCache(displayCurrency);
@@ -188,6 +213,7 @@ export function useDashboardWorkspace(mode: DashboardWorkspaceMode = "overview")
 
       const payload = await parseApiResponse<DashboardResponse>(response);
       writeDashboardCache(payload);
+      updatePreferredCurrencies(payload.profile.dashboardRateCurrencies);
       setData(payload);
       setError(null);
       setViewMode(payload.filter.viewMode);
@@ -208,6 +234,7 @@ export function useDashboardWorkspace(mode: DashboardWorkspaceMode = "overview")
         localStorage.removeItem(tokenKey);
         clearDashboardCache();
         clearDashboardDisplayCurrencyCache();
+        clearDashboardRateCurrenciesCache();
         clearProfileSnapshotCache();
         window.location.replace("/profile/me");
         return;
@@ -260,7 +287,7 @@ export function useDashboardWorkspace(mode: DashboardWorkspaceMode = "overview")
       id: item.id,
       amount: String(item.amount),
       kind: item.kind,
-      currency: item.currency,
+      currency: clampDashboardRateCurrency(item.currency, preferredCurrencies),
       categoryId: item.category.id,
       categoryName: item.category.name,
       note: item.note ?? ""
@@ -378,6 +405,7 @@ export function useDashboardWorkspace(mode: DashboardWorkspaceMode = "overview")
     onDeleteTransaction,
     txMessage,
     txError,
+    preferredCurrencies,
     workspaceName
   };
 }

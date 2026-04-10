@@ -16,7 +16,6 @@ import type {
   RecentTransaction,
   SupportedCurrency
 } from "@/components/profile/types";
-import { supportedCurrencies } from "@/components/profile/types";
 
 type TransactionListPagination = {
   page: number;
@@ -33,6 +32,7 @@ type TransactionListCardProps = {
   isDeletingId: string | null;
   editingTransaction: EditableTransaction | null;
   categoryCatalog: CategoryCatalogResponse | null;
+  currencyOptions: readonly SupportedCurrency[];
   setEditingTransaction: (value: EditableTransaction | null) => void;
   isSavingEdit: boolean;
   onStartEditing: (item: RecentTransaction) => void;
@@ -84,7 +84,7 @@ export function TransactionListCard(props: TransactionListCardProps) {
         <label className="space-y-1 text-sm">
           <span className="field-label">Currency</span>
           <SelectField value={editingTransaction.currency} onChange={(event) => updateEditingTransaction({ currency: event.target.value as SupportedCurrency })}>
-            {supportedCurrencies.map((item) => (
+            {props.currencyOptions.map((item) => (
               <option key={item} value={item}>
                 {item}
               </option>

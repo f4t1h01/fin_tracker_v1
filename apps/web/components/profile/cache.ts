@@ -3,6 +3,39 @@ import { supportedCurrencies, type DashboardResponse, type ProfileSnapshotRespon
 const profileSnapshotKey = "duet-profile-snapshot";
 const dashboardSnapshotKey = "duet-dashboard-snapshot";
 const dashboardDisplayCurrencyKey = "duet-dashboard-display-currency";
+const dashboardRateCurrenciesKey = "duet-dashboard-rate-currencies";
+const defaultDashboardRateCurrencies: SupportedCurrency[] = ["UZS", "USD"];
+
+export const dashboardRateCurrenciesUpdatedEvent = "duet-dashboard-rate-currencies-updated";
+
+export function normalizeDashboardRateCurrencies(value?: readonly string[] | null): SupportedCurrency[] {
+  if (!value?.length) {
+    return [...defaultDashboardRateCurrencies];
+  }
+
+  const seen = new Set<SupportedCurrency>();
+
+  for (const token of value) {
+    const normalized = token.trim().toUpperCase() as SupportedCurrency;
+    if (supportedCurrencies.includes(normalized)) {
+      seen.add(normalized);
+    }
+  }
+
+  const normalized = supportedCurrencies.filter((currency) => seen.has(currency));
+  return normalized.length > 0 ? normalized : [...defaultDashboardRateCurrencies];
+}
+
+export function clampDashboardRateCurrency(value: string | null | undefined, preferredCurrencies: readonly SupportedCurrency[]) {
+  if (value) {
+    const normalized = value.toUpperCase() as SupportedCurrency;
+    if (preferredCurrencies.includes(normalized)) {
+      return normalized;
+    }
+  }
+
+  return preferredCurrencies[0] ?? "UZS";
+}
 
 export function readProfileSnapshotCache(): ProfileSnapshotResponse | null {
   if (typeof window === "undefined") {
@@ -60,6 +93,53 @@ export function clearDashboardCache() {
   }
 
   window.sessionStorage.removeItem(dashboardSnapshotKey);
+}
+
+export function hasDashboardRateCurrenciesCache() {
+  if (typeof window === "undefined") {
+    return false;
+  }
+
+  return window.sessionStorage.getItem(dashboardRateCurrenciesKey) !== null;
+}
+
+export function readDashboardRateCurrenciesCache(): SupportedCurrency[] {
+  if (typeof window === "undefined") {
+    return [...defaultDashboardRateCurrencies];
+  }
+
+  try {
+    const raw = window.sessionStorage.getItem(dashboardRateCurrenciesKey);
+    return normalizeDashboardRateCurrencies(raw ? raw.split(",") : null);
+  } catch {
+    return [...defaultDashboardRateCurrencies];
+  }
+}
+
+export function writeDashboardRateCurrenciesCache(value: readonly string[]) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.sessionStorage.setItem(dashboardRateCurrenciesKey, normalizeDashboardRateCurrencies(value).join(","));
+}
+
+export function clearDashboardRateCurrenciesCache() {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.sessionStorage.removeItem(dashboardRateCurrenciesKey);
+}
+
+export function syncDashboardRateCurrenciesCache(value: readonly string[]) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  const normalized = normalizeDashboardRateCurrencies(value);
+  window.sessionStorage.setItem(dashboardRateCurrenciesKey, normalized.join(","));
+  window.dispatchEvent(new CustomEvent<SupportedCurrency[]>(dashboardRateCurrenciesUpdatedEvent, { detail: normalized }));
 }
 
 export function readDashboardDisplayCurrencyCache(): SupportedCurrency | null {
