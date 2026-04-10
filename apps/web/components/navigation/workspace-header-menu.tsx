@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 
-import { ArrowLeftRight, BarChart3, LayoutDashboard, Menu, Tags, UserCog, X, type LucideIcon } from "lucide-react";
+import { ArrowLeftRight, Banknote, BarChart3, LayoutDashboard, Menu, Tags, UserCog, X, type LucideIcon } from "lucide-react";
 import { usePathname } from "next/navigation";
 
 import { AppLink } from "@/components/navigation/app-link";
@@ -27,8 +27,9 @@ const workspaceMenuItems: readonly WorkspaceMenuItem[] = [
   { href: "/profile/me/manage", label: "Profile management", icon: UserCog },
   { href: "/profile/me/categories", label: "Categories", icon: Tags },
   { href: "/profile/me", label: "Transactions", icon: ArrowLeftRight },
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/dashboard/trends", label: "Trends", icon: BarChart3 }
+  { href: "/profile/me/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/profile/me/dashboard/trends", label: "Trends", icon: BarChart3 },
+  { href: "/profile/me/dashboard/rates", label: "Rates", icon: Banknote }
 ];
 
 function isActiveRoute(pathname: string, href: string) {

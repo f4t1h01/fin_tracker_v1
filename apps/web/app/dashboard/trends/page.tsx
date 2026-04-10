@@ -1,5 +1,5 @@
-import { DashboardTrendsPage } from "@/components/dashboard/dashboard-trends-page";
+import { redirect } from "next/navigation";
 
 export default function DashboardTrendsRoutePage() {
-  return <DashboardTrendsPage />;
+  redirect("/profile/me/dashboard/trends");
 }

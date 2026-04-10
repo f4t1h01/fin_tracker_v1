@@ -3,6 +3,7 @@ import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } f
 import { CurrentUser } from "../auth/current-user.decorator";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { BindCoupleDto } from "./dto/bind-couple.dto";
+import { UpdateDashboardRatesDto } from "./dto/dashboard-rates.dto";
 import { CreateCategoryDto, UpdateCategoryPreferencesDto, UpdateCategoryVisibilityDto } from "./dto/category-management.dto";
 import { CreateProfileTransactionDto } from "./dto/create-profile-transaction.dto";
 import { DashboardQueryDto } from "./dto/dashboard-query.dto";
@@ -47,6 +48,16 @@ export class ProfileController {
   @Get("me/dashboard")
   myDashboard(@CurrentUser() user: { id: string }, @Query() query: DashboardQueryDto) {
     return this.profileService.dashboard(user.id, query);
+  }
+
+  @Get("me/dashboard/rates")
+  myDashboardRates(@CurrentUser() user: { id: string }) {
+    return this.profileService.dashboardRates(user.id);
+  }
+
+  @Patch("me/dashboard/rates")
+  updateMyDashboardRates(@CurrentUser() user: { id: string }, @Body() dto: UpdateDashboardRatesDto) {
+    return this.profileService.updateDashboardRates(user.id, dto);
   }
 
   @Post("me/bind")

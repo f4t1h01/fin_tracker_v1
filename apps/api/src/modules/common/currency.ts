@@ -4,11 +4,11 @@ type CbuRateEntry = {
   Rate: string;
 };
 
-export const SUPPORTED_CURRENCIES = ["UZS", "USD", "EUR", "RUB"] as const;
+export const SUPPORTED_CURRENCIES = ["UZS", "USD", "EUR", "RUB", "GBP", "JPY", "CNY", "KZT", "TRY", "AED"] as const;
 export type SupportedCurrency = (typeof SUPPORTED_CURRENCIES)[number];
 
 const SUPPORTED_CURRENCY_SET = new Set<string>(SUPPORTED_CURRENCIES);
-const CBU_RATES_URL = "https://cbu.uz/uz/arkhiv-kursov-valyut/json/";
+export const CBU_RATES_URL = "https://cbu.uz/uz/arkhiv-kursov-valyut/json/";
 
 let cachedRates:
   | {
@@ -30,9 +30,12 @@ export function normalizeCurrency(value?: string | null): SupportedCurrency {
   return "UZS";
 }
 
-export async function getLatestCurrencyRates(options?: { forceRefresh?: boolean }): Promise<Record<SupportedCurrency, number>> {
+export async function getLatestCurrencyRatesSnapshot(options?: { forceRefresh?: boolean }): Promise<{
+  values: Record<SupportedCurrency, number>;
+  fetchedAt: string;
+}> {
   if (cachedRates && !options?.forceRefresh) {
-    return cachedRates.values;
+    return cachedRates;
   }
 
   const response = await fetch(CBU_RATES_URL, {
@@ -50,7 +53,13 @@ export async function getLatestCurrencyRates(options?: { forceRefresh?: boolean 
     UZS: 1,
     USD: 0,
     EUR: 0,
-    RUB: 0
+    RUB: 0,
+    GBP: 0,
+    JPY: 0,
+    CNY: 0,
+    KZT: 0,
+    TRY: 0,
+    AED: 0
   };
 
   for (const entry of payload) {
@@ -86,7 +95,12 @@ export async function getLatestCurrencyRates(options?: { forceRefresh?: boolean 
     fetchedAt: new Date().toISOString()
   };
 
-  return values;
+  return cachedRates;
+}
+
+export async function getLatestCurrencyRates(options?: { forceRefresh?: boolean }): Promise<Record<SupportedCurrency, number>> {
+  const snapshot = await getLatestCurrencyRatesSnapshot(options);
+  return snapshot.values;
 }
 
 export function getCachedCurrencyRates() {

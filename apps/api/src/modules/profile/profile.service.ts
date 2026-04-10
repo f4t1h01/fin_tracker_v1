@@ -1,9 +1,20 @@
 import { BadRequestException, Injectable, NotFoundException, UnauthorizedException } from "@nestjs/common";
 
-import { convertFromUzs, convertToUzs, getLatestCurrencyRates, normalizeCurrency, SUPPORTED_CURRENCIES } from "../common/currency";
+import {
+  CBU_RATES_URL,
+  convertFromUzs,
+  convertToUzs,
+  getLatestCurrencyRates,
+  getLatestCurrencyRatesSnapshot,
+  isSupportedCurrency,
+  normalizeCurrency,
+  SUPPORTED_CURRENCIES,
+  type SupportedCurrency
+} from "../common/currency";
 import { generateCoupleCodeCandidate, normalizeCoupleCode } from "../common/couple-code";
 import { PrismaService } from "../prisma/prisma.service";
 import { BindCoupleDto } from "./dto/bind-couple.dto";
+import { UpdateDashboardRatesDto } from "./dto/dashboard-rates.dto";
 import { CreateCategoryDto, UpdateCategoryPreferencesDto, UpdateCategoryVisibilityDto } from "./dto/category-management.dto";
 import { CreateProfileTransactionDto } from "./dto/create-profile-transaction.dto";
 import { DashboardQueryDto, type DashboardRangePreset, type DashboardViewMode } from "./dto/dashboard-query.dto";
@@ -123,6 +134,16 @@ type DashboardTransactionsSlice = {
   totalItems: number;
   totalPages: number;
 };
+
+type DashboardRatesResponse = {
+  selectedCurrencies: SupportedCurrency[];
+  rates: Record<SupportedCurrency, number>;
+  supportedCurrencies: SupportedCurrency[];
+  sourceUrl: string;
+  lastUpdatedAt: string;
+};
+
+const defaultDashboardRateCurrencies: readonly [SupportedCurrency, SupportedCurrency] = ["UZS", "USD"];
 
 function isWeekStartDay(value: string | null | undefined): value is WeekStartDay {
   return Boolean(value && weekStartDays.includes(value as WeekStartDay));
@@ -299,6 +320,54 @@ function decimalToNumber(value: { toNumber: () => number } | number | string) {
   return value.toNumber();
 }
 
+function parseStoredDashboardRateCurrencies(value?: string | null): SupportedCurrency[] {
+  if (!value) {
+    return [...defaultDashboardRateCurrencies];
+  }
+
+  const seen = new Set<SupportedCurrency>();
+
+  for (const token of value.split(",")) {
+    const normalized = token.trim().toUpperCase();
+    if (!normalized) {
+      continue;
+    }
+
+    if (!isSupportedCurrency(normalized)) {
+      continue;
+    }
+
+    seen.add(normalized);
+  }
+
+  const normalized = SUPPORTED_CURRENCIES.filter((currency) => seen.has(currency));
+  return normalized.length > 0 ? normalized : [...defaultDashboardRateCurrencies];
+}
+
+function normalizeDashboardRateSelection(values: string[]) {
+  const seen = new Set<SupportedCurrency>();
+
+  for (const rawValue of values) {
+    const normalized = rawValue.trim().toUpperCase();
+    if (!normalized) {
+      continue;
+    }
+
+    if (!isSupportedCurrency(normalized)) {
+      throw new BadRequestException(`Unsupported currency rate: ${rawValue}`);
+    }
+
+    seen.add(normalized);
+  }
+
+  const normalized = SUPPORTED_CURRENCIES.filter((currency) => seen.has(currency));
+  if (normalized.length === 0) {
+    throw new BadRequestException("Select at least one exchange rate");
+  }
+
+  return normalized;
+}
+
 @Injectable()
 export class ProfileService {
   private userColumnExistsCache = new Map<string, boolean>();
@@ -329,6 +398,10 @@ export class ProfileService {
 
   private hasWeekStartsOnColumn() {
     return this.hasUserColumn("week_starts_on");
+  }
+
+  private hasDashboardRateCurrenciesColumn() {
+    return this.hasUserColumn("dashboard_rate_currencies");
   }
 
   private async getWeekStartsOnPreference(userId: string) {
@@ -854,6 +927,30 @@ export class ProfileService {
     };
   }
 
+  private async getDashboardRatePreferences(userId: string) {
+    const hasDashboardRateCurrenciesColumn = await this.hasDashboardRateCurrenciesColumn();
+    if (!hasDashboardRateCurrenciesColumn) {
+      return {
+        selectedCurrencies: [...defaultDashboardRateCurrencies]
+      };
+    }
+
+    const user = await this.prisma.client.user.findUnique({
+      where: { id: userId },
+      select: {
+        dashboardRateCurrencies: true
+      }
+    });
+
+    if (!user) {
+      throw new UnauthorizedException("Invalid token");
+    }
+
+    return {
+      selectedCurrencies: parseStoredDashboardRateCurrencies(user.dashboardRateCurrencies)
+    };
+  }
+
   private async getCategoryCatalog(userId: string): Promise<CategoryCatalog> {
     const coupleId = await this.resolveActiveCoupleId(userId, true);
     if (!coupleId) {
@@ -1258,6 +1355,39 @@ export class ProfileService {
       auth,
       categories
     };
+  }
+
+  async dashboardRates(userId: string): Promise<DashboardRatesResponse> {
+    const [rateSnapshot, preferences] = await Promise.all([
+      getLatestCurrencyRatesSnapshot(),
+      this.getDashboardRatePreferences(userId)
+    ]);
+
+    return {
+      selectedCurrencies: preferences.selectedCurrencies,
+      rates: rateSnapshot.values,
+      supportedCurrencies: [...SUPPORTED_CURRENCIES],
+      sourceUrl: CBU_RATES_URL,
+      lastUpdatedAt: rateSnapshot.fetchedAt
+    };
+  }
+
+  async updateDashboardRates(userId: string, dto: UpdateDashboardRatesDto): Promise<DashboardRatesResponse> {
+    const selectedCurrencies = normalizeDashboardRateSelection(dto.selectedCurrencies);
+    const hasDashboardRateCurrenciesColumn = await this.hasDashboardRateCurrenciesColumn();
+
+    if (!hasDashboardRateCurrenciesColumn) {
+      throw new BadRequestException("Dashboard rate preferences are unavailable until the database migration is applied");
+    }
+
+    await this.prisma.client.user.update({
+      where: { id: userId },
+      data: {
+        dashboardRateCurrencies: selectedCurrencies.join(",")
+      }
+    });
+
+    return this.dashboardRates(userId);
   }
 
   async dashboard(userId: string, query?: DashboardQueryDto) {

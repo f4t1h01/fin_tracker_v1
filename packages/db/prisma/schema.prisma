@@ -40,6 +40,7 @@ model User {
   isDark            Boolean       @default(false)
   weekStartsOn      String        @default("MONDAY") @map("week_starts_on")
   showSharedCategories Boolean    @default(true) @map("show_shared_categories")
+  dashboardRateCurrencies String   @default("UZS,USD") @map("dashboard_rate_currencies")
   defaultIncomeCategoryId String? @map("default_income_category_id")
   defaultIncomeCategory Category? @relation("UserDefaultIncomeCategory", fields: [defaultIncomeCategoryId], references: [id], onDelete: SetNull)
   defaultExpenseCategoryId String? @map("default_expense_category_id")

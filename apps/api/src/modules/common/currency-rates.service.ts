@@ -1,6 +1,6 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from "@nestjs/common";
 
-import { formatCurrencyRatesLog, getCachedCurrencyRates, getLatestCurrencyRates } from "./currency";
+import { formatCurrencyRatesLog, getLatestCurrencyRatesSnapshot } from "./currency";
 
 const TASHKENT_OFFSET_HOURS = 5;
 const REFRESH_HOURS = [10, 19] as const;
@@ -78,10 +78,9 @@ export class CurrencyRatesService implements OnModuleInit, OnModuleDestroy {
 
   private async refreshRates(reason: "startup" | "scheduled") {
     try {
-      const rates = await getLatestCurrencyRates({ forceRefresh: true });
-      const cache = getCachedCurrencyRates();
+      const cache = await getLatestCurrencyRatesSnapshot({ forceRefresh: true });
       this.logger.log(
-        `Central Bank currency rates refreshed (${reason})${cache?.fetchedAt ? ` at ${cache.fetchedAt}` : ""}: ${formatCurrencyRatesLog(rates)}`
+        `Central Bank currency rates refreshed (${reason})${cache.fetchedAt ? ` at ${cache.fetchedAt}` : ""}: ${formatCurrencyRatesLog(cache.values)}`
       );
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unknown currency refresh error";

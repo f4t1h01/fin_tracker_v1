@@ -1,7 +1,7 @@
 export const tokenKey = "cf_token";
 export const authSourceKey = "cf_auth_source";
 export const canonicalProfilePath = "/profile/me";
-export const supportedCurrencies = ["UZS", "USD", "EUR", "RUB"] as const;
+export const supportedCurrencies = ["UZS", "USD", "EUR", "RUB", "GBP", "JPY", "CNY", "KZT", "TRY", "AED"] as const;
 export const weekStartDays = ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY"] as const;
 export const dashboardRangePresets = ["THIS_WEEK", "THIS_MONTH", "SPECIFIC_MONTH", "CUSTOM"] as const;
 export const dashboardViewModes = ["COUPLE", "PERSONAL"] as const;
@@ -10,6 +10,18 @@ export const dashboardKinds = ["ALL", "EXPENSE", "INCOME"] as const;
 export const dashboardActors = ["EVERYONE", "ME", "PARTNER"] as const;
 
 export type SupportedCurrency = (typeof supportedCurrencies)[number];
+export const currencyLabels: Record<SupportedCurrency, string> = {
+  UZS: "Uzbek so'm",
+  USD: "US Dollar",
+  EUR: "Euro",
+  RUB: "Russian Ruble",
+  GBP: "British Pound",
+  JPY: "Japanese Yen",
+  CNY: "Chinese Yuan",
+  KZT: "Kazakhstani Tenge",
+  TRY: "Turkish Lira",
+  AED: "UAE Dirham"
+};
 export type WeekStartDay = (typeof weekStartDays)[number];
 export type DashboardRangePreset = (typeof dashboardRangePresets)[number];
 export type DashboardViewMode = (typeof dashboardViewModes)[number];
@@ -233,6 +245,14 @@ export type DashboardResponse = {
       }>;
     };
   };
+};
+
+export type DashboardRatesResponse = {
+  selectedCurrencies: SupportedCurrency[];
+  rates: Record<SupportedCurrency, number>;
+  supportedCurrencies: SupportedCurrency[];
+  sourceUrl: string;
+  lastUpdatedAt: string;
 };
 
 export type AdminAiUsageSummaryResponse = {
