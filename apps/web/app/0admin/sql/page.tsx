@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TextareaField } from "@/components/ui/textarea-field";
 
-const starterQuery = "SELECT id, email, created_at FROM \"0admin\" LIMIT 10";
+const starterQuery = 'SELECT email, is_active, last_login_at, created_at FROM "0admin" LIMIT 10';
 
 export default function AdminSqlPage() {
   const [statement, setStatement] = useState(starterQuery);
