@@ -6,13 +6,13 @@ import { useRouteTransitionPageReady } from "@/components/navigation/route-trans
 import { Card, CardContent } from "@/components/ui/card";
 
 import { AiFeaturesPanel } from "./ai-features-panel";
+import type { AiTransactionDraftLike } from "./ai-draft-types";
+import { buildSupportedCurrencyOptions } from "./currency-options";
 import { ProfileAuthGateway } from "./profile-auth-gateway";
 import { ProfileLoadingState } from "./profile-loading-state";
 import { ProfileMetrics } from "./profile-metrics";
 import { RecentTransactions } from "./recent-transactions";
 import { TransactionEntry } from "./transaction-entry";
-import type { VoiceTransactionDraftResponse } from "./voice-entry/types";
-import { clampDashboardRateCurrency } from "./cache";
 import { useProfileWorkspace } from "./use-profile-workspace";
 
 export function ProfileMainPage() {
@@ -33,7 +33,7 @@ export function ProfileMainPage() {
     return <ProfileLoadingState title="Loading your workspace" description={workspace.authError ?? "Fetching profile, balances, and recent activity..."} />;
   }
 
-  const applyVoiceDraft = (draft: VoiceTransactionDraftResponse) => {
+  const applyAiDraft = (draft: AiTransactionDraftLike) => {
     if (draft.draft.kind) {
       workspace.setKind(draft.draft.kind);
     }
@@ -43,7 +43,7 @@ export function ProfileMainPage() {
     }
 
     if (draft.draft.currency) {
-      workspace.setCurrency(clampDashboardRateCurrency(draft.draft.currency, workspace.preferredCurrencies));
+      workspace.setCurrency(draft.draft.currency);
     }
 
     if (draft.draft.categoryId) {
@@ -56,6 +56,11 @@ export function ProfileMainPage() {
       workspace.setNote(draft.draft.note);
     }
   };
+
+  const entryCurrencyOptions = buildSupportedCurrencyOptions(workspace.preferredCurrencies, workspace.currency);
+  const editingCurrencyOptions = workspace.editingTransaction
+    ? buildSupportedCurrencyOptions(workspace.preferredCurrencies, workspace.editingTransaction.currency)
+    : workspace.preferredCurrencies;
 
   return (
     <main className="container-shell pb-16 pt-28">
@@ -88,7 +93,7 @@ export function ProfileMainPage() {
         setAmount={workspace.setAmount}
         currency={workspace.currency}
         setCurrency={workspace.setCurrency}
-        currencyOptions={workspace.preferredCurrencies}
+        currencyOptions={entryCurrencyOptions}
         categoryCatalog={workspace.categoryCatalog}
         selectedCategoryId={workspace.selectedCategoryId}
         setSelectedCategoryId={workspace.setSelectedCategoryId}
@@ -101,7 +106,7 @@ export function ProfileMainPage() {
       />
 
       <div className="mt-6">
-        <AiFeaturesPanel token={workspace.token} onDraftResolved={applyVoiceDraft} />
+        <AiFeaturesPanel token={workspace.token} onDraftResolved={applyAiDraft} />
       </div>
 
       <div className="mt-8">
@@ -111,7 +116,7 @@ export function ProfileMainPage() {
           isDeletingId={workspace.isDeletingId}
           editingTransaction={workspace.editingTransaction}
           categoryCatalog={workspace.categoryCatalog}
-          currencyOptions={workspace.preferredCurrencies}
+          currencyOptions={editingCurrencyOptions}
           setEditingTransaction={workspace.setEditingTransaction}
           isSavingEdit={workspace.isSavingEdit}
           onStartEditing={workspace.startEditing}

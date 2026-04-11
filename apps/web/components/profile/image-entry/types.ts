@@ -1,0 +1,16 @@
+import type { AiTransactionDraftLike } from "../ai-draft-types";
+
+export type ImageDraftStage = "idle" | "capturing" | "uploading" | "preprocessing" | "analyzing" | "ready" | "error";
+export type ReceiptMode = "SINGLE_ITEM" | "MULTI_ITEM" | "UNKNOWN";
+export type QualityRating = "GOOD" | "REVIEW" | "POOR";
+export type ImageQualityIssue = "BLUR" | "GLARE" | "LOW_CONTRAST" | "CROPPED" | "NON_DOCUMENT" | "INCOMPLETE_TOTAL" | "MULTIPLE_RECORDS";
+export type DocumentType = "RECEIPT" | "INVOICE" | "BILL" | "SCREENSHOT" | "UNKNOWN";
+
+export type ImageTransactionDraftResponse = AiTransactionDraftLike & {
+  extractedText: string | null;
+  receiptMode: ReceiptMode;
+  productNames: string[];
+  qualityRating: QualityRating;
+  qualityIssues: ImageQualityIssue[];
+  documentType: DocumentType;
+};

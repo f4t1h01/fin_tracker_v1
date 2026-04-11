@@ -1,0 +1,2 @@
+export const OPENAI_IMAGE_EXTRACTION_MODEL = "gpt-4.1-mini";
+export const IMAGE_UPLOAD_FILE_SIZE_LIMIT_BYTES = 10 * 1024 * 1024;
