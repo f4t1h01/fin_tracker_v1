@@ -4,8 +4,8 @@ import type { FastifyRequest } from "fastify";
 
 import { CurrentUser } from "../../auth/current-user.decorator";
 import { JwtAuthGuard } from "../../auth/jwt-auth.guard";
-import { IMAGE_UPLOAD_FILE_SIZE_LIMIT_BYTES } from "./image.constants";
 import { ProfileImageService } from "./profile-image.service";
+import { PROFILE_UPLOAD_FILE_SIZE_LIMIT_BYTES } from "../upload.constants";
 
 type MultipartImageRequest = FastifyRequest & {
   file: (options?: {
@@ -24,7 +24,7 @@ export class ProfileImageController {
   async draftImageTransaction(@CurrentUser() user: { id: string }, @Req() request: MultipartImageRequest) {
     const file = await request.file({
       limits: {
-        fileSize: IMAGE_UPLOAD_FILE_SIZE_LIMIT_BYTES
+        fileSize: PROFILE_UPLOAD_FILE_SIZE_LIMIT_BYTES
       }
     });
 

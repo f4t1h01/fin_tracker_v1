@@ -33,9 +33,14 @@ type ReceiptPreprocessScriptOutput = {
 
 const supportedImageExtensions = new Set([".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif"]);
 const supportedImageMimeTypes = new Set(["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"]);
+const apiPackageRoot = join(__dirname, "..", "..", "..", "..");
 
 function resolvePythonCommand() {
   return process.platform === "win32" ? "python" : "python3";
+}
+
+function resolveReceiptPreprocessScriptPath() {
+  return join(apiPackageRoot, "scripts", "receipt_preprocess.py");
 }
 
 function normalizeMimeType(value: string) {
@@ -66,12 +71,12 @@ async function runPreprocessScript(params: {
   outputDir: string;
   resultPath: string;
 }) {
-  const scriptPath = join(process.cwd(), "apps", "api", "scripts", "receipt_preprocess.py");
+  const scriptPath = resolveReceiptPreprocessScriptPath();
   const command = resolvePythonCommand();
 
   await new Promise<void>((resolve, reject) => {
     const child = spawn(command, ["-u", scriptPath, "--input", params.inputPath, "--output-dir", params.outputDir, "--result-path", params.resultPath], {
-      cwd: process.cwd()
+      cwd: apiPackageRoot
     });
 
     let stderr = "";

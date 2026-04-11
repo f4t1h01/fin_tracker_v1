@@ -57,15 +57,15 @@ export function DashboardPage() {
 
   return (
     <main className="container-shell pb-16 pt-24">
-      <header className="soft-rise mb-8 flex flex-wrap items-start justify-between gap-4">
-        <div className="max-w-4xl space-y-4">
+      <header className="soft-rise mb-8 grid grid-cols-[minmax(0,1fr)_auto] items-start gap-4">
+        <div className="min-w-0 max-w-4xl space-y-4">
           <BrandMark href="/" />
           <div>
             <p className="eyebrow-row">Dashboard</p>
             <h1 className="mt-5 font-[family-name:var(--font-heading)] text-[clamp(38px,4vw,56px)] font-light leading-[1.08]">Transactions at a glance.</h1>
           </div>
         </div>
-        <WorkspaceHeaderMenu />
+        <WorkspaceHeaderMenu className="justify-self-end" />
       </header>
 
       <section className="mb-6 grid gap-3 lg:grid-cols-[minmax(0,220px)_minmax(0,180px)_minmax(0,1fr)] lg:items-end">

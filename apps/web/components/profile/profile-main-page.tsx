@@ -64,15 +64,15 @@ export function ProfileMainPage() {
 
   return (
     <main className="container-shell pb-16 pt-28">
-      <header className="soft-rise mb-8 flex flex-wrap items-start justify-between gap-4">
-        <div className="space-y-4">
+      <header className="soft-rise mb-8 grid grid-cols-[minmax(0,1fr)_auto] items-start gap-4">
+        <div className="min-w-0 space-y-4">
           <BrandMark href="/" />
           <div>
             <div className="eyebrow-row">Profile workspace</div>
             <h1 className="mt-5 font-[family-name:var(--font-heading)] text-[clamp(38px,4vw,56px)] font-light leading-[1.08]">{workspace.greeting}</h1>
           </div>
         </div>
-        <WorkspaceHeaderMenu onThemeChange={workspace.onThemeChange} />
+        <WorkspaceHeaderMenu onThemeChange={workspace.onThemeChange} className="justify-self-end" />
       </header>
 
       {workspace.authError ? (

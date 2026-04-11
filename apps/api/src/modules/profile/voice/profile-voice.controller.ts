@@ -4,8 +4,8 @@ import type { FastifyRequest } from "fastify";
 
 import { CurrentUser } from "../../auth/current-user.decorator";
 import { JwtAuthGuard } from "../../auth/jwt-auth.guard";
-import { VOICE_UPLOAD_FILE_SIZE_LIMIT_BYTES } from "./voice.constants";
 import { ProfileVoiceService } from "./profile-voice.service";
+import { PROFILE_UPLOAD_FILE_SIZE_LIMIT_BYTES } from "../upload.constants";
 
 type MultipartVoiceRequest = FastifyRequest & {
   file: (options?: {
@@ -24,7 +24,7 @@ export class ProfileVoiceController {
   async draftVoiceTransaction(@CurrentUser() user: { id: string }, @Req() request: MultipartVoiceRequest) {
     const file = await request.file({
       limits: {
-        fileSize: VOICE_UPLOAD_FILE_SIZE_LIMIT_BYTES
+        fileSize: PROFILE_UPLOAD_FILE_SIZE_LIMIT_BYTES
       }
     });
 

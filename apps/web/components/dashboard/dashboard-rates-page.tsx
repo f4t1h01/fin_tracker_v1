@@ -79,8 +79,8 @@ export function DashboardRatesPage() {
 
   return (
     <main className="container-shell pb-16 pt-24">
-      <header className="soft-rise mb-8 flex flex-wrap items-start justify-between gap-4">
-        <div className="max-w-4xl space-y-4">
+      <header className="soft-rise mb-8 grid grid-cols-[minmax(0,1fr)_auto] items-start gap-4">
+        <div className="min-w-0 max-w-4xl space-y-4">
           <BrandMark href="/" />
           <div className="space-y-3">
             <p className="eyebrow-row">Rates</p>
@@ -101,7 +101,7 @@ export function DashboardRatesPage() {
             </div>
           </div>
         </div>
-        <WorkspaceHeaderMenu />
+        <WorkspaceHeaderMenu className="justify-self-end" />
       </header>
 
       <Card className="panel-soft mb-6">
