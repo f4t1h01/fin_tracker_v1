@@ -106,7 +106,7 @@ export function ProfileMainPage() {
       />
 
       <div className="mt-6">
-        <AiFeaturesPanel token={workspace.token} onDraftResolved={applyAiDraft} />
+        <AiFeaturesPanel token={workspace.token} categoryCatalog={workspace.categoryCatalog} onDraftResolved={applyAiDraft} />
       </div>
 
       <div className="mt-8">

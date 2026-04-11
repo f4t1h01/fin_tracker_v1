@@ -1252,30 +1252,33 @@ html[data-theme="dark"] .field-control {
 }
 
 .voice-recorder-button {
-  --voice-recorder-visualizer-height: 2.9rem;
-  --voice-recorder-visualizer-gap: 0.35rem;
-  --voice-recorder-visualizer-bar-width: 0.34rem;
+  --voice-recorder-visualizer-height: 44px;
+  --voice-recorder-visualizer-gap: 5px;
+  --voice-recorder-visualizer-bar-width: 6px;
+  --voice-recorder-visualizer-bar-radius: 999px;
 }
 
 .voice-recorder-visualizer {
   display: inline-flex;
-  align-items: end;
+  align-items: center;
   justify-content: flex-end;
   gap: var(--voice-recorder-visualizer-gap);
-  min-width: calc(var(--voice-recorder-visualizer-bar-width) * 5 + var(--voice-recorder-visualizer-gap) * 4);
+  min-width: 0;
+  width: 100%;
   height: var(--voice-recorder-visualizer-height);
-  flex-shrink: 0;
+  flex-shrink: 1;
   padding-inline: 0.05rem;
 }
 
 .voice-recorder-visualizer-bar {
   width: var(--voice-recorder-visualizer-bar-width);
   height: 100%;
-  border-radius: 999px;
-  background: linear-gradient(180deg, color-mix(in srgb, currentColor 72%, transparent), currentColor);
+  border-radius: var(--voice-recorder-visualizer-bar-radius);
+  background: linear-gradient(180deg, color-mix(in srgb, currentColor 86%, transparent), color-mix(in srgb, currentColor 72%, transparent));
   opacity: 0.72;
   transform: scaleY(0.2);
   transform-origin: center bottom;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, currentColor 12%, transparent);
   transition:
     transform 80ms linear,
     opacity 160ms ease,

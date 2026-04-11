@@ -11,20 +11,22 @@ type UseVoiceEntryOptions = {
   onDraftResolved: (draft: VoiceTransactionDraftResponse) => void;
 };
 
-const VOICE_VISUALIZER_BAR_COUNT = 5;
-const DEFAULT_VISUALIZER_LEVELS = [0.18, 0.26, 0.22, 0.3, 0.2];
+const VOICE_VISUALIZER_LEVEL_COUNT = 24;
+const DEFAULT_VISUALIZER_LEVELS = Array.from({ length: VOICE_VISUALIZER_LEVEL_COUNT }, (_, index) => {
+  const phase = (index / VOICE_VISUALIZER_LEVEL_COUNT) * Math.PI * 2;
+  return Math.min(0.42, Math.max(0.16, 0.24 + Math.sin(phase) * 0.06));
+});
 
 function cloneVisualizerLevels(levels: readonly number[]) {
   return Array.from(levels);
 }
 
 function buildVisualizerLevels(samples: Uint8Array<ArrayBuffer>) {
-  const weights = [0.86, 1, 1.12, 1.02, 0.92];
   const nextLevels: number[] = [];
 
-  for (let index = 0; index < VOICE_VISUALIZER_BAR_COUNT; index += 1) {
-    const start = Math.floor((samples.length * index) / VOICE_VISUALIZER_BAR_COUNT);
-    const end = Math.max(start + 1, Math.floor((samples.length * (index + 1)) / VOICE_VISUALIZER_BAR_COUNT));
+  for (let index = 0; index < VOICE_VISUALIZER_LEVEL_COUNT; index += 1) {
+    const start = Math.floor((samples.length * index) / VOICE_VISUALIZER_LEVEL_COUNT);
+    const end = Math.max(start + 1, Math.floor((samples.length * (index + 1)) / VOICE_VISUALIZER_LEVEL_COUNT));
 
     let sum = 0;
     let count = 0;
@@ -35,7 +37,7 @@ function buildVisualizerLevels(samples: Uint8Array<ArrayBuffer>) {
     }
 
     const average = count > 0 ? sum / count : 0;
-    const boosted = Math.pow(average, 0.8) * weights[index] + 0.08;
+    const boosted = Math.pow(average, 0.82) + 0.05;
     nextLevels.push(Math.min(1, Math.max(0.12, boosted)));
   }
 
@@ -377,9 +379,9 @@ export function useVoiceEntry(options: UseVoiceEntryOptions) {
       case "error":
         return "Retry";
       default:
-        return "Ready to record";
+        return isRecorderSupported ? "Ready to record" : "Mic unavailable";
     }
-  }, [recordingSeconds, stage]);
+  }, [isRecorderSupported, recordingSeconds, stage]);
 
   useEffect(() => {
     setIsRecorderSupported(typeof navigator.mediaDevices?.getUserMedia === "function" && typeof MediaRecorder !== "undefined");

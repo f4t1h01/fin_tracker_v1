@@ -15,9 +15,11 @@ import { useImageEntry } from "./image-entry/use-image-entry";
 import { useVoiceEntry } from "./voice-entry/use-voice-entry";
 import { VoiceRecorderButton } from "./voice-entry/voice-recorder-button";
 import { VoiceStatus } from "./voice-entry/voice-status";
+import type { CategoryCatalogResponse } from "./types";
 
 type AiFeaturesPanelProps = {
   token: string;
+  categoryCatalog: CategoryCatalogResponse | null;
   onDraftResolved: (draft: AiTransactionDraftLike) => void;
 };
 
@@ -40,6 +42,34 @@ export function AiFeaturesPanel(props: AiFeaturesPanelProps) {
   });
 
   const isDismissLocked = voice.stage === "recording" || voice.isBusy || image.isBusy;
+  const voiceBadgeLabel =
+    voice.stage === "recording"
+      ? "Recording"
+      : !voice.isRecorderSupported
+        ? "Mic unavailable"
+      : voice.error?.includes("Mic unavailable")
+        ? "Mic unavailable"
+        : voice.error?.includes("Too short")
+          ? "Too short"
+          : voice.error
+            ? "Retry"
+            : voice.result
+              ? "Ready"
+              : "Ready";
+  const voiceBadgeClassName =
+    voice.stage === "recording"
+      ? "bg-rose-500/12 text-rose-700 dark:text-rose-100"
+      : !voice.isRecorderSupported
+        ? "border border-[rgba(201,168,76,0.18)] bg-[color-mix(in_srgb,var(--gold)_10%,transparent)] text-[var(--ink-soft)]"
+      : voice.error?.includes("Mic unavailable")
+        ? "border border-[rgba(201,168,76,0.18)] bg-[color-mix(in_srgb,var(--gold)_10%,transparent)] text-[var(--ink-soft)]"
+        : voice.error?.includes("Too short")
+          ? "border border-[rgba(232,196,176,0.36)] bg-[color-mix(in_srgb,var(--blush)_14%,transparent)] text-[var(--ink-soft)]"
+          : voice.error
+            ? "border border-red-300/20 bg-red-500/10 text-[var(--ink-soft)]"
+            : voice.result
+              ? "border border-[rgba(122,158,126,0.24)] bg-[color-mix(in_srgb,var(--sage)_10%,transparent)] text-[var(--ink-soft)]"
+              : "border border-[rgba(201,168,76,0.18)] bg-[color-mix(in_srgb,var(--gold)_10%,transparent)] text-[var(--ink-soft)]";
 
   const closePanel = () => {
     if (isDismissLocked) {
@@ -176,20 +206,14 @@ export function AiFeaturesPanel(props: AiFeaturesPanelProps) {
                             Back
                           </Button>
                           <span
-                            className={cn(
-                              "rounded-full px-3 py-1 text-[11px] uppercase tracking-[0.14em]",
-                              voice.stage === "recording"
-                                ? "bg-rose-500/12 text-rose-700 dark:text-rose-100"
-                                : voice.result
-                                  ? "border border-[rgba(122,158,126,0.24)] bg-[color-mix(in_srgb,var(--sage)_10%,transparent)] text-[var(--ink-soft)]"
-                                  : "border border-[rgba(201,168,76,0.18)] bg-[color-mix(in_srgb,var(--gold)_10%,transparent)] text-[var(--ink-soft)]"
-                            )}
+                            className={cn("rounded-full px-3 py-1 text-[11px] uppercase tracking-[0.14em]", voiceBadgeClassName)}
                           >
-                            {voice.stage === "recording" ? "Recording" : voice.result ? "Ready" : "Voice"}
+                            {voiceBadgeLabel}
                           </span>
                         </div>
 
                         <VoiceStatus
+                          categoryCatalog={props.categoryCatalog}
                           draft={voice.result}
                           error={voice.error}
                           onClearDraft={voice.resetDraft}
@@ -215,7 +239,7 @@ export function AiFeaturesPanel(props: AiFeaturesPanelProps) {
                             <Button
                               type="button"
                               variant="outline"
-                              className="rounded-full px-5 py-3"
+                              className="rounded-full px-4 py-2.5 text-[12px] font-medium normal-case tracking-[0.04em]"
                               onClick={closePanel}
                               disabled={isDismissLocked}
                             >
