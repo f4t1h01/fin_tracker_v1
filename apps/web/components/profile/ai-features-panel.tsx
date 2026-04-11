@@ -32,8 +32,6 @@ export function AiFeaturesPanel(props: AiFeaturesPanelProps) {
     onDraftResolved: props.onDraftResolved
   });
 
-  const hasInlineSummary = voice.result !== null || voice.error !== null;
-  const shouldShowVoiceStatus = voice.stage !== "idle" || voice.result !== null || voice.error !== null;
   const isDismissLocked = voice.stage === "recording" || voice.isBusy;
 
   const closePanel = () => {
@@ -68,29 +66,6 @@ export function AiFeaturesPanel(props: AiFeaturesPanelProps) {
         </Button>
       </div>
 
-      {hasInlineSummary ? (
-        <div className="space-y-2">
-          <div className="detail-box flex flex-wrap items-start justify-between gap-3">
-            <div className="space-y-1">
-              <p className="field-label">AI draft</p>
-              <p className="body-muted text-sm">Review the draft before saving.</p>
-            </div>
-            <span className="rounded-full border border-[rgba(201,168,76,0.18)] bg-[color-mix(in_srgb,var(--gold)_10%,transparent)] px-3 py-1 text-[11px] uppercase tracking-[0.14em] text-[var(--ink-soft)]">
-              {voice.result ? "Ready" : "Retry"}
-            </span>
-          </div>
-          <VoiceStatus
-            draft={voice.result}
-            error={voice.error}
-            onClearDraft={voice.resetDraft}
-            recordingSeconds={voice.recordingSeconds}
-            stage={voice.stage}
-            stageLabel={voice.stageLabel}
-            title="Draft status"
-          />
-        </div>
-      ) : null}
-
       {isOpen && portalTarget
         ? createPortal(
             <div className="fixed inset-0 z-[200] overflow-y-auto overscroll-contain bg-[var(--modal-scrim)] backdrop-blur-[28px] backdrop-saturate-150">
@@ -106,10 +81,10 @@ export function AiFeaturesPanel(props: AiFeaturesPanelProps) {
                     <div className="space-y-2">
                       <p className="eyebrow-row">AI tools</p>
                       <h3 className="font-[family-name:var(--font-heading)] text-[clamp(28px,4vw,36px)] font-light leading-[1.08]">
-                        {activeFeature === "voice" ? "Voice draft" : "Choose a tool"}
+                        {activeFeature === "voice" ? "Voice note" : "Choose a tool"}
                       </h3>
                       <p className="body-muted max-w-lg text-sm">
-                        {activeFeature === "voice" ? "Record one note, review the draft, then save it manually." : "Voice drafting is ready. Image drafting will come later."}
+                        {activeFeature === "voice" ? "Record one short note and review it here before saving." : "Voice drafting is ready. Image drafting will come later."}
                       </p>
                     </div>
 
@@ -138,7 +113,7 @@ export function AiFeaturesPanel(props: AiFeaturesPanelProps) {
                               <Mic className="size-5" />
                             </span>
                             <span className="min-w-0 space-y-1">
-                              <span className="block text-[13px] font-semibold uppercase tracking-[0.14em] text-[var(--ink)]">Voice draft</span>
+                              <span className="block text-[13px] font-semibold uppercase tracking-[0.14em] text-[var(--ink)]">Voice note</span>
                               <span className="body-muted block text-sm">Record one transaction and fill the form from voice.</span>
                             </span>
                           </span>
@@ -177,35 +152,31 @@ export function AiFeaturesPanel(props: AiFeaturesPanelProps) {
                               "rounded-full px-3 py-1 text-[11px] uppercase tracking-[0.14em]",
                               voice.stage === "recording"
                                 ? "bg-rose-500/12 text-rose-700 dark:text-rose-100"
-                                : "border border-[rgba(201,168,76,0.18)] bg-[color-mix(in_srgb,var(--gold)_10%,transparent)] text-[var(--ink-soft)]"
+                                : voice.result
+                                  ? "border border-[rgba(122,158,126,0.24)] bg-[color-mix(in_srgb,var(--sage)_10%,transparent)] text-[var(--ink-soft)]"
+                                  : "border border-[rgba(201,168,76,0.18)] bg-[color-mix(in_srgb,var(--gold)_10%,transparent)] text-[var(--ink-soft)]"
                             )}
                           >
                             {voice.stage === "recording" ? "Recording" : voice.result ? "Ready" : "Voice"}
                           </span>
                         </div>
 
-                        {shouldShowVoiceStatus ? (
-                          <VoiceStatus
-                            draft={voice.result}
-                            error={voice.error}
-                            onClearDraft={voice.resetDraft}
-                            recordingSeconds={voice.recordingSeconds}
-                            stage={voice.stage}
-                            stageLabel={voice.stageLabel}
-                          />
-                        ) : (
-                          <div className="detail-box space-y-2">
-                            <p className="field-label">Voice hint</p>
-                            <p className="body-muted text-sm">One clip per transaction.</p>
-                          </div>
-                        )}
+                        <VoiceStatus
+                          draft={voice.result}
+                          error={voice.error}
+                          onClearDraft={voice.resetDraft}
+                          stage={voice.stage}
+                          stageLabel={voice.stageLabel}
+                        />
 
-                        <div className="flex justify-center">
+                        <div className="w-full">
                           <VoiceRecorderButton
                             isBusy={voice.isBusy}
                             isRecorderSupported={voice.isRecorderSupported}
                             isRecording={voice.stage === "recording"}
                             recordingSeconds={voice.recordingSeconds}
+                            stageLabel={voice.stageLabel}
+                            visualizerLevels={voice.visualizerLevels}
                             onStartRecording={voice.startRecording}
                             onStopRecording={voice.stopRecording}
                           />

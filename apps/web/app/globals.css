@@ -1251,39 +1251,54 @@ html[data-theme="dark"] .field-control {
   box-shadow: 0 12px 28px color-mix(in srgb, var(--sage) 16%, transparent);
 }
 
-.voice-recorder-meter {
+.voice-recorder-button {
+  --voice-recorder-visualizer-height: 2.9rem;
+  --voice-recorder-visualizer-gap: 0.35rem;
+  --voice-recorder-visualizer-bar-width: 0.34rem;
+}
+
+.voice-recorder-visualizer {
   display: inline-flex;
   align-items: end;
-  gap: 2px;
-  width: 20px;
-  height: 14px;
+  justify-content: flex-end;
+  gap: var(--voice-recorder-visualizer-gap);
+  min-width: calc(var(--voice-recorder-visualizer-bar-width) * 5 + var(--voice-recorder-visualizer-gap) * 4);
+  height: var(--voice-recorder-visualizer-height);
+  flex-shrink: 0;
+  padding-inline: 0.05rem;
 }
 
-.voice-recorder-meter span {
-  width: 3px;
+.voice-recorder-visualizer-bar {
+  width: var(--voice-recorder-visualizer-bar-width);
   height: 100%;
   border-radius: 999px;
-  background: currentColor;
+  background: linear-gradient(180deg, color-mix(in srgb, currentColor 72%, transparent), currentColor);
+  opacity: 0.72;
+  transform: scaleY(0.2);
   transform-origin: center bottom;
-  animation: voiceRecorderMeter 900ms ease-in-out infinite;
+  transition:
+    transform 80ms linear,
+    opacity 160ms ease,
+    background-color 160ms ease,
+    box-shadow 160ms ease;
 }
 
-.voice-recorder-meter span:nth-child(2) {
-  animation-delay: 120ms;
+.voice-recorder-visualizer.is-recording .voice-recorder-visualizer-bar {
+  opacity: 1;
+  box-shadow: 0 0 0 1px rgba(201, 168, 76, 0.08);
 }
 
-.voice-recorder-meter span:nth-child(3) {
-  animation-delay: 240ms;
+.voice-recorder-visualizer.is-busy .voice-recorder-visualizer-bar {
+  opacity: 0.82;
+}
+
+.voice-recorder-visualizer.is-idle .voice-recorder-visualizer-bar {
+  opacity: 0.64;
 }
 
 @keyframes fadeUp {
   from { opacity: 0; transform: translateY(30px); }
   to { opacity: 1; transform: translateY(0); }
-}
-
-@keyframes voiceRecorderMeter {
-  0%, 100% { transform: scaleY(0.45); opacity: 0.55; }
-  50% { transform: scaleY(1); opacity: 1; }
 }
 
 @keyframes fadeIn {

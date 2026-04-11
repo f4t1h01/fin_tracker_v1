@@ -11,6 +11,45 @@ type UseVoiceEntryOptions = {
   onDraftResolved: (draft: VoiceTransactionDraftResponse) => void;
 };
 
+const VOICE_VISUALIZER_BAR_COUNT = 5;
+const DEFAULT_VISUALIZER_LEVELS = [0.18, 0.26, 0.22, 0.3, 0.2];
+
+function cloneVisualizerLevels(levels: readonly number[]) {
+  return Array.from(levels);
+}
+
+function buildVisualizerLevels(samples: Uint8Array<ArrayBuffer>) {
+  const weights = [0.86, 1, 1.12, 1.02, 0.92];
+  const nextLevels: number[] = [];
+
+  for (let index = 0; index < VOICE_VISUALIZER_BAR_COUNT; index += 1) {
+    const start = Math.floor((samples.length * index) / VOICE_VISUALIZER_BAR_COUNT);
+    const end = Math.max(start + 1, Math.floor((samples.length * (index + 1)) / VOICE_VISUALIZER_BAR_COUNT));
+
+    let sum = 0;
+    let count = 0;
+    for (let cursor = start; cursor < end; cursor += 1) {
+      const centered = Math.abs((samples[cursor] ?? 128) - 128) / 128;
+      sum += centered;
+      count += 1;
+    }
+
+    const average = count > 0 ? sum / count : 0;
+    const boosted = Math.pow(average, 0.8) * weights[index] + 0.08;
+    nextLevels.push(Math.min(1, Math.max(0.12, boosted)));
+  }
+
+  return nextLevels;
+}
+
+function getAudioContextConstructor() {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  return window.AudioContext ?? (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext ?? null;
+}
+
 function formatRecordingExtension(mimeType: string, filename?: string) {
   const lower = (filename ?? "").toLowerCase();
   if (lower.endsWith(".webm") || mimeType.includes("webm")) return ".webm";
@@ -27,6 +66,7 @@ export function useVoiceEntry(options: UseVoiceEntryOptions) {
   const [error, setError] = useState<string | null>(null);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
   const [isRecorderSupported, setIsRecorderSupported] = useState(false);
+  const [visualizerLevels, setVisualizerLevels] = useState<number[]>(() => cloneVisualizerLevels(DEFAULT_VISUALIZER_LEVELS));
 
   const recorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -36,8 +76,49 @@ export function useVoiceEntry(options: UseVoiceEntryOptions) {
   const recordingStopTimerRef = useRef<number | null>(null);
   const recordingStartedAtRef = useRef<number | null>(null);
   const activeRequestIdRef = useRef(0);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const mediaSourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
+  const visualizerAnimationFrameRef = useRef<number | null>(null);
+  const visualizerSamplesRef = useRef<Uint8Array<ArrayBuffer> | null>(null);
+  const visualizerActiveRef = useRef(false);
 
   const isBusy = stage === "processing" || stage === "transcribing" || stage === "parsing";
+
+  const resetVisualizerLevels = useCallback(() => {
+    setVisualizerLevels(cloneVisualizerLevels(DEFAULT_VISUALIZER_LEVELS));
+  }, []);
+
+  const cleanupAudioGraph = useCallback(() => {
+    visualizerActiveRef.current = false;
+
+    if (visualizerAnimationFrameRef.current !== null) {
+      window.cancelAnimationFrame(visualizerAnimationFrameRef.current);
+      visualizerAnimationFrameRef.current = null;
+    }
+
+    if (mediaSourceRef.current) {
+      try {
+        mediaSourceRef.current.disconnect();
+      } catch {}
+      mediaSourceRef.current = null;
+    }
+
+    if (analyserRef.current) {
+      try {
+        analyserRef.current.disconnect();
+      } catch {}
+      analyserRef.current = null;
+    }
+
+    visualizerSamplesRef.current = null;
+
+    const audioContext = audioContextRef.current;
+    audioContextRef.current = null;
+    if (audioContext && audioContext.state !== "closed") {
+      void audioContext.close().catch(() => undefined);
+    }
+  }, []);
 
   const clearTimers = useCallback(() => {
     for (const timerId of stageTimerRef.current) {
@@ -57,10 +138,13 @@ export function useVoiceEntry(options: UseVoiceEntryOptions) {
   }, []);
 
   const cleanupStream = useCallback(() => {
+    cleanupAudioGraph();
     streamRef.current?.getTracks().forEach((track) => track.stop());
     streamRef.current = null;
     recorderRef.current = null;
-  }, []);
+    recordingStartedAtRef.current = null;
+    resetVisualizerLevels();
+  }, [cleanupAudioGraph, resetVisualizerLevels]);
 
   const resetDraft = useCallback(() => {
     clearTimers();
@@ -71,7 +155,60 @@ export function useVoiceEntry(options: UseVoiceEntryOptions) {
     setError(null);
     setResult(null);
     setRecordingSeconds(0);
-  }, [clearTimers, cleanupStream]);
+    resetVisualizerLevels();
+  }, [clearTimers, cleanupStream, resetVisualizerLevels]);
+
+  const startVisualizer = useCallback(
+    async (stream: MediaStream) => {
+      cleanupAudioGraph();
+
+      const AudioContextCtor = getAudioContextConstructor();
+      if (!AudioContextCtor) {
+        resetVisualizerLevels();
+        return;
+      }
+
+      try {
+        const audioContext = new AudioContextCtor();
+        audioContextRef.current = audioContext;
+
+        const source = audioContext.createMediaStreamSource(stream);
+        mediaSourceRef.current = source;
+
+        const analyser = audioContext.createAnalyser();
+        analyser.fftSize = 128;
+        analyser.smoothingTimeConstant = 0.85;
+        analyserRef.current = analyser;
+
+        source.connect(analyser);
+
+        const samples = new Uint8Array(analyser.fftSize);
+        visualizerSamplesRef.current = samples;
+        visualizerActiveRef.current = true;
+
+        const sample = () => {
+          if (!visualizerActiveRef.current || !analyserRef.current || !visualizerSamplesRef.current) {
+            return;
+          }
+
+          analyserRef.current.getByteTimeDomainData(visualizerSamplesRef.current);
+          setVisualizerLevels(buildVisualizerLevels(visualizerSamplesRef.current));
+          visualizerAnimationFrameRef.current = window.requestAnimationFrame(sample);
+        };
+
+        visualizerAnimationFrameRef.current = window.requestAnimationFrame(sample);
+
+        if (audioContext.state === "suspended") {
+          await audioContext.resume();
+        }
+      } catch {
+        cleanupAudioGraph();
+        resetVisualizerLevels();
+        return;
+      }
+    },
+    [cleanupAudioGraph, resetVisualizerLevels]
+  );
 
   const submitVoiceBlob = useCallback(async (blob: Blob, filename: string) => {
     const requestId = ++activeRequestIdRef.current;
@@ -115,7 +252,7 @@ export function useVoiceEntry(options: UseVoiceEntryOptions) {
 
       clearTimers();
       setStage("error");
-      setError(error_ instanceof Error ? error_.message : "Could not process the voice recording");
+      setError(error_ instanceof Error ? error_.message : "Could not process recording");
     }
   }, [clearTimers, options]);
 
@@ -138,8 +275,9 @@ export function useVoiceEntry(options: UseVoiceEntryOptions) {
     }
 
     if (typeof navigator.mediaDevices?.getUserMedia !== "function" || typeof MediaRecorder === "undefined") {
-      setError("Voice recording is not supported in this browser. Check microphone permissions or use a supported browser.");
+      setError("Mic unavailable. Use a supported browser or allow microphone access.");
       setStage("error");
+      resetVisualizerLevels();
       return;
     }
 
@@ -150,9 +288,12 @@ export function useVoiceEntry(options: UseVoiceEntryOptions) {
       setRecordingSeconds(0);
       chunkRef.current = [];
       recordingStartedAtRef.current = Date.now();
+      resetVisualizerLevels();
 
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
+
+      void startVisualizer(stream);
 
       const preferredMimeTypes = ["audio/webm;codecs=opus", "audio/webm", "audio/ogg;codecs=opus", "audio/ogg"];
       const supportedMimeType = preferredMimeTypes.find((value) => MediaRecorder.isTypeSupported(value)) ?? "";
@@ -178,13 +319,15 @@ export function useVoiceEntry(options: UseVoiceEntryOptions) {
 
         if (blob.size === 0) {
           setStage("error");
-          setError("Recording finished without audio content");
+          setError("No audio detected. Try again.");
+          resetVisualizerLevels();
           return;
         }
 
         if (startedAt !== null && Date.now() - startedAt < VOICE_RECORDING_MIN_SECONDS * 1000) {
           setStage("error");
-          setError(`Recording is too short. Please speak for at least ${VOICE_RECORDING_MIN_SECONDS} seconds.`);
+          setError(`Too short. Speak for at least ${VOICE_RECORDING_MIN_SECONDS} seconds.`);
+          resetVisualizerLevels();
           return;
         }
 
@@ -213,28 +356,30 @@ export function useVoiceEntry(options: UseVoiceEntryOptions) {
       cleanupStream();
       clearTimers();
       setStage("error");
-      setError(error_ instanceof Error ? error_.message : "Could not start voice recording");
+      setError(error_ instanceof Error ? error_.message : "Could not start recording");
+      recordingStartedAtRef.current = null;
+      resetVisualizerLevels();
     }
-  }, [clearTimers, cleanupStream, finishRecording, isBusy, stage, submitVoiceBlob]);
+  }, [clearTimers, cleanupStream, finishRecording, isBusy, resetVisualizerLevels, stage, startVisualizer, submitVoiceBlob]);
 
   const stageLabel = useMemo(() => {
     switch (stage) {
       case "recording":
-        return `Recording ${String(recordingSeconds).padStart(2, "0")}s / ${VOICE_RECORDING_LIMIT_SECONDS}s`;
+        return `Recording ${String(recordingSeconds).padStart(2, "0")}s`;
       case "processing":
-        return "Preparing...";
+        return "Preparing";
       case "transcribing":
-        return "Transcribing...";
+        return "Transcribing";
       case "parsing":
-        return "Reading fields...";
+        return "Extracting";
       case "ready":
-        return "Ready.";
+        return "Ready to save";
       case "error":
-        return error ?? "Draft failed.";
+        return "Retry";
       default:
-        return "Ready to record.";
+        return "Ready to record";
     }
-  }, [error, recordingSeconds, stage]);
+  }, [recordingSeconds, stage]);
 
   useEffect(() => {
     setIsRecorderSupported(typeof navigator.mediaDevices?.getUserMedia === "function" && typeof MediaRecorder !== "undefined");
@@ -256,6 +401,7 @@ export function useVoiceEntry(options: UseVoiceEntryOptions) {
     recordingSeconds,
     isRecorderSupported,
     isBusy,
+    visualizerLevels,
     startRecording,
     stopRecording,
     resetDraft
