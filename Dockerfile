@@ -14,7 +14,7 @@ RUN apt-get update -y \
 WORKDIR /app
 
 COPY . .
-RUN if [ "$APP_NAME" = "api" ]; then python3 -m pip install --no-cache-dir -r /app/apps/api/scripts/receipt_preprocess_requirements.txt; fi
+RUN if [ "$APP_NAME" = "api" ]; then python3 -m pip install --no-cache-dir --break-system-packages -r /app/apps/api/scripts/receipt_preprocess_requirements.txt; fi
 RUN pnpm install --frozen-lockfile
 RUN pnpm --filter @repo/db prisma:generate
 RUN pnpm --filter @repo/types build && pnpm --filter @repo/config build && pnpm --filter @repo/db build
