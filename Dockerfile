@@ -96,8 +96,8 @@ ENV HOSTNAME=0.0.0.0
 ENV PORT=3000
 
 COPY --from=build /app/apps/web/.next/standalone ./
-COPY --from=build /app/apps/web/.next/static ./.next/static
+COPY --from=build /app/apps/web/.next/static ./apps/web/.next/static
 
-CMD ["node", "server.js"]
+CMD ["node", "apps/web/server.js"]
 
 FROM ${APP_NAME}-runtime AS runtime
