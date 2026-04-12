@@ -97,14 +97,30 @@ pnpm db:migrate
 
 - CI workflow runs install, Prisma generate, typecheck, and build on PR/push.
 - Deployment is manual on the server (no automatic SSH deploy workflow).
+- Routine production deploys use prebuilt runtime images via `./ops/docker/deploy-prod.sh`.
+- Do not use `docker-compose.server.yml` for routine production deploys. It is a legacy fallback that bind-mounts the repo and rebuilds workspaces at container startup.
+- Do not combine `docker-compose.yml` with `docker-compose.server.yml` for normal server startup.
 
 Manual deploy commands:
 
 ```bash
 cd ~/telegram_bots/fin_tracker
 git pull origin main
+# Only run the migration command when the pulled batch includes a Prisma migration.
 DATABASE_URL=postgresql://postgres:1536@127.0.0.1:5432/fin_tracker?schema=public corepack pnpm --filter @repo/db exec prisma migrate deploy
 ./ops/docker/deploy-prod.sh
+```
+
+Routine production recovery and verification:
+
+```bash
+cd ~/telegram_bots/fin_tracker
+git pull origin main
+# Run only when the pulled batch includes a Prisma migration.
+DATABASE_URL=postgresql://postgres:1536@127.0.0.1:5432/fin_tracker?schema=public corepack pnpm --filter @repo/db exec prisma migrate deploy
+./ops/docker/deploy-prod.sh
+docker compose logs web nginx --since=10m
+curl http://127.0.0.1:71/api/health
 ```
 
 Reverse proxy target:

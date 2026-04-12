@@ -1,3 +1,7 @@
+# Legacy fallback only.
+# Do not use this file for routine production deploys.
+# Normal production deploys must use `docker compose` with `docker-compose.yml`
+# through `./ops/docker/deploy-prod.sh`, which runs prebuilt runtime images.
 services:
   api:
     command: ["/bin/sh", "/app/ops/docker/start-api-prod.sh"]
