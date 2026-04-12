@@ -5,3 +5,7 @@ dist
 coverage
 .git
 *.log
+.env
+*.pyc
+*.tsbuildinfo
+**/__pycache__

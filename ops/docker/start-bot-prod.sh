@@ -6,5 +6,6 @@ pnpm --filter @repo/db prisma:generate
 pnpm --filter @repo/types build
 pnpm --filter @repo/config build
 pnpm --filter @repo/db build
+pnpm --filter @app/bot build
 
 exec pnpm --filter @app/bot start

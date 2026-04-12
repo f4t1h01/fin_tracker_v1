@@ -103,11 +103,16 @@ Manual deploy commands:
 ```bash
 cd ~/telegram_bots/fin_tracker
 git pull origin main
-docker compose up -d --build --remove-orphans
-docker compose run --rm --no-deps api corepack pnpm --filter @repo/db exec prisma migrate deploy
-docker compose ps
+DATABASE_URL=postgresql://postgres:1536@127.0.0.1:5432/fin_tracker?schema=public corepack pnpm --filter @repo/db exec prisma migrate deploy
+./ops/docker/deploy-prod.sh
 ```
 
 Reverse proxy target:
 
 - `cupfin.shaxin.uz` -> `http://127.0.0.1:71`
+
+Host cleanup when Docker storage grows again:
+
+```bash
+./ops/docker/cleanup-host.sh
+```

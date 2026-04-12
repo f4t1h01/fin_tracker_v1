@@ -4,8 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "tsc --noEmit -p tsconfig.json",
-    "start": "tsx src/index.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/index.js",
     "lint": "node -e \"console.log('bot lint: skip')\"",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "node -e \"console.log('bot test: skip')\""
