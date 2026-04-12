@@ -3,7 +3,7 @@ import type { MultipartFile } from "@fastify/multipart";
 import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { createWriteStream } from "node:fs";
-import { mkdtemp, mkdir, readFile, rm } from "node:fs/promises";
+import { access, mkdtemp, mkdir, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { extname, join } from "node:path";
 import { pipeline } from "node:stream/promises";
@@ -43,6 +43,18 @@ function resolveReceiptPreprocessScriptPath() {
   return join(apiPackageRoot, "scripts", "receipt_preprocess.py");
 }
 
+async function ensureReceiptPreprocessScriptExists() {
+  const scriptPath = resolveReceiptPreprocessScriptPath();
+
+  try {
+    await access(scriptPath);
+  } catch {
+    throw new InternalServerErrorException(`API container is missing the receipt preprocessing script at ${scriptPath}`);
+  }
+
+  return scriptPath;
+}
+
 function normalizeMimeType(value: string) {
   return supportedImageMimeTypes.has(value) ? value : "application/octet-stream";
 }
@@ -70,12 +82,12 @@ async function runPreprocessScript(params: {
   inputPath: string;
   outputDir: string;
   resultPath: string;
+  scriptPath: string;
 }) {
-  const scriptPath = resolveReceiptPreprocessScriptPath();
   const command = resolvePythonCommand();
 
   await new Promise<void>((resolve, reject) => {
-    const child = spawn(command, ["-u", scriptPath, "--input", params.inputPath, "--output-dir", params.outputDir, "--result-path", params.resultPath], {
+    const child = spawn(command, ["-u", params.scriptPath, "--input", params.inputPath, "--output-dir", params.outputDir, "--result-path", params.resultPath], {
       cwd: apiPackageRoot
     });
 
@@ -113,6 +125,7 @@ async function runPreprocessScript(params: {
 }
 
 export async function preprocessReceiptImage(file: MultipartFile): Promise<ReceiptPreprocessPayload> {
+  const scriptPath = await ensureReceiptPreprocessScriptExists();
   const tempDir = await mkdtemp(join(tmpdir(), "fin-tracker-receipt-"));
   const outputDir = join(tempDir, "processed");
   const resultPath = join(tempDir, "result.json");
@@ -126,7 +139,8 @@ export async function preprocessReceiptImage(file: MultipartFile): Promise<Recei
     await runPreprocessScript({
       inputPath,
       outputDir,
-      resultPath
+      resultPath,
+      scriptPath
     });
 
     const payload = JSON.parse(await readFile(resultPath, "utf8")) as ReceiptPreprocessScriptOutput;
