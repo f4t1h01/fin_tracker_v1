@@ -9,6 +9,8 @@ import { AdminAiPricingRetireDto } from "./dto/admin-ai-pricing-retire.dto";
 import { AdminAiPricingUpsertDto } from "./dto/admin-ai-pricing-upsert.dto";
 import { AdminAdminStatusDto } from "./dto/admin-admin-status.dto";
 import { AdminCategoryCorrectionDto } from "./dto/admin-category-correction.dto";
+import { AdminGoodsUomStatusDto } from "./dto/admin-goods-uom-status.dto";
+import { AdminGoodsUomUpsertDto } from "./dto/admin-goods-uom-upsert.dto";
 import { AdminInvalidateInviteDto } from "./dto/admin-invalidate-invite.dto";
 import { AdminTransactionCorrectionDto } from "./dto/admin-transaction-correction.dto";
 
@@ -472,5 +474,125 @@ export class AdminMutationService {
         isVisible: updated.isVisible
       }
     };
+  }
+
+  async createGoodsUom(dto: AdminGoodsUomUpsertDto, currentAdminEmail: string, requestMeta: AdminRequestMeta) {
+    const code = dto.code.trim();
+    const label = dto.label.trim();
+
+    if (!code || !label) {
+      throw new BadRequestException("Code and label are required");
+    }
+
+    const created = await this.db.goodsUom.create({
+      data: {
+        code,
+        label,
+        groupKey: dto.groupKey,
+        decimals: dto.decimals,
+        sortOrder: dto.sortOrder ?? 0
+      }
+    });
+
+    await this.audit.log({
+      adminEmail: currentAdminEmail,
+      actionType: "GOODS_UOM_CREATE",
+      targetType: "GOODS_UOM",
+      targetId: created.id,
+      reason: dto.reason,
+      requestMeta,
+      afterState: {
+        code: created.code,
+        label: created.label,
+        groupKey: created.groupKey,
+        decimals: created.decimals,
+        isActive: created.isActive
+      },
+      outcome: "SUCCESS"
+    });
+
+    return { ok: true, id: created.id };
+  }
+
+  async updateGoodsUom(id: string, dto: AdminGoodsUomUpsertDto, currentAdminEmail: string, requestMeta: AdminRequestMeta) {
+    const existing = await this.db.goodsUom.findUnique({
+      where: { id }
+    });
+
+    if (!existing) {
+      throw new BadRequestException("Goods UOM not found");
+    }
+
+    const updated = await this.db.goodsUom.update({
+      where: { id },
+      data: {
+        code: dto.code.trim(),
+        label: dto.label.trim(),
+        groupKey: dto.groupKey,
+        decimals: dto.decimals,
+        sortOrder: dto.sortOrder ?? existing.sortOrder
+      }
+    });
+
+    await this.audit.log({
+      adminEmail: currentAdminEmail,
+      actionType: "GOODS_UOM_UPDATE",
+      targetType: "GOODS_UOM",
+      targetId: id,
+      reason: dto.reason,
+      requestMeta,
+      beforeState: {
+        code: existing.code,
+        label: existing.label,
+        groupKey: existing.groupKey,
+        decimals: existing.decimals,
+        sortOrder: existing.sortOrder
+      },
+      afterState: {
+        code: updated.code,
+        label: updated.label,
+        groupKey: updated.groupKey,
+        decimals: updated.decimals,
+        sortOrder: updated.sortOrder
+      },
+      outcome: "SUCCESS"
+    });
+
+    return { ok: true };
+  }
+
+  async updateGoodsUomStatus(id: string, dto: AdminGoodsUomStatusDto, currentAdminEmail: string, requestMeta: AdminRequestMeta) {
+    const existing = await this.db.goodsUom.findUnique({
+      where: { id }
+    });
+
+    if (!existing) {
+      throw new BadRequestException("Goods UOM not found");
+    }
+
+    const updated = await this.db.goodsUom.update({
+      where: { id },
+      data: {
+        isActive: dto.isActive
+      }
+    });
+
+    await this.audit.log({
+      adminEmail: currentAdminEmail,
+      actionType: "GOODS_UOM_STATUS",
+      targetType: "GOODS_UOM",
+      targetId: id,
+      reason: dto.reason,
+      requestMeta,
+      beforeState: {
+        isActive: existing.isActive
+      },
+      afterState: {
+        isActive: updated.isActive
+      },
+      outcome: "SUCCESS"
+    });
+
+    return { ok: true, isActive: updated.isActive };
   }
 }

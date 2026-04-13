@@ -18,6 +18,7 @@ const navItems = [
   { href: "/0admin/couples", label: "Couples" },
   { href: "/0admin/transactions", label: "Transactions" },
   { href: "/0admin/categories", label: "Categories" },
+  { href: "/0admin/goods/uoms", label: "Goods UOMs" },
   { href: "/0admin/ai-usage", label: "AI usage" },
   { href: "/0admin/ai-pricing", label: "AI pricing" },
   { href: "/0admin/sql", label: "SQL" },

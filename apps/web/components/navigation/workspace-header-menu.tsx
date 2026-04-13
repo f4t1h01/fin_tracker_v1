@@ -26,6 +26,9 @@ type WorkspaceMenuItem = {
 const workspaceMenuItems: readonly WorkspaceMenuItem[] = [
   { href: "/profile/me/manage", label: "Profile management", icon: UserCog },
   { href: "/profile/me/categories", label: "Categories", icon: Tags },
+  { href: "/profile/me/goods", label: "My Goods", icon: LayoutDashboard },
+  { href: "/profile/me/goods/items", label: "Goods inventory", icon: ArrowLeftRight },
+  { href: "/profile/me/goods/manage", label: "Goods manage", icon: Tags },
   { href: "/profile/me", label: "Transactions", icon: ArrowLeftRight },
   { href: "/profile/me/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/profile/me/dashboard/trends", label: "Trends", icon: BarChart3 },

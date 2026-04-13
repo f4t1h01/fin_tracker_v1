@@ -375,3 +375,17 @@ export type AdminSqlExecuteResponse = {
   truncated: boolean;
   error: string | null;
 };
+
+export type AdminGoodsUomListResponse = {
+  items: Array<{
+    id: string;
+    code: string;
+    label: string;
+    groupKey: "COUNT" | "MASS" | "VOLUME" | "OTHER";
+    decimals: number;
+    isActive: boolean;
+    sortOrder: number;
+    createdAt: string;
+    updatedAt: string;
+  }>;
+};

@@ -22,6 +22,45 @@ enum CategoryScope {
   SHARED
 }
 
+enum GoodsScope {
+  PERSONAL
+  SHARED
+}
+
+enum GoodsConsumptionUnit {
+  HOUR
+  DAY
+  WEEK
+  PERMANENT
+}
+
+enum GoodsItemEventType {
+  INITIAL
+  RESTOCK
+  CONSUME
+  ADJUST_UP
+  ADJUST_DOWN
+  SET_BALANCE
+  AUTO_CONSUMED
+  POLICY_UPDATED
+  MOVED
+  EXPIRY_UPDATED
+  ARCHIVED
+}
+
+enum GoodsEventSource {
+  USER
+  SYSTEM
+  ADMIN
+}
+
+enum GoodsUomGroup {
+  COUNT
+  MASS
+  VOLUME
+  OTHER
+}
+
 model User {
   id                String        @id @default(cuid())
   telegramId        BigInt        @unique
@@ -53,6 +92,13 @@ model User {
   createdCouples    Couple[]      @relation("CreatedCouples")
   createdInvites    Invite[]      @relation("CreatedInvites")
   aiUsageLogs       AiUsageLog[]
+  createdGoodsPlaces GoodsPlace[] @relation("GoodsPlaceCreatedBy")
+  ownedGoodsPlaces   GoodsPlace[] @relation("GoodsPlaceOwner")
+  createdGoodsCategories GoodsCategory[] @relation("GoodsCategoryCreatedBy")
+  ownedGoodsCategories   GoodsCategory[] @relation("GoodsCategoryOwner")
+  createdGoodsItems  GoodsItem[]  @relation("GoodsItemCreatedBy")
+  ownedGoodsItems    GoodsItem[]  @relation("GoodsItemOwner")
+  goodsItemEvents    GoodsItemEvent[] @relation("GoodsItemEventCreatedBy")
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
 }
@@ -100,6 +146,9 @@ model Couple {
   transactions Transaction[]
   invites      Invite[]
   aiUsageLogs  AiUsageLog[]
+  goodsPlaces  GoodsPlace[]
+  goodsCategories GoodsCategory[]
+  goodsItems   GoodsItem[]
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
 }
@@ -259,4 +308,127 @@ model Invite {
   expiresAt   DateTime
   consumedAt  DateTime?
   createdAt   DateTime  @default(now())
+}
+
+model GoodsPlace {
+  id             String      @id @default(cuid())
+  coupleId       String      @map("couple_id")
+  couple         Couple      @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+  scope          GoodsScope
+  ownerUserId    String?     @map("owner_user_id")
+  ownerUser      User?       @relation("GoodsPlaceOwner", fields: [ownerUserId], references: [id], onDelete: SetNull)
+  name           String
+  normalizedName String      @map("normalized_name")
+  sortOrder      Int         @default(0) @map("sort_order")
+  isArchived     Boolean     @default(false) @map("is_archived")
+  createdById    String?     @map("created_by_id")
+  createdBy      User?       @relation("GoodsPlaceCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  items          GoodsItem[]
+  createdAt      DateTime    @default(now()) @map("created_at")
+  updatedAt      DateTime    @updatedAt @map("updated_at")
+
+  @@index([coupleId, scope, ownerUserId, normalizedName])
+  @@index([coupleId, isArchived])
+  @@map("goods_place")
+}
+
+model GoodsCategory {
+  id             String      @id @default(cuid())
+  coupleId       String      @map("couple_id")
+  couple         Couple      @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+  scope          GoodsScope
+  ownerUserId    String?     @map("owner_user_id")
+  ownerUser      User?       @relation("GoodsCategoryOwner", fields: [ownerUserId], references: [id], onDelete: SetNull)
+  name           String
+  normalizedName String      @map("normalized_name")
+  sortOrder      Int         @default(0) @map("sort_order")
+  isArchived     Boolean     @default(false) @map("is_archived")
+  isSeeded       Boolean     @default(false) @map("is_seeded")
+  createdById    String?     @map("created_by_id")
+  createdBy      User?       @relation("GoodsCategoryCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  items          GoodsItem[]
+  createdAt      DateTime    @default(now()) @map("created_at")
+  updatedAt      DateTime    @updatedAt @map("updated_at")
+
+  @@index([coupleId, scope, ownerUserId, normalizedName])
+  @@index([coupleId, isArchived])
+  @@map("goods_category")
+}
+
+model GoodsUom {
+  id         String      @id @default(cuid())
+  code       String      @unique
+  label      String
+  groupKey   GoodsUomGroup @default(OTHER) @map("group_key")
+  decimals   Int         @default(0)
+  isActive   Boolean     @default(true) @map("is_active")
+  sortOrder  Int         @default(0) @map("sort_order")
+  items      GoodsItem[]
+  createdAt  DateTime    @default(now()) @map("created_at")
+  updatedAt  DateTime    @updatedAt @map("updated_at")
+
+  @@index([isActive, sortOrder])
+  @@map("goods_uom")
+}
+
+model GoodsItem {
+  id                     String               @id @default(cuid())
+  coupleId               String               @map("couple_id")
+  couple                 Couple               @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+  scope                  GoodsScope
+  ownerUserId            String?              @map("owner_user_id")
+  ownerUser              User?                @relation("GoodsItemOwner", fields: [ownerUserId], references: [id], onDelete: SetNull)
+  placeId                String               @map("place_id")
+  place                  GoodsPlace           @relation(fields: [placeId], references: [id], onDelete: Restrict)
+  categoryId             String               @map("category_id")
+  category               GoodsCategory        @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  uomId                  String               @map("uom_id")
+  uom                    GoodsUom             @relation(fields: [uomId], references: [id], onDelete: Restrict)
+  name                   String
+  normalizedName         String               @map("normalized_name")
+  note                   String?
+  quantityBase           Decimal              @map("quantity_base") @db.Decimal(14, 3)
+  quantityBaseAsOf       DateTime             @map("quantity_base_as_of")
+  lowStockThreshold      Decimal              @map("low_stock_threshold") @db.Decimal(14, 3)
+  targetQuantity         Decimal              @map("target_quantity") @db.Decimal(14, 3)
+  consumptionRateValue   Decimal?             @map("consumption_rate_value") @db.Decimal(14, 3)
+  consumptionRateUnit    GoodsConsumptionUnit @default(PERMANENT) @map("consumption_rate_unit")
+  consumptionRatePerHour Decimal?             @map("consumption_rate_per_hour") @db.Decimal(18, 8)
+  consumptionStartedAt   DateTime?            @map("consumption_started_at")
+  expirationDate         DateTime?            @map("expiration_date")
+  lastStockEventAt       DateTime             @map("last_stock_event_at")
+  lastManualEventAt      DateTime?            @map("last_manual_event_at")
+  isArchived             Boolean              @default(false) @map("is_archived")
+  createdById            String?              @map("created_by_id")
+  createdBy              User?                @relation("GoodsItemCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  events                 GoodsItemEvent[]
+  createdAt              DateTime             @default(now()) @map("created_at")
+  updatedAt              DateTime             @updatedAt @map("updated_at")
+
+  @@index([coupleId, scope, ownerUserId, isArchived])
+  @@index([placeId, categoryId])
+  @@index([normalizedName])
+  @@index([expirationDate])
+  @@index([lastStockEventAt])
+  @@map("goods_item")
+}
+
+model GoodsItemEvent {
+  id            String             @id @default(cuid())
+  goodsItemId    String             @map("goods_item_id")
+  goodsItem      GoodsItem          @relation(fields: [goodsItemId], references: [id], onDelete: Cascade)
+  eventType      GoodsItemEventType @map("event_type")
+  quantityDelta  Decimal            @map("quantity_delta") @db.Decimal(14, 3)
+  quantityAfter  Decimal            @map("quantity_after") @db.Decimal(14, 3)
+  occurredAt     DateTime           @map("occurred_at")
+  createdById    String?            @map("created_by_id")
+  createdBy      User?              @relation("GoodsItemEventCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  source         GoodsEventSource   @default(USER)
+  reason         String?
+  metadata       Json?
+  createdAt      DateTime           @default(now()) @map("created_at")
+
+  @@index([goodsItemId, occurredAt(sort: Desc)])
+  @@index([eventType, occurredAt(sort: Desc)])
+  @@map("goods_item_event")
 }

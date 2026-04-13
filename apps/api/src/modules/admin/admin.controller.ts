@@ -33,6 +33,8 @@ import { AdminCategoryCorrectionDto } from "./dto/admin-category-correction.dto"
 import { AdminInvalidateInviteDto } from "./dto/admin-invalidate-invite.dto";
 import { AdminListQueryDto } from "./dto/admin-list-query.dto";
 import { AdminLoginDto } from "./dto/admin-login.dto";
+import { AdminGoodsUomStatusDto } from "./dto/admin-goods-uom-status.dto";
+import { AdminGoodsUomUpsertDto } from "./dto/admin-goods-uom-upsert.dto";
 import { AdminSqlExecuteDto } from "./dto/admin-sql-execute.dto";
 import { AdminTransactionCorrectionDto } from "./dto/admin-transaction-correction.dto";
 import { AdminTransactionsQueryDto } from "./dto/admin-transactions-query.dto";
@@ -265,5 +267,43 @@ export class AdminController {
   @Get("audit")
   audit(@Query() query: AdminAuditQueryDto) {
     return this.readService.auditList(query);
+  }
+
+  @UseGuards(AdminSessionGuard)
+  @Get("goods/uoms")
+  goodsUoms() {
+    return this.readService.goodsUomList();
+  }
+
+  @UseGuards(AdminSessionGuard)
+  @Post("goods/uoms")
+  createGoodsUom(
+    @Body() dto: AdminGoodsUomUpsertDto,
+    @CurrentAdmin() admin: { email: string },
+    @Req() request: FastifyRequest
+  ) {
+    return this.mutationService.createGoodsUom(dto, admin.email, getRequestMeta(request));
+  }
+
+  @UseGuards(AdminSessionGuard)
+  @Post("goods/uoms/:id/update")
+  updateGoodsUom(
+    @Param("id") id: string,
+    @Body() dto: AdminGoodsUomUpsertDto,
+    @CurrentAdmin() admin: { email: string },
+    @Req() request: FastifyRequest
+  ) {
+    return this.mutationService.updateGoodsUom(id, dto, admin.email, getRequestMeta(request));
+  }
+
+  @UseGuards(AdminSessionGuard)
+  @Post("goods/uoms/:id/status")
+  updateGoodsUomStatus(
+    @Param("id") id: string,
+    @Body() dto: AdminGoodsUomStatusDto,
+    @CurrentAdmin() admin: { email: string },
+    @Req() request: FastifyRequest
+  ) {
+    return this.mutationService.updateGoodsUomStatus(id, dto, admin.email, getRequestMeta(request));
   }
 }

@@ -1184,4 +1184,24 @@ export class AdminReadService {
       totalPages: Math.max(1, Math.ceil(totalItems / pageSize))
     };
   }
+
+  async goodsUomList() {
+    const items = await this.db.goodsUom.findMany({
+      orderBy: [{ sortOrder: "asc" }, { label: "asc" }]
+    });
+
+    return {
+      items: items.map((item: any) => ({
+        id: item.id,
+        code: item.code,
+        label: item.label,
+        groupKey: item.groupKey,
+        decimals: item.decimals,
+        isActive: item.isActive,
+        sortOrder: item.sortOrder,
+        createdAt: item.createdAt.toISOString(),
+        updatedAt: item.updatedAt.toISOString()
+      }))
+    };
+  }
 }
