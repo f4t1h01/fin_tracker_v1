@@ -86,6 +86,83 @@ pnpm db:migrate
 - First profile visit can set `email + password` for browser login
 - Website login/page entry: `/profile/me` (Telegram widget or email/password)
 
+## AI models and flow
+
+The API currently uses these OpenAI models for draft extraction features:
+
+- `gpt-4o-transcribe`: voice-note transcription
+- `gpt-4o-mini`: voice transcript to transaction draft extraction
+- `gpt-4.1-mini`: receipt/image to transaction draft extraction
+
+### Voice draft flow
+
+1. User uploads a voice note.
+2. The API sends the audio file to `gpt-4o-transcribe` via `/v1/audio/transcriptions`.
+3. The transcription request includes a finance-oriented prompt so the model expects amounts, currencies, and categories.
+4. The API sends the transcript, visible category context, and a strict JSON schema to `gpt-4o-mini` via `/v1/responses`.
+5. The API matches the returned category name against internal category ids.
+6. The API returns a draft with normalized fields, `missingFields`, and warnings.
+7. The API logs transcription and extraction as separate AI usage records with model, endpoint, token usage, and cost snapshot.
+
+### Image draft flow
+
+1. User uploads a receipt or finance image.
+2. The API preprocesses the image locally before calling OpenAI.
+3. The API sends prompt text plus one or two images to `gpt-4.1-mini` via `/v1/responses`.
+4. The request requires strict JSON output against the receipt/image draft schema.
+5. The API merges model-reported quality issues with local preprocessing quality checks.
+6. The API matches the returned category name to an internal category id and builds the final note/product summary.
+7. The API logs the image extraction request as AI usage under the receipt-draft feature.
+
+### Prompt behavior
+
+The app uses behavioral prompts like these:
+
+- `gpt-4o-transcribe`
+  - Treat the audio as a finance transaction voice note.
+  - Listen for amounts, currencies, and categories.
+  - Return transcription JSON from the transcription endpoint.
+
+- `gpt-4o-mini`
+  - Extract exactly one finance transaction draft from a transcript.
+  - Return only JSON that matches the provided schema.
+  - Do not invent missing data.
+  - Put unclear or missing fields into `missingFields` and leave the values `null`.
+  - Warn when the recording appears to contain multiple transactions.
+  - Only use category names from the visible category context when confident.
+
+- `gpt-4.1-mini`
+  - Extract exactly one finance transaction draft from a receipt or finance image.
+  - Return only JSON that matches the provided schema.
+  - Treat receipts as expense by default unless income or deposit is clearly shown.
+  - Prefer final payable totals such as `TOTAL`, `GRAND TOTAL`, or `AMOUNT DUE`.
+  - Mark incomplete totals, non-finance documents, and multiple unrelated records with warnings and quality issues.
+  - Only use category names from the visible category context when confident.
+
+### AI pricing
+
+- AI usage logs capture model id, endpoint, token breakdown, and a cost snapshot.
+- Pricing is managed through `AiModelPricing` records and the admin pricing flow, not as the primary runtime `.env` source of truth.
+- Image understanding is already tracked in AI usage logs under the receipt-draft extraction flow.
+- Voice drafting logs transcription and extraction as separate AI operations.
+- Cached-input pricing exists officially for some text models, but the current app does not store a separate cached-input price field, so it is intentionally out of scope for operators right now.
+
+Official OpenAI pricing for the models currently used by this app:
+
+- `gpt-4o-transcribe`
+  - audio input: `$2.50 / 1M tokens`
+  - text output: `$10.00 / 1M tokens`
+- `gpt-4o-mini`
+  - text input: `$0.15 / 1M tokens`
+  - text output: `$0.60 / 1M tokens`
+- `gpt-4.1-mini`
+  - text input: `$0.40 / 1M tokens`
+  - text output: `$1.60 / 1M tokens`
+
+Official pricing reference:
+
+- [OpenAI API Pricing](https://openai.com/api/pricing/)
+
 ## MVP deployment preflight
 
 - Run DB migrations before first start: `pnpm db:migrate`

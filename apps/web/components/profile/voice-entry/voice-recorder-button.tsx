@@ -42,9 +42,9 @@ const DEFAULT_VISUALIZER_METRICS: VisualizerMetrics = {
 };
 
 const DEFAULT_VOICE_RECORDER_STYLE: VoiceRecorderStyle = {
-  "--voice-recorder-visualizer-height": "44px",
-  "--voice-recorder-visualizer-gap": "5px",
-  "--voice-recorder-visualizer-bar-width": "6px",
+  "--voice-recorder-visualizer-height": "48px",
+  "--voice-recorder-visualizer-gap": "6px",
+  "--voice-recorder-visualizer-bar-width": "7px",
   "--voice-recorder-visualizer-bar-radius": "999px"
 };
 

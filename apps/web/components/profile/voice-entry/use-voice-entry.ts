@@ -12,6 +12,8 @@ type UseVoiceEntryOptions = {
 };
 
 const VOICE_VISUALIZER_LEVEL_COUNT = 24;
+const VOICE_VISUALIZER_UPDATE_INTERVAL_MS = 72;
+const VOICE_VISUALIZER_SMOOTHING_FACTOR = 0.28;
 const DEFAULT_VISUALIZER_LEVELS = Array.from({ length: VOICE_VISUALIZER_LEVEL_COUNT }, (_, index) => {
   const phase = (index / VOICE_VISUALIZER_LEVEL_COUNT) * Math.PI * 2;
   return Math.min(0.42, Math.max(0.16, 0.24 + Math.sin(phase) * 0.06));
@@ -19,6 +21,13 @@ const DEFAULT_VISUALIZER_LEVELS = Array.from({ length: VOICE_VISUALIZER_LEVEL_CO
 
 function cloneVisualizerLevels(levels: readonly number[]) {
   return Array.from(levels);
+}
+
+function smoothVisualizerLevels(previous: readonly number[], next: readonly number[]) {
+  return next.map((level, index) => {
+    const before = previous[index] ?? level;
+    return before + (level - before) * VOICE_VISUALIZER_SMOOTHING_FACTOR;
+  });
 }
 
 function buildVisualizerLevels(samples: Uint8Array<ArrayBuffer>) {
@@ -84,10 +93,14 @@ export function useVoiceEntry(options: UseVoiceEntryOptions) {
   const visualizerAnimationFrameRef = useRef<number | null>(null);
   const visualizerSamplesRef = useRef<Uint8Array<ArrayBuffer> | null>(null);
   const visualizerActiveRef = useRef(false);
+  const visualizerLastUpdateRef = useRef(0);
+  const visualizerFrameLevelsRef = useRef<number[]>(cloneVisualizerLevels(DEFAULT_VISUALIZER_LEVELS));
 
   const isBusy = stage === "processing" || stage === "transcribing" || stage === "parsing";
 
   const resetVisualizerLevels = useCallback(() => {
+    visualizerFrameLevelsRef.current = cloneVisualizerLevels(DEFAULT_VISUALIZER_LEVELS);
+    visualizerLastUpdateRef.current = 0;
     setVisualizerLevels(cloneVisualizerLevels(DEFAULT_VISUALIZER_LEVELS));
   }, []);
 
@@ -184,19 +197,31 @@ export function useVoiceEntry(options: UseVoiceEntryOptions) {
 
         source.connect(analyser);
 
-        const samples = new Uint8Array(analyser.fftSize);
-        visualizerSamplesRef.current = samples;
-        visualizerActiveRef.current = true;
+      const samples = new Uint8Array(analyser.fftSize);
+      visualizerSamplesRef.current = samples;
+      visualizerActiveRef.current = true;
+      visualizerLastUpdateRef.current = 0;
+      visualizerFrameLevelsRef.current = cloneVisualizerLevels(DEFAULT_VISUALIZER_LEVELS);
 
-        const sample = () => {
-          if (!visualizerActiveRef.current || !analyserRef.current || !visualizerSamplesRef.current) {
-            return;
-          }
+      const sample = () => {
+        if (!visualizerActiveRef.current || !analyserRef.current || !visualizerSamplesRef.current) {
+          return;
+        }
 
-          analyserRef.current.getByteTimeDomainData(visualizerSamplesRef.current);
-          setVisualizerLevels(buildVisualizerLevels(visualizerSamplesRef.current));
-          visualizerAnimationFrameRef.current = window.requestAnimationFrame(sample);
-        };
+        analyserRef.current.getByteTimeDomainData(visualizerSamplesRef.current);
+        const now = performance.now();
+        if (now - visualizerLastUpdateRef.current >= VOICE_VISUALIZER_UPDATE_INTERVAL_MS) {
+          visualizerLastUpdateRef.current = now;
+          const nextLevels = smoothVisualizerLevels(
+            visualizerFrameLevelsRef.current,
+            buildVisualizerLevels(visualizerSamplesRef.current)
+          );
+
+          visualizerFrameLevelsRef.current = nextLevels;
+          setVisualizerLevels(nextLevels);
+        }
+        visualizerAnimationFrameRef.current = window.requestAnimationFrame(sample);
+      };
 
         visualizerAnimationFrameRef.current = window.requestAnimationFrame(sample);
 
