@@ -45,16 +45,18 @@ export function WorkspaceHeaderActions({ groups, className }: WorkspaceHeaderAct
   const pathname = usePathname();
 
   return (
-    <div className={cn("flex max-w-full flex-nowrap items-center gap-4 overflow-x-auto pb-2 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden", className)}>
+    <div className={cn("space-y-3", className)}>
       {groups.map((group) => (
-        <div key={group.label} className="flex shrink-0 items-center gap-3">
-          <p className="field-label shrink-0 text-[11px] font-semibold uppercase tracking-[0.18em]">{group.label}</p>
-          <div className="flex flex-nowrap gap-2">
-            {group.items.map((item) => {
-              const active = isWorkspaceRouteActive(pathname, item.href);
+        <div key={group.label} className="space-y-2">
+          <p className="field-label text-[11px] font-semibold uppercase tracking-[0.18em]">{group.label}</p>
+          <div className="relative left-1/2 w-[calc(100vw+16px)] -translate-x-1/2 overflow-x-auto px-2 pt-1 pb-3 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+            <div className="flex w-max flex-nowrap items-center gap-2 py-1">
+              {group.items.map((item) => {
+                const active = isWorkspaceRouteActive(pathname, item.href);
 
-              return <WorkspaceHeaderActionLink key={item.href} href={item.href} label={item.label} icon={item.icon} active={active} />;
-            })}
+                return <WorkspaceHeaderActionLink key={item.href} href={item.href} label={item.label} icon={item.icon} active={active} />;
+              })}
+            </div>
           </div>
         </div>
       ))}
