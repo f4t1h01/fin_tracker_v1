@@ -26,6 +26,11 @@ export type WorkspaceNavigationGroup = {
   items: readonly WorkspaceNavigationItem[];
 };
 
+const workspacePrimaryActionItems = [
+  { href: workspaceRoutes.transactions, label: "Transactions", icon: ArrowLeftRight },
+  { href: workspaceRoutes.goods, label: "My Goods", icon: Carrot }
+] as const satisfies readonly WorkspaceNavigationItem[];
+
 function normalizePathname(pathname: string) {
   const normalized = pathname.replace(/\/+$/, "");
   return normalized || "/";
@@ -38,10 +43,7 @@ export function isWorkspaceRouteActive(pathname: string, href: string) {
 export const workspaceMenuGroups = [
   {
     label: "Workspace",
-    items: [
-      { href: workspaceRoutes.transactions, label: "Transactions", icon: ArrowLeftRight },
-      { href: workspaceRoutes.goods, label: "My Goods", icon: Carrot }
-    ]
+    items: workspacePrimaryActionItems
   },
   {
     label: "Settings",
@@ -55,6 +57,10 @@ export const workspaceMenuGroups = [
 export const financeHeaderActionGroups = [
   {
     label: "Workspace",
+    items: workspacePrimaryActionItems
+  },
+  {
+    label: "Insights",
     items: [
       { href: workspaceRoutes.dashboard, label: "Dashboard", icon: LayoutDashboard },
       { href: workspaceRoutes.dashboardTrends, label: "Trends", icon: BarChart3 },
