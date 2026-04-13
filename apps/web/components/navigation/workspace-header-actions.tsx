@@ -49,8 +49,8 @@ export function WorkspaceHeaderActions({ groups, className }: WorkspaceHeaderAct
       {groups.map((group) => (
         <div key={group.label} className="space-y-2">
           <p className="field-label text-[11px] font-semibold uppercase tracking-[0.18em]">{group.label}</p>
-          <div className="relative left-1/2 w-[calc(100vw+16px)] -translate-x-1/2 overflow-x-auto pl-6 pr-2 pt-1 pb-3 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
-            <div className="flex w-max flex-nowrap items-center gap-2 py-1">
+          <div className="relative left-1/2 w-[calc(100vw+16px)] -translate-x-1/2 overflow-x-auto pl-6 pr-2 pt-1 pb-3 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden md:left-0 md:w-full md:translate-x-0 md:pl-0 md:pr-0">
+            <div className="flex w-max flex-nowrap items-center gap-2 py-1 md:w-full md:justify-start">
               {group.items.map((item) => {
                 const active = isWorkspaceRouteActive(pathname, item.href);
 
