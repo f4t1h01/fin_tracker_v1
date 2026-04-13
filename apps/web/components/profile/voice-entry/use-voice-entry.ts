@@ -3,7 +3,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { requestVoiceTransactionDraft } from "./voice-entry.api";
-import { VOICE_RECORDING_LIMIT_SECONDS, VOICE_RECORDING_MIN_SECONDS } from "./voice-entry.constants";
+import {
+  VOICE_RECORDING_LIMIT_SECONDS,
+  VOICE_RECORDING_MIN_SECONDS,
+} from "./voice-entry.constants";
 import type { VoiceDraftStage, VoiceTransactionDraftResponse } from "./types";
 
 type UseVoiceEntryOptions = {
@@ -13,17 +16,23 @@ type UseVoiceEntryOptions = {
 
 const VOICE_VISUALIZER_LEVEL_COUNT = 24;
 const VOICE_VISUALIZER_UPDATE_INTERVAL_MS = 72;
-const VOICE_VISUALIZER_SMOOTHING_FACTOR = 0.28;
-const DEFAULT_VISUALIZER_LEVELS = Array.from({ length: VOICE_VISUALIZER_LEVEL_COUNT }, (_, index) => {
-  const phase = (index / VOICE_VISUALIZER_LEVEL_COUNT) * Math.PI * 2;
-  return Math.min(0.42, Math.max(0.16, 0.24 + Math.sin(phase) * 0.06));
-});
+const VOICE_VISUALIZER_SMOOTHING_FACTOR = 0.18;
+const DEFAULT_VISUALIZER_LEVELS = Array.from(
+  { length: VOICE_VISUALIZER_LEVEL_COUNT },
+  (_, index) => {
+    const phase = (index / VOICE_VISUALIZER_LEVEL_COUNT) * Math.PI * 2;
+    return Math.min(0.42, Math.max(0.16, 0.24 + Math.sin(phase) * 0.06));
+  },
+);
 
 function cloneVisualizerLevels(levels: readonly number[]) {
   return Array.from(levels);
 }
 
-function smoothVisualizerLevels(previous: readonly number[], next: readonly number[]) {
+function smoothVisualizerLevels(
+  previous: readonly number[],
+  next: readonly number[],
+) {
   return next.map((level, index) => {
     const before = previous[index] ?? level;
     return before + (level - before) * VOICE_VISUALIZER_SMOOTHING_FACTOR;
@@ -34,8 +43,13 @@ function buildVisualizerLevels(samples: Uint8Array<ArrayBuffer>) {
   const nextLevels: number[] = [];
 
   for (let index = 0; index < VOICE_VISUALIZER_LEVEL_COUNT; index += 1) {
-    const start = Math.floor((samples.length * index) / VOICE_VISUALIZER_LEVEL_COUNT);
-    const end = Math.max(start + 1, Math.floor((samples.length * (index + 1)) / VOICE_VISUALIZER_LEVEL_COUNT));
+    const start = Math.floor(
+      (samples.length * index) / VOICE_VISUALIZER_LEVEL_COUNT,
+    );
+    const end = Math.max(
+      start + 1,
+      Math.floor((samples.length * (index + 1)) / VOICE_VISUALIZER_LEVEL_COUNT),
+    );
 
     let sum = 0;
     let count = 0;
@@ -58,7 +72,12 @@ function getAudioContextConstructor() {
     return null;
   }
 
-  return window.AudioContext ?? (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext ?? null;
+  return (
+    window.AudioContext ??
+    (window as Window & { webkitAudioContext?: typeof AudioContext })
+      .webkitAudioContext ??
+    null
+  );
 }
 
 function formatRecordingExtension(mimeType: string, filename?: string) {
@@ -73,11 +92,15 @@ function formatRecordingExtension(mimeType: string, filename?: string) {
 
 export function useVoiceEntry(options: UseVoiceEntryOptions) {
   const [stage, setStage] = useState<VoiceDraftStage>("idle");
-  const [result, setResult] = useState<VoiceTransactionDraftResponse | null>(null);
+  const [result, setResult] = useState<VoiceTransactionDraftResponse | null>(
+    null,
+  );
   const [error, setError] = useState<string | null>(null);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
   const [isRecorderSupported, setIsRecorderSupported] = useState(false);
-  const [visualizerLevels, setVisualizerLevels] = useState<number[]>(() => cloneVisualizerLevels(DEFAULT_VISUALIZER_LEVELS));
+  const [visualizerLevels, setVisualizerLevels] = useState<number[]>(() =>
+    cloneVisualizerLevels(DEFAULT_VISUALIZER_LEVELS),
+  );
 
   const recorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -94,12 +117,17 @@ export function useVoiceEntry(options: UseVoiceEntryOptions) {
   const visualizerSamplesRef = useRef<Uint8Array<ArrayBuffer> | null>(null);
   const visualizerActiveRef = useRef(false);
   const visualizerLastUpdateRef = useRef(0);
-  const visualizerFrameLevelsRef = useRef<number[]>(cloneVisualizerLevels(DEFAULT_VISUALIZER_LEVELS));
+  const visualizerFrameLevelsRef = useRef<number[]>(
+    cloneVisualizerLevels(DEFAULT_VISUALIZER_LEVELS),
+  );
 
-  const isBusy = stage === "processing" || stage === "transcribing" || stage === "parsing";
+  const isBusy =
+    stage === "processing" || stage === "transcribing" || stage === "parsing";
 
   const resetVisualizerLevels = useCallback(() => {
-    visualizerFrameLevelsRef.current = cloneVisualizerLevels(DEFAULT_VISUALIZER_LEVELS);
+    visualizerFrameLevelsRef.current = cloneVisualizerLevels(
+      DEFAULT_VISUALIZER_LEVELS,
+    );
     visualizerLastUpdateRef.current = 0;
     setVisualizerLevels(cloneVisualizerLevels(DEFAULT_VISUALIZER_LEVELS));
   }, []);
@@ -197,33 +225,46 @@ export function useVoiceEntry(options: UseVoiceEntryOptions) {
 
         source.connect(analyser);
 
-      const samples = new Uint8Array(analyser.fftSize);
-      visualizerSamplesRef.current = samples;
-      visualizerActiveRef.current = true;
-      visualizerLastUpdateRef.current = 0;
-      visualizerFrameLevelsRef.current = cloneVisualizerLevels(DEFAULT_VISUALIZER_LEVELS);
+        const samples = new Uint8Array(analyser.fftSize);
+        visualizerSamplesRef.current = samples;
+        visualizerActiveRef.current = true;
+        visualizerLastUpdateRef.current = 0;
+        visualizerFrameLevelsRef.current = cloneVisualizerLevels(
+          DEFAULT_VISUALIZER_LEVELS,
+        );
 
-      const sample = () => {
-        if (!visualizerActiveRef.current || !analyserRef.current || !visualizerSamplesRef.current) {
-          return;
-        }
+        const sample = () => {
+          if (
+            !visualizerActiveRef.current ||
+            !analyserRef.current ||
+            !visualizerSamplesRef.current
+          ) {
+            return;
+          }
 
-        analyserRef.current.getByteTimeDomainData(visualizerSamplesRef.current);
-        const now = performance.now();
-        if (now - visualizerLastUpdateRef.current >= VOICE_VISUALIZER_UPDATE_INTERVAL_MS) {
-          visualizerLastUpdateRef.current = now;
-          const nextLevels = smoothVisualizerLevels(
-            visualizerFrameLevelsRef.current,
-            buildVisualizerLevels(visualizerSamplesRef.current)
+          analyserRef.current.getByteTimeDomainData(
+            visualizerSamplesRef.current,
           );
+          const now = performance.now();
+          if (
+            now - visualizerLastUpdateRef.current >=
+            VOICE_VISUALIZER_UPDATE_INTERVAL_MS
+          ) {
+            visualizerLastUpdateRef.current = now;
+            const nextLevels = smoothVisualizerLevels(
+              visualizerFrameLevelsRef.current,
+              buildVisualizerLevels(visualizerSamplesRef.current),
+            );
 
-          visualizerFrameLevelsRef.current = nextLevels;
-          setVisualizerLevels(nextLevels);
-        }
-        visualizerAnimationFrameRef.current = window.requestAnimationFrame(sample);
-      };
+            visualizerFrameLevelsRef.current = nextLevels;
+            setVisualizerLevels(nextLevels);
+          }
+          visualizerAnimationFrameRef.current =
+            window.requestAnimationFrame(sample);
+        };
 
-        visualizerAnimationFrameRef.current = window.requestAnimationFrame(sample);
+        visualizerAnimationFrameRef.current =
+          window.requestAnimationFrame(sample);
 
         if (audioContext.state === "suspended") {
           await audioContext.resume();
@@ -234,54 +275,65 @@ export function useVoiceEntry(options: UseVoiceEntryOptions) {
         return;
       }
     },
-    [cleanupAudioGraph, resetVisualizerLevels]
+    [cleanupAudioGraph, resetVisualizerLevels],
   );
 
-  const submitVoiceBlob = useCallback(async (blob: Blob, filename: string) => {
-    const requestId = ++activeRequestIdRef.current;
-    setError(null);
-    setResult(null);
-    setStage("processing");
-    setRecordingSeconds(0);
-    clearTimers();
-
-    stageTimerRef.current.push(window.setTimeout(() => {
-      if (activeRequestIdRef.current === requestId) {
-        setStage("transcribing");
-      }
-    }, 700));
-
-    stageTimerRef.current.push(window.setTimeout(() => {
-      if (activeRequestIdRef.current === requestId) {
-        setStage("parsing");
-      }
-    }, 1600));
-
-    try {
-      const draft = await requestVoiceTransactionDraft({
-        token: options.token,
-        file: blob,
-        filename
-      });
-
-      if (activeRequestIdRef.current !== requestId) {
-        return;
-      }
-
+  const submitVoiceBlob = useCallback(
+    async (blob: Blob, filename: string) => {
+      const requestId = ++activeRequestIdRef.current;
+      setError(null);
+      setResult(null);
+      setStage("processing");
+      setRecordingSeconds(0);
       clearTimers();
-      setStage("ready");
-      setResult(draft);
-      options.onDraftResolved(draft);
-    } catch (error_) {
-      if (activeRequestIdRef.current !== requestId) {
-        return;
-      }
 
-      clearTimers();
-      setStage("error");
-      setError(error_ instanceof Error ? error_.message : "Could not process recording");
-    }
-  }, [clearTimers, options]);
+      stageTimerRef.current.push(
+        window.setTimeout(() => {
+          if (activeRequestIdRef.current === requestId) {
+            setStage("transcribing");
+          }
+        }, 700),
+      );
+
+      stageTimerRef.current.push(
+        window.setTimeout(() => {
+          if (activeRequestIdRef.current === requestId) {
+            setStage("parsing");
+          }
+        }, 1600),
+      );
+
+      try {
+        const draft = await requestVoiceTransactionDraft({
+          token: options.token,
+          file: blob,
+          filename,
+        });
+
+        if (activeRequestIdRef.current !== requestId) {
+          return;
+        }
+
+        clearTimers();
+        setStage("ready");
+        setResult(draft);
+        options.onDraftResolved(draft);
+      } catch (error_) {
+        if (activeRequestIdRef.current !== requestId) {
+          return;
+        }
+
+        clearTimers();
+        setStage("error");
+        setError(
+          error_ instanceof Error
+            ? error_.message
+            : "Could not process recording",
+        );
+      }
+    },
+    [clearTimers, options],
+  );
 
   const finishRecording = useCallback(() => {
     const recorder = recorderRef.current;
@@ -301,8 +353,13 @@ export function useVoiceEntry(options: UseVoiceEntryOptions) {
       return;
     }
 
-    if (typeof navigator.mediaDevices?.getUserMedia !== "function" || typeof MediaRecorder === "undefined") {
-      setError("Mic unavailable. Use a supported browser or allow microphone access.");
+    if (
+      typeof navigator.mediaDevices?.getUserMedia !== "function" ||
+      typeof MediaRecorder === "undefined"
+    ) {
+      setError(
+        "Mic unavailable. Use a supported browser or allow microphone access.",
+      );
       setStage("error");
       resetVisualizerLevels();
       return;
@@ -322,9 +379,19 @@ export function useVoiceEntry(options: UseVoiceEntryOptions) {
 
       void startVisualizer(stream);
 
-      const preferredMimeTypes = ["audio/webm;codecs=opus", "audio/webm", "audio/ogg;codecs=opus", "audio/ogg"];
-      const supportedMimeType = preferredMimeTypes.find((value) => MediaRecorder.isTypeSupported(value)) ?? "";
-      const recorder = supportedMimeType ? new MediaRecorder(stream, { mimeType: supportedMimeType }) : new MediaRecorder(stream);
+      const preferredMimeTypes = [
+        "audio/webm;codecs=opus",
+        "audio/webm",
+        "audio/ogg;codecs=opus",
+        "audio/ogg",
+      ];
+      const supportedMimeType =
+        preferredMimeTypes.find((value) =>
+          MediaRecorder.isTypeSupported(value),
+        ) ?? "";
+      const recorder = supportedMimeType
+        ? new MediaRecorder(stream, { mimeType: supportedMimeType })
+        : new MediaRecorder(stream);
       recorderRef.current = recorder;
 
       recorder.ondataavailable = (event) => {
@@ -351,9 +418,14 @@ export function useVoiceEntry(options: UseVoiceEntryOptions) {
           return;
         }
 
-        if (startedAt !== null && Date.now() - startedAt < VOICE_RECORDING_MIN_SECONDS * 1000) {
+        if (
+          startedAt !== null &&
+          Date.now() - startedAt < VOICE_RECORDING_MIN_SECONDS * 1000
+        ) {
           setStage("error");
-          setError(`Too short. Speak for at least ${VOICE_RECORDING_MIN_SECONDS} seconds.`);
+          setError(
+            `Too short. Speak for at least ${VOICE_RECORDING_MIN_SECONDS} seconds.`,
+          );
           resetVisualizerLevels();
           return;
         }
@@ -383,11 +455,22 @@ export function useVoiceEntry(options: UseVoiceEntryOptions) {
       cleanupStream();
       clearTimers();
       setStage("error");
-      setError(error_ instanceof Error ? error_.message : "Could not start recording");
+      setError(
+        error_ instanceof Error ? error_.message : "Could not start recording",
+      );
       recordingStartedAtRef.current = null;
       resetVisualizerLevels();
     }
-  }, [clearTimers, cleanupStream, finishRecording, isBusy, resetVisualizerLevels, stage, startVisualizer, submitVoiceBlob]);
+  }, [
+    clearTimers,
+    cleanupStream,
+    finishRecording,
+    isBusy,
+    resetVisualizerLevels,
+    stage,
+    startVisualizer,
+    submitVoiceBlob,
+  ]);
 
   const stageLabel = useMemo(() => {
     switch (stage) {
@@ -409,7 +492,10 @@ export function useVoiceEntry(options: UseVoiceEntryOptions) {
   }, [isRecorderSupported, recordingSeconds, stage]);
 
   useEffect(() => {
-    setIsRecorderSupported(typeof navigator.mediaDevices?.getUserMedia === "function" && typeof MediaRecorder !== "undefined");
+    setIsRecorderSupported(
+      typeof navigator.mediaDevices?.getUserMedia === "function" &&
+        typeof MediaRecorder !== "undefined",
+    );
   }, []);
 
   useEffect(() => {
@@ -431,6 +517,6 @@ export function useVoiceEntry(options: UseVoiceEntryOptions) {
     visualizerLevels,
     startRecording,
     stopRecording,
-    resetDraft
+    resetDraft,
   };
 }
