@@ -57,8 +57,14 @@ export function WorkspaceHeaderMenu({ className }: WorkspaceHeaderMenuProps) {
           isOpen ? "pointer-events-auto max-h-[32rem] translate-y-0 opacity-100" : "pointer-events-none max-h-0 -translate-y-2 opacity-0"
         )}
       >
-        <div className="overflow-hidden rounded-[24px] border border-[rgba(201,168,76,0.14)] bg-[var(--surface-glass)] p-3 shadow-[0_24px_56px_rgba(26,20,16,0.16)] backdrop-blur-[14px] backdrop-saturate-150">
-          <div className="space-y-4">
+        <div className="relative overflow-hidden rounded-[24px] border border-[rgba(201,168,76,0.14)] shadow-[0_24px_56px_rgba(26,20,16,0.16)]">
+          <div
+            className={cn(
+              "absolute inset-0 bg-[color-mix(in_srgb,var(--surface-glass)_92%,transparent)] backdrop-blur-[14px] backdrop-saturate-150 transition-opacity duration-150 ease-out",
+              isOpen ? "opacity-100" : "opacity-0"
+            )}
+          />
+          <div className="relative space-y-4 bg-[color-mix(in_srgb,var(--surface-glass)_12%,transparent)] p-3">
             {workspaceMenuGroups.map((group) => (
               <div key={group.label} className="space-y-2">
                 <p className="field-label text-[11px] font-semibold uppercase tracking-[0.18em]">{group.label}</p>
