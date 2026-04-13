@@ -2,8 +2,8 @@
 
 import { useEffect } from "react";
 
-import { BrandMark } from "@/components/marketing/brand-mark";
-import { WorkspaceHeaderMenu } from "@/components/navigation/workspace-header-menu";
+import { WorkspacePageHeader } from "@/components/navigation/workspace-page-header";
+import { financeHeaderActionGroups } from "@/components/navigation/workspace-navigation";
 import { useRouteTransitionPageReady } from "@/components/navigation/route-transition-provider";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -41,16 +41,7 @@ export function ProfileManagementPage() {
 
   return (
     <main className="container-shell pb-16 pt-28">
-      <header className="soft-rise mb-8 grid grid-cols-[minmax(0,1fr)_auto] items-start gap-4">
-        <div className="min-w-0 space-y-4">
-          <BrandMark href="/" />
-          <div>
-            <div className="eyebrow-row">Profile management</div>
-            <h1 className="mt-5 font-[family-name:var(--font-heading)] text-[clamp(38px,4vw,56px)] font-light leading-[1.08]">{workspace.greeting}</h1>
-          </div>
-        </div>
-        <WorkspaceHeaderMenu onThemeChange={workspace.onThemeChange} className="justify-self-end" />
-      </header>
+      <WorkspacePageHeader eyebrow="Profile management" title={workspace.greeting} actions={financeHeaderActionGroups} />
 
       {workspace.authError ? (
         <Card className="mb-6 border-red-300/20 bg-red-500/10 dark:border-red-400/30 dark:bg-red-500/10">

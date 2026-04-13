@@ -3,8 +3,8 @@
 import { useMemo } from "react";
 import { Loader2 } from "lucide-react";
 
-import { BrandMark } from "@/components/marketing/brand-mark";
-import { WorkspaceHeaderMenu } from "@/components/navigation/workspace-header-menu";
+import { WorkspacePageHeader } from "@/components/navigation/workspace-page-header";
+import { financeHeaderActionGroups } from "@/components/navigation/workspace-navigation";
 import { useRouteTransitionPageReady } from "@/components/navigation/route-transition-provider";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SelectField } from "@/components/ui/select-field";
@@ -61,16 +61,7 @@ export function DashboardTrendsPage() {
 
   return (
     <main className="container-shell pb-16 pt-24">
-      <header className="soft-rise mb-8 grid grid-cols-[minmax(0,1fr)_auto] items-start gap-4">
-        <div className="min-w-0 max-w-4xl space-y-4">
-          <BrandMark href="/" />
-          <div>
-            <p className="eyebrow-row">Trends</p>
-            <h1 className="mt-5 font-[family-name:var(--font-heading)] text-[clamp(38px,4vw,56px)] font-light leading-[1.08]">Transactions breakdown.</h1>
-          </div>
-        </div>
-        <WorkspaceHeaderMenu className="justify-self-end" />
-      </header>
+      <WorkspacePageHeader eyebrow="Trends" title="Transactions breakdown." actions={financeHeaderActionGroups} />
 
       <section className="mb-6 grid gap-3 lg:grid-cols-[minmax(0,220px)_minmax(0,180px)_minmax(0,180px)_minmax(0,1fr)] lg:items-end">
         <DashboardViewSelect

@@ -2,8 +2,8 @@
 
 import { useEffect } from "react";
 
-import { BrandMark } from "@/components/marketing/brand-mark";
-import { WorkspaceHeaderMenu } from "@/components/navigation/workspace-header-menu";
+import { WorkspacePageHeader } from "@/components/navigation/workspace-page-header";
+import { goodsHeaderActionGroups } from "@/components/navigation/workspace-navigation";
 import { useRouteTransitionPageReady } from "@/components/navigation/route-transition-provider";
 import { ProfileLoadingState } from "@/components/profile/profile-loading-state";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -37,16 +37,7 @@ export function GoodsInventoryPage() {
 
   return (
     <main className="container-shell pb-16 pt-28">
-      <header className="soft-rise mb-8 grid grid-cols-[minmax(0,1fr)_auto] items-start gap-4">
-        <div className="min-w-0 space-y-4">
-          <BrandMark href="/" />
-          <div>
-            <div className="eyebrow-row">My Goods</div>
-            <h1 className="mt-5 font-[family-name:var(--font-heading)] text-[clamp(38px,4vw,56px)] font-light leading-[1.08]">Inventory list</h1>
-          </div>
-        </div>
-        <WorkspaceHeaderMenu className="justify-self-end" />
-      </header>
+      <WorkspacePageHeader eyebrow="My Goods" title="Inventory list" actions={goodsHeaderActionGroups} />
 
       {workspace.error ? <p className="status-error mb-4 text-sm">{workspace.error}</p> : null}
       {workspace.statusMessage ? <p className="status-success mb-4 text-sm">{workspace.statusMessage}</p> : null}

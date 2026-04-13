@@ -3,8 +3,8 @@
 import { ExternalLink, Loader2 } from "lucide-react";
 import { useMemo } from "react";
 
-import { BrandMark } from "@/components/marketing/brand-mark";
-import { WorkspaceHeaderMenu } from "@/components/navigation/workspace-header-menu";
+import { WorkspacePageHeader } from "@/components/navigation/workspace-page-header";
+import { financeHeaderActionGroups } from "@/components/navigation/workspace-navigation";
 import { useRouteTransitionPageReady } from "@/components/navigation/route-transition-provider";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -79,30 +79,20 @@ export function DashboardRatesPage() {
 
   return (
     <main className="container-shell pb-16 pt-24">
-      <header className="soft-rise mb-8 grid grid-cols-[minmax(0,1fr)_auto] items-start gap-4">
-        <div className="min-w-0 max-w-4xl space-y-4">
-          <BrandMark href="/" />
-          <div className="space-y-3">
-            <p className="eyebrow-row">Rates</p>
-            <h1 className="font-[family-name:var(--font-heading)] text-[clamp(38px,4vw,56px)] font-light leading-[1.08]">
-              Exchange rates at a glance.
-            </h1>
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-[var(--ink-soft)]">
-              <span>Last update: {lastUpdatedAtLabel}</span>
-              <a
-                href={workspace.data.sourceUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="secondary-link inline-flex items-center gap-1"
-              >
-                CBU source
-                <ExternalLink className="size-3.5" />
-              </a>
-            </div>
+      <WorkspacePageHeader
+        eyebrow="Rates"
+        title="Exchange rates at a glance."
+        description={
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
+            <span>Last update: {lastUpdatedAtLabel}</span>
+            <a href={workspace.data.sourceUrl} target="_blank" rel="noreferrer" className="secondary-link inline-flex items-center gap-1">
+              CBU source
+              <ExternalLink className="size-3.5" />
+            </a>
           </div>
-        </div>
-        <WorkspaceHeaderMenu className="justify-self-end" />
-      </header>
+        }
+        actions={financeHeaderActionGroups}
+      />
 
       <Card className="panel-soft mb-6">
         <CardHeader>
