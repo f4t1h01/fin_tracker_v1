@@ -58,6 +58,7 @@ export const financeHeaderActionGroups = [
   {
     label: "Insights",
     items: [
+      { href: workspaceRoutes.transactions, label: "Transactions", icon: ArrowLeftRight },
       { href: workspaceRoutes.dashboard, label: "Dashboard", icon: LayoutDashboard },
       { href: workspaceRoutes.dashboardTrends, label: "Trends", icon: BarChart3 },
       { href: workspaceRoutes.dashboardRates, label: "Rates", icon: Banknote }
@@ -73,5 +74,5 @@ export const goodsHeaderActionGroups = [
       { href: workspaceRoutes.goodsItems, label: "Stock", icon: Package },
       { href: workspaceRoutes.goodsManage, label: "Setup", icon: SlidersHorizontal }
     ]
-  },
+  }
 ] as const satisfies readonly WorkspaceNavigationGroup[];
