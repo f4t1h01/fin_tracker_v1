@@ -1,7 +1,7 @@
 "use client";
 
 import { WorkspacePageHeader } from "@/components/navigation/workspace-page-header";
-import { profileHeaderActionGroups } from "@/components/navigation/workspace-navigation";
+import { financeHeaderActionGroups } from "@/components/navigation/workspace-navigation";
 import { useRouteTransitionPageReady } from "@/components/navigation/route-transition-provider";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -64,7 +64,7 @@ export function ProfileMainPage() {
 
   return (
     <main className="container-shell pb-16 pt-28">
-      <WorkspacePageHeader eyebrow="Profile workspace" title={workspace.greeting} actions={profileHeaderActionGroups} />
+      <WorkspacePageHeader eyebrow="Profile workspace" title={workspace.greeting} actions={financeHeaderActionGroups} />
 
       {workspace.authError ? (
         <Card className="mb-6 border-red-300/20 bg-red-500/10 dark:border-red-400/30 dark:bg-red-500/10">

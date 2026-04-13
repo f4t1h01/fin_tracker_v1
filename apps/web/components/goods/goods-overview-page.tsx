@@ -40,8 +40,8 @@ export function GoodsOverviewPage() {
     <main className="container-shell pb-16 pt-28">
       <WorkspacePageHeader
         eyebrow="My Goods"
-        title="Smart household inventory."
-        description="Track stock by place, let the system project recurring use, and surface the items that need attention first."
+        title="My Goods"
+        description="Track household stock by place, let the system project recurring use, and surface the items that need attention first."
         actions={goodsHeaderActionGroups}
       />
 

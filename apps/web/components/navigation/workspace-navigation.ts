@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import { ArrowLeftRight, Banknote, BarChart3, LayoutDashboard, Package, Tags, UserCog } from "lucide-react";
+import { ArrowLeftRight, Banknote, BarChart3, Carrot, LayoutDashboard, Package, SlidersHorizontal, Tags, UserCog } from "lucide-react";
 
 export const workspaceRoutes = {
   transactions: "/profile/me",
@@ -37,27 +37,16 @@ export function isWorkspaceRouteActive(pathname: string, href: string) {
 
 export const workspaceMenuGroups = [
   {
-    label: "Primary pages",
+    label: "Workspace",
     items: [
       { href: workspaceRoutes.transactions, label: "Transactions", icon: ArrowLeftRight },
-      { href: workspaceRoutes.goods, label: "My Goods", icon: LayoutDashboard }
-    ]
-  }
-] as const satisfies readonly WorkspaceNavigationGroup[];
-
-export const profileHeaderActionGroups = [
-  {
-    label: "Insights",
-    items: [
-      { href: workspaceRoutes.dashboard, label: "Dashboard", icon: LayoutDashboard },
-      { href: workspaceRoutes.dashboardTrends, label: "Trends", icon: BarChart3 },
-      { href: workspaceRoutes.dashboardRates, label: "Rates", icon: Banknote }
+      { href: workspaceRoutes.goods, label: "My Goods", icon: Carrot }
     ]
   },
   {
     label: "Settings",
     items: [
-      { href: workspaceRoutes.manage, label: "Manage", icon: UserCog },
+      { href: workspaceRoutes.manage, label: "Profile", icon: UserCog },
       { href: workspaceRoutes.categories, label: "Categories", icon: Tags }
     ]
   }
@@ -66,39 +55,21 @@ export const profileHeaderActionGroups = [
 export const financeHeaderActionGroups = [
   {
     label: "Workspace",
-    items: [{ href: workspaceRoutes.transactions, label: "Transactions", icon: ArrowLeftRight }]
-  },
-  {
-    label: "Insights",
     items: [
       { href: workspaceRoutes.dashboard, label: "Dashboard", icon: LayoutDashboard },
       { href: workspaceRoutes.dashboardTrends, label: "Trends", icon: BarChart3 },
       { href: workspaceRoutes.dashboardRates, label: "Rates", icon: Banknote }
-    ]
-  },
-  {
-    label: "Settings",
-    items: [
-      { href: workspaceRoutes.manage, label: "Manage", icon: UserCog },
-      { href: workspaceRoutes.categories, label: "Categories", icon: Tags }
     ]
   }
 ] as const satisfies readonly WorkspaceNavigationGroup[];
 
 export const goodsHeaderActionGroups = [
   {
-    label: "Workspace",
-    items: [
-      { href: workspaceRoutes.transactions, label: "Transactions", icon: ArrowLeftRight },
-      { href: workspaceRoutes.dashboard, label: "Dashboard", icon: LayoutDashboard }
-    ]
-  },
-  {
     label: "Goods",
     items: [
-      { href: workspaceRoutes.goods, label: "My Goods", icon: LayoutDashboard },
-      { href: workspaceRoutes.goodsItems, label: "Inventory", icon: Package },
-      { href: workspaceRoutes.goodsManage, label: "Manage", icon: Tags }
+      { href: workspaceRoutes.goods, label: "My Goods", icon: Carrot },
+      { href: workspaceRoutes.goodsItems, label: "Stock", icon: Package },
+      { href: workspaceRoutes.goodsManage, label: "Setup", icon: SlidersHorizontal }
     ]
-  }
+  },
 ] as const satisfies readonly WorkspaceNavigationGroup[];

@@ -6,6 +6,7 @@ import { Menu, X } from "lucide-react";
 import { usePathname } from "next/navigation";
 
 import { AppLink } from "@/components/navigation/app-link";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { useDismissableLayer } from "@/components/ui/use-dismissable-layer";
 import { cn } from "@/lib/cn";
@@ -85,6 +86,12 @@ export function WorkspaceHeaderMenu({ className }: WorkspaceHeaderMenuProps) {
                     );
                   })}
                 </div>
+                {group.label === "Settings" ? (
+                  <div className="flex items-center justify-between gap-3 rounded-[14px] border border-[rgba(201,168,76,0.18)] bg-[color-mix(in_srgb,var(--warm-white)_74%,transparent)] px-4 py-3">
+                    <p className="text-[12px] font-semibold uppercase tracking-[0.14em] text-[var(--ink-soft)]">Theme</p>
+                    <ThemeToggle onChange={() => setIsOpen(false)} />
+                  </div>
+                ) : null}
               </div>
             ))}
           </div>

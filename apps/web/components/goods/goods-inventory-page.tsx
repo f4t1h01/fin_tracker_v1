@@ -37,7 +37,7 @@ export function GoodsInventoryPage() {
 
   return (
     <main className="container-shell pb-16 pt-28">
-      <WorkspacePageHeader eyebrow="My Goods" title="Inventory list" actions={goodsHeaderActionGroups} />
+      <WorkspacePageHeader eyebrow="My Goods" title="Stock" actions={goodsHeaderActionGroups} />
 
       {workspace.error ? <p className="status-error mb-4 text-sm">{workspace.error}</p> : null}
       {workspace.statusMessage ? <p className="status-success mb-4 text-sm">{workspace.statusMessage}</p> : null}
