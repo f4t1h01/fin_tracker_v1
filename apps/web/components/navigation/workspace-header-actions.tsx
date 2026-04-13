@@ -27,13 +27,13 @@ function WorkspaceHeaderActionLink({ href, label, icon: Icon, active }: Workspac
       asChild
       variant="outline"
       className={cn(
-        "h-10 shrink-0 rounded-full px-4 py-0 text-[12px] font-semibold uppercase tracking-[0.12em]",
+        "h-10 min-w-0 flex-1 rounded-full px-4 py-0 text-[12px] font-semibold uppercase tracking-[0.12em] md:flex-none",
         active
           ? "border-[var(--gold)] bg-[color-mix(in_srgb,var(--gold)_12%,transparent)] text-[var(--ink)] shadow-[0_10px_24px_rgba(201,168,76,0.12)]"
           : "border-[rgba(201,168,76,0.18)] bg-transparent text-[var(--ink-soft)] hover:-translate-y-0.5 hover:border-[var(--gold)] hover:text-[var(--ink)]"
       )}
     >
-      <AppLink href={href} aria-current={active ? "page" : undefined} className="min-w-0 whitespace-nowrap">
+      <AppLink href={href} aria-current={active ? "page" : undefined} className="flex w-full min-w-0 items-center justify-center whitespace-nowrap">
         <Icon className={cn("size-4 shrink-0", active ? "text-[var(--gold)]" : "text-[var(--ink-soft)]")} />
         <span>{label}</span>
       </AppLink>
@@ -49,8 +49,8 @@ export function WorkspaceHeaderActions({ groups, className }: WorkspaceHeaderAct
       {groups.map((group) => (
         <div key={group.label} className="space-y-2">
           <p className="field-label text-[11px] font-semibold uppercase tracking-[0.18em]">{group.label}</p>
-          <div className="overflow-x-auto pl-10 pr-6 pt-1 pb-3 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden md:pl-0 md:pr-0">
-            <div className="flex w-max flex-nowrap items-center gap-2 py-1 md:w-full md:justify-start">
+          <div className="overflow-x-auto pr-6 pt-1 pb-3 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden md:pr-0">
+            <div className="flex w-max min-w-full flex-nowrap items-stretch gap-2 py-1 md:w-full md:min-w-0 md:justify-start">
               {group.items.map((item) => {
                 const active = isWorkspaceRouteActive(pathname, item.href);
 
