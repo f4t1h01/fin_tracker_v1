@@ -56,10 +56,6 @@ export const workspaceMenuGroups = [
 
 export const financeHeaderActionGroups = [
   {
-    label: "Workspace",
-    items: workspacePrimaryActionItems
-  },
-  {
     label: "Insights",
     items: [
       { href: workspaceRoutes.dashboard, label: "Dashboard", icon: LayoutDashboard },
