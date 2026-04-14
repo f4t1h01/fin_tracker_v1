@@ -27,7 +27,7 @@ function WorkspaceHeaderActionLink({ href, label, icon: Icon, active }: Workspac
       asChild
       variant="outline"
       className={cn(
-        "h-10 w-fit shrink-0 rounded-full px-4 py-0 text-[12px] font-semibold uppercase tracking-[0.12em]",
+        "min-h-10 w-fit shrink-0 items-start justify-start self-start rounded-full px-4 py-2 text-left text-[12px] font-semibold uppercase tracking-[0.12em]",
         active
           ? "border-[var(--gold)] bg-[color-mix(in_srgb,var(--gold)_12%,transparent)] text-[var(--ink)] shadow-[0_10px_24px_rgba(201,168,76,0.12)]"
           : "border-[rgba(201,168,76,0.18)] bg-transparent text-[var(--ink-soft)] hover:-translate-y-0.5 hover:border-[var(--gold)] hover:text-[var(--ink)]"
@@ -36,7 +36,7 @@ function WorkspaceHeaderActionLink({ href, label, icon: Icon, active }: Workspac
       <AppLink
         href={href}
         aria-current={active ? "page" : undefined}
-        className="inline-flex w-fit shrink-0 items-center justify-center gap-2 whitespace-nowrap"
+        className="inline-flex w-fit shrink-0 items-start justify-start gap-2 whitespace-nowrap text-left leading-none"
       >
         <Icon className={cn("size-4 shrink-0", active ? "text-[var(--gold)]" : "text-[var(--ink-soft)]")} />
         <span>{label}</span>
@@ -54,8 +54,8 @@ export function WorkspaceHeaderActions({ groups, className }: WorkspaceHeaderAct
         <div key={group.label} className="space-y-2">
           <p className="field-label text-[11px] font-semibold uppercase tracking-[0.18em]">{group.label}</p>
           <div className="w-full rounded-[20px] border border-[rgba(201,168,76,0.14)] bg-[color-mix(in_srgb,var(--warm-white)_84%,transparent)] p-2 shadow-[0_10px_24px_rgba(26,20,16,0.05)] md:w-fit">
-            <div className="overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
-              <div className="flex w-max min-w-full flex-nowrap items-center gap-2 py-1 md:w-fit md:min-w-0">
+            <div className="w-full overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden md:w-auto md:overflow-visible">
+              <div className="inline-flex w-max flex-nowrap items-start justify-start gap-2 py-1">
                 {group.items.map((item) => {
                   const active = isWorkspaceRouteActive(pathname, item.href);
 
