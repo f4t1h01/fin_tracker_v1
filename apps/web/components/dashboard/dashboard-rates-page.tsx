@@ -13,6 +13,7 @@ import { cn } from "@/lib/cn";
 import { currencyLabels } from "@/components/profile/types";
 
 import { DashboardRatesSelector } from "./dashboard-rates-selector";
+import { DashboardRatesCalculator } from "./dashboard-rates-calculator";
 import { useDashboardRatesWorkspace } from "./use-dashboard-rates-workspace";
 
 function formatDateTime(value: string) {
@@ -134,6 +135,8 @@ export function DashboardRatesPage() {
           </div>
         </CardContent>
       </Card>
+
+      <DashboardRatesCalculator currencies={workspace.draftCurrencies} rates={workspace.data.rates} />
 
       <section className="space-y-4">
         <div className="flex flex-wrap items-end justify-between gap-3">
