@@ -48,15 +48,6 @@ export function GoodsOverviewPage() {
       {workspace.error ? <p className="status-error mb-4 text-sm">{workspace.error}</p> : null}
       {workspace.statusMessage ? <p className="status-success mb-4 text-sm">{workspace.statusMessage}</p> : null}
 
-      <section className="mb-6 grid gap-4 md:grid-cols-2 xl:grid-cols-6">
-        <Card className="panel-soft"><CardHeader><CardTitle>Active items</CardTitle></CardHeader><CardContent className="text-2xl font-semibold">{snapshot.metrics.activeItems}</CardContent></Card>
-        <Card className="panel-soft"><CardHeader><CardTitle>Low stock</CardTitle></CardHeader><CardContent className="text-2xl font-semibold">{snapshot.metrics.lowStockItems}</CardContent></Card>
-        <Card className="panel-soft"><CardHeader><CardTitle>Out</CardTitle></CardHeader><CardContent className="text-2xl font-semibold">{snapshot.metrics.outOfStockItems}</CardContent></Card>
-        <Card className="panel-soft"><CardHeader><CardTitle>Expiring soon</CardTitle></CardHeader><CardContent className="text-2xl font-semibold">{snapshot.metrics.expiringSoonItems}</CardContent></Card>
-        <Card className="panel-soft"><CardHeader><CardTitle>Expired</CardTitle></CardHeader><CardContent className="text-2xl font-semibold">{snapshot.metrics.expiredItems}</CardContent></Card>
-        <Card className="panel-soft"><CardHeader><CardTitle>Updated 7d</CardTitle></CardHeader><CardContent className="text-2xl font-semibold">{snapshot.metrics.recentlyUpdatedItems}</CardContent></Card>
-      </section>
-
       <section className="mb-6 grid gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
         <Card className="panel-soft">
           <CardHeader><CardTitle>Add item</CardTitle></CardHeader>

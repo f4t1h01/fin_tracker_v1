@@ -34,6 +34,14 @@ export function GoodsInventoryPage() {
   }
 
   const snapshot = workspace.snapshot;
+  const metricCards = [
+    { label: "Active items", value: snapshot.metrics.activeItems },
+    { label: "Low stock", value: snapshot.metrics.lowStockItems },
+    { label: "Out", value: snapshot.metrics.outOfStockItems },
+    { label: "Expiring soon", value: snapshot.metrics.expiringSoonItems },
+    { label: "Expired", value: snapshot.metrics.expiredItems },
+    { label: "Updated 7d", value: snapshot.metrics.recentlyUpdatedItems },
+  ];
 
   return (
     <main className="container-shell pb-16 pt-28">
@@ -41,6 +49,19 @@ export function GoodsInventoryPage() {
 
       {workspace.error ? <p className="status-error mb-4 text-sm">{workspace.error}</p> : null}
       {workspace.statusMessage ? <p className="status-success mb-4 text-sm">{workspace.statusMessage}</p> : null}
+
+      <section className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-3">
+        {metricCards.map((item) => (
+          <Card key={item.label} className="panel-soft">
+            <CardHeader className="space-y-1 p-4 pb-2">
+              <CardTitle className="text-[15px] leading-tight sm:text-base">{item.label}</CardTitle>
+            </CardHeader>
+            <CardContent className="px-4 pb-4 pt-0">
+              <p className="text-xl font-semibold leading-none sm:text-2xl">{item.value}</p>
+            </CardContent>
+          </Card>
+        ))}
+      </section>
 
       <Card className="panel-soft mb-6">
         <CardHeader><CardTitle>Filters</CardTitle></CardHeader>
