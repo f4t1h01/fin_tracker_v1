@@ -69,11 +69,11 @@ export function GoodsInventoryPage() {
           <TextField value={workspace.listFilters.search} onChange={(event) => workspace.setListFilters((current) => ({ ...current, search: event.target.value, page: 1 }))} placeholder="Search goods, place, category" />
           <SelectField value={workspace.listFilters.placeId} onChange={(event) => workspace.setListFilters((current) => ({ ...current, placeId: event.target.value, page: 1 }))}>
             <option value="">All places</option>
-            {snapshot.catalog.places.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+            {snapshot.catalog.places.map((item) => <option key={item.id} value={item.id}>{item.name}{item.isVisible ? "" : " (Hidden)"}</option>)}
           </SelectField>
           <SelectField value={workspace.listFilters.categoryId} onChange={(event) => workspace.setListFilters((current) => ({ ...current, categoryId: event.target.value, page: 1 }))}>
             <option value="">All categories</option>
-            {snapshot.catalog.categories.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+            {snapshot.catalog.categories.map((item) => <option key={item.id} value={item.id}>{item.name}{item.isVisible ? "" : " (Hidden)"}</option>)}
           </SelectField>
           <SelectField value={workspace.listFilters.scope} onChange={(event) => workspace.setListFilters((current) => ({ ...current, scope: event.target.value as typeof current.scope, page: 1 }))}>
             <option value="">All scopes</option>

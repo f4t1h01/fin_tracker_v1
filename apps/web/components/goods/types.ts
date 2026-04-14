@@ -8,6 +8,7 @@ export type GoodsCatalogPlace = {
   scope: GoodsScope;
   name: string;
   sortOrder: number;
+  isVisible: boolean;
 };
 
 export type GoodsCatalogCategory = {
@@ -15,6 +16,7 @@ export type GoodsCatalogCategory = {
   scope: GoodsScope;
   name: string;
   sortOrder: number;
+  isVisible: boolean;
   isSeeded?: boolean;
 };
 
@@ -32,8 +34,8 @@ export type GoodsItem = {
   scope: GoodsScope;
   name: string;
   note: string | null;
-  place: { id: string; name: string; scope: GoodsScope } | null;
-  category: { id: string; name: string; scope: GoodsScope } | null;
+  place: { id: string; name: string; scope: GoodsScope; isVisible: boolean } | null;
+  category: { id: string; name: string; scope: GoodsScope; isVisible: boolean } | null;
   uom: GoodsUom | null;
   quantityBase: number;
   effectiveQuantity: number;
@@ -132,4 +134,20 @@ export type GoodsListResponse = {
 
 export type GoodsHistoryResponse = {
   items: GoodsEvent[];
+};
+
+export type GoodsManagePlace = GoodsCatalogPlace & {
+  itemCount: number;
+};
+
+export type GoodsManageCategory = GoodsCatalogCategory & {
+  itemCount: number;
+};
+
+export type GoodsManagePlacesResponse = {
+  items: GoodsManagePlace[];
+};
+
+export type GoodsManageCategoriesResponse = {
+  items: GoodsManageCategory[];
 };

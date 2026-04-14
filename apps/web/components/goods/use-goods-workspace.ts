@@ -11,6 +11,8 @@ import type {
   GoodsHistoryResponse,
   GoodsItem,
   GoodsListResponse,
+  GoodsManageCategoriesResponse,
+  GoodsManagePlacesResponse,
   GoodsScope,
   GoodsSnapshotResponse
 } from "./types";
@@ -33,6 +35,12 @@ type GoodsListFilters = {
   page: number;
 };
 
+type ScopedVisibleOption = {
+  id: string;
+  scope: GoodsScope;
+  isVisible: boolean;
+};
+
 const defaultCreateItemForm = {
   scope: "PERSONAL" as GoodsScope,
   placeId: "",
@@ -48,11 +56,35 @@ const defaultCreateItemForm = {
   consumptionRateUnit: "PERMANENT" as GoodsConsumptionUnit
 };
 
+function resolveVisibleScopedOptionId<T extends ScopedVisibleOption>(items: T[], scope: GoodsScope, currentId: string) {
+  const scopedVisibleItems = items.filter((item) => item.scope === scope && item.isVisible);
+
+  if (currentId && scopedVisibleItems.some((item) => item.id === currentId)) {
+    return currentId;
+  }
+
+  return scopedVisibleItems[0]?.id ?? "";
+}
+
+function resolveUomId(snapshot: GoodsSnapshotResponse | null, currentId: string) {
+  if (!snapshot) {
+    return currentId;
+  }
+
+  if (currentId && snapshot.catalog.uoms.some((item) => item.id === currentId)) {
+    return currentId;
+  }
+
+  return snapshot.catalog.uoms[0]?.id ?? "";
+}
+
 export function useGoodsWorkspace(options?: UseGoodsWorkspaceOptions) {
   const [token, setToken] = useState<string | null>(null);
   const [isReady, setIsReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [snapshot, setSnapshot] = useState<GoodsSnapshotResponse | null>(null);
+  const [placesData, setPlacesData] = useState<GoodsManagePlacesResponse | null>(null);
+  const [categoriesData, setCategoriesData] = useState<GoodsManageCategoriesResponse | null>(null);
   const [listData, setListData] = useState<GoodsListResponse | null>(null);
   const [isLoadingSnapshot, setIsLoadingSnapshot] = useState(false);
   const [isLoadingList, setIsLoadingList] = useState(false);
@@ -122,13 +154,16 @@ export function useGoodsWorkspace(options?: UseGoodsWorkspaceOptions) {
     try {
       const nextSnapshot = await apiFetch<GoodsSnapshotResponse>("/profile/me/goods/snapshot");
       setSnapshot(nextSnapshot);
-      setCreateItemForm((current) => ({
-        ...current,
-        scope: nextSnapshot.workspace.hasPartnerConnection ? current.scope : "PERSONAL",
-        placeId: current.placeId || nextSnapshot.catalog.places[0]?.id || "",
-        categoryId: current.categoryId || nextSnapshot.catalog.categories.find((item) => item.scope === current.scope)?.id || nextSnapshot.catalog.categories[0]?.id || "",
-        uomId: current.uomId || nextSnapshot.catalog.uoms[0]?.id || ""
-      }));
+      setCreateItemForm((current) => {
+        const nextScope = nextSnapshot.workspace.hasPartnerConnection ? current.scope : "PERSONAL";
+        return {
+          ...current,
+          scope: nextScope,
+          placeId: resolveVisibleScopedOptionId(nextSnapshot.catalog.places, nextScope, current.placeId),
+          categoryId: resolveVisibleScopedOptionId(nextSnapshot.catalog.categories, nextScope, current.categoryId),
+          uomId: resolveUomId(nextSnapshot, current.uomId)
+        };
+      });
     } catch (reason) {
       const message = reason instanceof Error ? reason.message : "Could not load goods snapshot";
       setError(message);
@@ -139,6 +174,24 @@ export function useGoodsWorkspace(options?: UseGoodsWorkspaceOptions) {
       setIsLoadingSnapshot(false);
     }
   }, [apiFetch, clearSession, token]);
+
+  const refreshManagement = useCallback(async () => {
+    if (!token) {
+      return;
+    }
+
+    try {
+      const [nextPlaces, nextCategories] = await Promise.all([
+        apiFetch<GoodsManagePlacesResponse>("/profile/me/goods/places"),
+        apiFetch<GoodsManageCategoriesResponse>("/profile/me/goods/categories")
+      ]);
+      setPlacesData(nextPlaces);
+      setCategoriesData(nextCategories);
+    } catch (reason) {
+      const message = reason instanceof Error ? reason.message : "Could not load goods setup";
+      setError(message);
+    }
+  }, [apiFetch, token]);
 
   const refreshList = useCallback(async () => {
     if (!token || !options?.loadList) {
@@ -181,7 +234,8 @@ export function useGoodsWorkspace(options?: UseGoodsWorkspaceOptions) {
     }
 
     void refreshSnapshot();
-  }, [refreshSnapshot, token]);
+    void refreshManagement();
+  }, [refreshManagement, refreshSnapshot, token]);
 
   useEffect(() => {
     if (!token || !options?.loadList) {
@@ -201,6 +255,7 @@ export function useGoodsWorkspace(options?: UseGoodsWorkspaceOptions) {
         await action();
         setStatusMessage(label);
         await refreshSnapshot();
+        await refreshManagement();
         await refreshList();
       } catch (reason) {
         setError(reason instanceof Error ? reason.message : "Request failed");
@@ -208,7 +263,7 @@ export function useGoodsWorkspace(options?: UseGoodsWorkspaceOptions) {
         setIsSubmitting(false);
       }
     },
-    [refreshList, refreshSnapshot]
+    [refreshList, refreshManagement, refreshSnapshot]
   );
 
   const loadHistory = useCallback(
@@ -327,9 +382,72 @@ export function useGoodsWorkspace(options?: UseGoodsWorkspaceOptions) {
     [apiFetch, runMutation]
   );
 
-  const filteredCategoryOptions = useMemo(() => {
+  const onTogglePlaceVisibility = useCallback(
+    async (placeId: string, isVisible: boolean) => {
+      await runMutation(isVisible ? "Place shown." : "Place hidden.", async () => {
+        await apiFetch(`/profile/me/goods/places/${placeId}/visibility`, {
+          method: "PATCH",
+          body: JSON.stringify({ isVisible })
+        });
+      });
+    },
+    [apiFetch, runMutation]
+  );
+
+  const onDeletePlace = useCallback(
+    async (placeId: string) => {
+      await runMutation("Place deleted.", async () => {
+        await apiFetch(`/profile/me/goods/places/${placeId}`, {
+          method: "DELETE"
+        });
+      });
+    },
+    [apiFetch, runMutation]
+  );
+
+  const onToggleCategoryVisibility = useCallback(
+    async (categoryId: string, isVisible: boolean) => {
+      await runMutation(isVisible ? "Category shown." : "Category hidden.", async () => {
+        await apiFetch(`/profile/me/goods/categories/${categoryId}/visibility`, {
+          method: "PATCH",
+          body: JSON.stringify({ isVisible })
+        });
+      });
+    },
+    [apiFetch, runMutation]
+  );
+
+  const onDeleteCategory = useCallback(
+    async (categoryId: string) => {
+      await runMutation("Category deleted.", async () => {
+        await apiFetch(`/profile/me/goods/categories/${categoryId}`, {
+          method: "DELETE"
+        });
+      });
+    },
+    [apiFetch, runMutation]
+  );
+
+  const onCreateItemScopeChange = useCallback(
+    (scope: GoodsScope) => {
+      setCreateItemForm((current) => ({
+        ...current,
+        scope,
+        placeId: resolveVisibleScopedOptionId(snapshot?.catalog.places ?? [], scope, current.placeId),
+        categoryId: resolveVisibleScopedOptionId(snapshot?.catalog.categories ?? [], scope, current.categoryId)
+      }));
+    },
+    [snapshot]
+  );
+
+  const visiblePlaceOptions = useMemo(() => {
     const activeScope = createItemForm.scope;
-    return snapshot?.catalog.categories.filter((item) => item.scope === activeScope) ?? [];
+    return snapshot?.catalog.places.filter((item) => item.scope === activeScope && item.isVisible) ?? [];
+  }, [createItemForm.scope, snapshot?.catalog.places]);
+
+  const visibleCategoryOptions = useMemo(() => {
+    const activeScope = createItemForm.scope;
+    return snapshot?.catalog.categories.filter((item) => item.scope === activeScope && item.isVisible) ?? [];
   }, [createItemForm.scope, snapshot?.catalog.categories]);
 
   return {
@@ -337,6 +455,8 @@ export function useGoodsWorkspace(options?: UseGoodsWorkspaceOptions) {
     isReady,
     error,
     snapshot,
+    placesData,
+    categoriesData,
     listData,
     isLoadingSnapshot,
     isLoadingList,
@@ -347,7 +467,8 @@ export function useGoodsWorkspace(options?: UseGoodsWorkspaceOptions) {
     setListFilters,
     createItemForm,
     setCreateItemForm,
-    filteredCategoryOptions,
+    visiblePlaceOptions,
+    visibleCategoryOptions,
     placeScope,
     setPlaceScope,
     placeName,
@@ -357,16 +478,22 @@ export function useGoodsWorkspace(options?: UseGoodsWorkspaceOptions) {
     categoryName,
     setCategoryName,
     refreshSnapshot,
+    refreshManagement,
     refreshList,
     loadHistory,
     onCreatePlace,
     onCreateCategory,
     onCreateItem,
+    onCreateItemScopeChange,
     onRestockItem: (itemId: string, quantity: number, reason?: string) => onStockMutation(itemId, "restock", quantity, reason),
     onConsumeItem: (itemId: string, quantity: number, reason?: string) => onStockMutation(itemId, "consume", quantity, reason),
     onReconcileItem: (itemId: string, quantity: number, reason?: string) => onStockMutation(itemId, "reconcile", quantity, reason),
     onMoveItem,
     onUpdateItem,
-    onArchiveItem
+    onArchiveItem,
+    onTogglePlaceVisibility,
+    onDeletePlace,
+    onToggleCategoryVisibility,
+    onDeleteCategory
   };
 }

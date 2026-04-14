@@ -320,6 +320,7 @@ model GoodsPlace {
   name           String
   normalizedName String      @map("normalized_name")
   sortOrder      Int         @default(0) @map("sort_order")
+  isVisible      Boolean     @default(true) @map("is_visible")
   isArchived     Boolean     @default(false) @map("is_archived")
   createdById    String?     @map("created_by_id")
   createdBy      User?       @relation("GoodsPlaceCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
@@ -342,6 +343,7 @@ model GoodsCategory {
   name           String
   normalizedName String      @map("normalized_name")
   sortOrder      Int         @default(0) @map("sort_order")
+  isVisible      Boolean     @default(true) @map("is_visible")
   isArchived     Boolean     @default(false) @map("is_archived")
   isSeeded       Boolean     @default(false) @map("is_seeded")
   createdById    String?     @map("created_by_id")

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { Eye, EyeOff } from "lucide-react";
 
 import { WorkspacePageHeader } from "@/components/navigation/workspace-page-header";
 import { goodsHeaderActionGroups } from "@/components/navigation/workspace-navigation";
@@ -33,6 +34,9 @@ export function GoodsManagePage() {
     return <ProfileLoadingState title="Loading management" description={workspace.error ?? "Checking your goods access..."} />;
   }
 
+  const places = workspace.placesData?.items ?? [];
+  const categories = workspace.categoriesData?.items ?? [];
+
   return (
     <main className="container-shell pb-16 pt-28">
       <WorkspacePageHeader eyebrow="My Goods" title="Setup" actions={goodsHeaderActionGroups} />
@@ -55,11 +59,22 @@ export function GoodsManagePage() {
               </Button>
             </div>
             <div className="space-y-3">
-              {workspace.snapshot.catalog.places.map((item) => (
+              {places.map((item) => (
                 <div key={item.id} className="rounded-2xl border border-[rgba(201,168,76,0.16)] px-4 py-3">
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="font-medium">{item.name}</span>
-                    <span className="body-muted text-xs">{item.scope}</span>
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <p className={item.isVisible ? "font-medium" : "font-medium text-[var(--ink-soft)]"}>{item.name}</p>
+                      <p className="body-muted text-xs">{item.scope} • {item.itemCount} active item{item.itemCount === 1 ? "" : "s"}{item.isVisible ? "" : " • Hidden"}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button type="button" variant="outline" disabled={workspace.isSubmitting} onClick={() => void workspace.onTogglePlaceVisibility(item.id, !item.isVisible)}>
+                        {item.isVisible ? <Eye className="size-4" /> : <EyeOff className="size-4" />}
+                        {item.isVisible ? "Hide" : "Show"}
+                      </Button>
+                      <Button type="button" variant="outline" disabled={workspace.isSubmitting || item.itemCount > 0} onClick={() => void workspace.onDeletePlace(item.id)}>
+                        Delete
+                      </Button>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -81,11 +96,22 @@ export function GoodsManagePage() {
               </Button>
             </div>
             <div className="space-y-3">
-              {workspace.snapshot.catalog.categories.map((item) => (
+              {categories.map((item) => (
                 <div key={item.id} className="rounded-2xl border border-[rgba(201,168,76,0.16)] px-4 py-3">
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="font-medium">{item.name}</span>
-                    <span className="body-muted text-xs">{item.scope}{item.isSeeded ? " • Default" : ""}</span>
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <p className={item.isVisible ? "font-medium" : "font-medium text-[var(--ink-soft)]"}>{item.name}</p>
+                      <p className="body-muted text-xs">{item.scope}{item.isSeeded ? " • Default" : ""} • {item.itemCount} active item{item.itemCount === 1 ? "" : "s"}{item.isVisible ? "" : " • Hidden"}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button type="button" variant="outline" disabled={workspace.isSubmitting} onClick={() => void workspace.onToggleCategoryVisibility(item.id, !item.isVisible)}>
+                        {item.isVisible ? <Eye className="size-4" /> : <EyeOff className="size-4" />}
+                        {item.isVisible ? "Hide" : "Show"}
+                      </Button>
+                      <Button type="button" variant="outline" disabled={workspace.isSubmitting || item.itemCount > 0} onClick={() => void workspace.onDeleteCategory(item.id)}>
+                        Delete
+                      </Button>
+                    </div>
                   </div>
                 </div>
               ))}

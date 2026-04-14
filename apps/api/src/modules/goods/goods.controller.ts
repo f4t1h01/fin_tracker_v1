@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from "@nestjs/common";
 
 import { CurrentUser } from "../auth/current-user.decorator";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
@@ -13,6 +13,7 @@ import {
   GoodsReconcileDto,
   UpdateGoodsCategoryDto,
   UpdateGoodsItemDto,
+  UpdateGoodsVisibilityDto,
   UpdateGoodsPlaceDto
 } from "./dto/goods.dto";
 import { GoodsService } from "./goods.service";
@@ -92,6 +93,16 @@ export class GoodsController {
     return this.goodsService.updatePlace(user.id, id, dto);
   }
 
+  @Patch("places/:id/visibility")
+  updatePlaceVisibility(@CurrentUser() user: { id: string }, @Param("id") id: string, @Body() dto: UpdateGoodsVisibilityDto) {
+    return this.goodsService.updatePlaceVisibility(user.id, id, dto);
+  }
+
+  @Delete("places/:id")
+  deletePlace(@CurrentUser() user: { id: string }, @Param("id") id: string) {
+    return this.goodsService.deletePlace(user.id, id);
+  }
+
   @Post("places/:id/archive")
   archivePlace(@CurrentUser() user: { id: string }, @Param("id") id: string) {
     return this.goodsService.archivePlace(user.id, id);
@@ -110,6 +121,16 @@ export class GoodsController {
   @Patch("categories/:id")
   updateCategory(@CurrentUser() user: { id: string }, @Param("id") id: string, @Body() dto: UpdateGoodsCategoryDto) {
     return this.goodsService.updateCategory(user.id, id, dto);
+  }
+
+  @Patch("categories/:id/visibility")
+  updateCategoryVisibility(@CurrentUser() user: { id: string }, @Param("id") id: string, @Body() dto: UpdateGoodsVisibilityDto) {
+    return this.goodsService.updateCategoryVisibility(user.id, id, dto);
+  }
+
+  @Delete("categories/:id")
+  deleteCategory(@CurrentUser() user: { id: string }, @Param("id") id: string) {
+    return this.goodsService.deleteCategory(user.id, id);
   }
 
   @Post("categories/:id/archive")

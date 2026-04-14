@@ -111,6 +111,12 @@ export class UpdateGoodsCategoryDto {
   name?: string;
 }
 
+export class UpdateGoodsVisibilityDto {
+  @Transform(({ value }) => parseBoolean(value))
+  @IsBoolean()
+  isVisible!: boolean;
+}
+
 export class CreateGoodsItemDto {
   @IsIn(goodsScopes)
   scope!: (typeof goodsScopes)[number];

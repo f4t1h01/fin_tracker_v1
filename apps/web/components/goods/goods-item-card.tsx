@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -83,8 +83,35 @@ export function GoodsItemCard(props: GoodsItemCardProps) {
     setEditRateUnit(props.item.consumptionRateUnit);
   }, [props.item]);
 
-  const scopedPlaces = props.places.filter((item) => item.scope === props.item.scope);
-  const scopedCategories = props.categories.filter((item) => item.scope === props.item.scope);
+  const scopedPlaces = useMemo(() => {
+    const visibleItems = props.places.filter((item) => item.scope === props.item.scope && item.isVisible);
+    if (!props.item.place || props.item.place.isVisible || visibleItems.some((item) => item.id === props.item.place?.id)) {
+      return visibleItems;
+    }
+
+    return [
+      {
+        ...props.item.place,
+        sortOrder: -1
+      },
+      ...visibleItems
+    ];
+  }, [props.item.place, props.item.scope, props.places]);
+
+  const scopedCategories = useMemo(() => {
+    const visibleItems = props.categories.filter((item) => item.scope === props.item.scope && item.isVisible);
+    if (!props.item.category || props.item.category.isVisible || visibleItems.some((item) => item.id === props.item.category?.id)) {
+      return visibleItems;
+    }
+
+    return [
+      {
+        ...props.item.category,
+        sortOrder: -1
+      },
+      ...visibleItems
+    ];
+  }, [props.item.category, props.item.scope, props.categories]);
 
   return (
     <Card className="panel-soft">
@@ -139,14 +166,14 @@ export function GoodsItemCard(props: GoodsItemCardProps) {
             <SelectField value={movePlaceId} onChange={(event) => setMovePlaceId(event.target.value)}>
               {scopedPlaces.map((item) => (
                 <option key={item.id} value={item.id}>
-                  {item.name}
+                  {item.name}{item.isVisible ? "" : " (Hidden)"}
                 </option>
               ))}
             </SelectField>
             <SelectField value={moveCategoryId} onChange={(event) => setMoveCategoryId(event.target.value)}>
               {scopedCategories.map((item) => (
                 <option key={item.id} value={item.id}>
-                  {item.name}
+                  {item.name}{item.isVisible ? "" : " (Hidden)"}
                 </option>
               ))}
             </SelectField>

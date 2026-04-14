@@ -12,6 +12,7 @@ import {
   GoodsReconcileDto,
   UpdateGoodsCategoryDto,
   UpdateGoodsItemDto,
+  UpdateGoodsVisibilityDto,
   UpdateGoodsPlaceDto
 } from "./dto/goods.dto";
 
@@ -387,27 +388,33 @@ export class GoodsService {
   }
 
   private async seedCategoriesForScope(tx: any, userId: string, coupleId: string, scope: GoodsScope) {
-    const existingCount = await tx.goodsCategory.count({
+    const ownerUserId = scope === "PERSONAL" ? userId : null;
+    const existing = await tx.goodsCategory.findMany({
       where: {
         coupleId,
         scope,
-        ownerUserId: scope === "PERSONAL" ? userId : null,
-        isArchived: false
+        ownerUserId
+      },
+      select: {
+        normalizedName: true
       }
     });
 
-    if (existingCount > 0) {
+    const existingNames = new Set(existing.map((item: { normalizedName: string }) => item.normalizedName));
+    const missingDefaults = defaultGoodsCategories.filter((name) => !existingNames.has(normalizeGoodsLookupName(name)));
+
+    if (missingDefaults.length === 0) {
       return;
     }
 
     await tx.goodsCategory.createMany({
-      data: defaultGoodsCategories.map((name, index) => ({
+      data: missingDefaults.map((name) => ({
         coupleId,
         scope,
-        ownerUserId: scope === "PERSONAL" ? userId : null,
+        ownerUserId,
         name,
         normalizedName: normalizeGoodsLookupName(name),
-        sortOrder: (index + 1) * 10,
+        sortOrder: (defaultGoodsCategories.indexOf(name) + 1) * 10,
         isSeeded: true,
         createdById: userId
       }))
@@ -434,14 +441,16 @@ export class GoodsService {
         ? {
             id: row.place.id,
             name: row.place.name,
-            scope: row.place.scope
+            scope: row.place.scope,
+            isVisible: row.place.isVisible
           }
         : null,
       category: row.category
         ? {
             id: row.category.id,
             name: row.category.name,
-            scope: row.category.scope
+            scope: row.category.scope,
+            isVisible: row.category.isVisible
           }
         : null,
       uom: row.uom
@@ -499,7 +508,8 @@ export class GoodsService {
           id: true,
           scope: true,
           name: true,
-          sortOrder: true
+          sortOrder: true,
+          isVisible: true
         }
       }),
       this.prisma.client.goodsCategory.findMany({
@@ -514,6 +524,7 @@ export class GoodsService {
           scope: true,
           name: true,
           sortOrder: true,
+          isVisible: true,
           isSeeded: true
         }
       }),
@@ -552,14 +563,16 @@ export class GoodsService {
           select: {
             id: true,
             name: true,
-            scope: true
+            scope: true,
+            isVisible: true
           }
         },
         category: {
           select: {
             id: true,
             name: true,
-            scope: true
+            scope: true,
+            isVisible: true
           }
         },
         uom: {
@@ -597,7 +610,14 @@ export class GoodsService {
     return item;
   }
 
-  private async requireAccessiblePlace(userId: string, coupleId: string, placeId: string, scope: GoodsScope, tx: any = this.prisma.client) {
+  private async requireAccessiblePlace(
+    userId: string,
+    coupleId: string,
+    placeId: string,
+    scope: GoodsScope,
+    tx: any = this.prisma.client,
+    options?: { allowHiddenId?: string | null }
+  ) {
     const place = await tx.goodsPlace.findFirst({
       where: {
         id: placeId,
@@ -607,7 +627,8 @@ export class GoodsService {
         ...(scope === "PERSONAL" ? { ownerUserId: userId } : {})
       },
       select: {
-        id: true
+        id: true,
+        isVisible: true
       }
     });
 
@@ -615,10 +636,21 @@ export class GoodsService {
       throw new BadRequestException("Selected place is not available");
     }
 
+    if (!place.isVisible && options?.allowHiddenId !== placeId) {
+      throw new BadRequestException("Selected place is hidden. Show it first or choose a different place.");
+    }
+
     return place;
   }
 
-  private async requireAccessibleCategory(userId: string, coupleId: string, categoryId: string, scope: GoodsScope, tx: any = this.prisma.client) {
+  private async requireAccessibleCategory(
+    userId: string,
+    coupleId: string,
+    categoryId: string,
+    scope: GoodsScope,
+    tx: any = this.prisma.client,
+    options?: { allowHiddenId?: string | null }
+  ) {
     const category = await tx.goodsCategory.findFirst({
       where: {
         id: categoryId,
@@ -628,7 +660,8 @@ export class GoodsService {
         ...(scope === "PERSONAL" ? { ownerUserId: userId } : {})
       },
       select: {
-        id: true
+        id: true,
+        isVisible: true
       }
     });
 
@@ -636,7 +669,48 @@ export class GoodsService {
       throw new BadRequestException("Selected category is not available");
     }
 
+    if (!category.isVisible && options?.allowHiddenId !== categoryId) {
+      throw new BadRequestException("Selected category is hidden. Show it first or choose a different category.");
+    }
+
     return category;
+  }
+
+  private async findManageablePlace(userId: string, coupleId: string, id: string) {
+    return this.prisma.client.goodsPlace.findFirst({
+      where: {
+        id,
+        coupleId,
+        isArchived: false,
+        ...this.buildScopeAccessWhere(userId)
+      },
+      select: {
+        id: true,
+        scope: true,
+        name: true,
+        sortOrder: true,
+        isVisible: true
+      }
+    });
+  }
+
+  private async findManageableCategory(userId: string, coupleId: string, id: string) {
+    return this.prisma.client.goodsCategory.findFirst({
+      where: {
+        id,
+        coupleId,
+        isArchived: false,
+        ...this.buildScopeAccessWhere(userId)
+      },
+      select: {
+        id: true,
+        scope: true,
+        name: true,
+        sortOrder: true,
+        isVisible: true,
+        isSeeded: true
+      }
+    });
   }
 
   private async requireUom(uomId: string, tx: any = this.prisma.client) {
@@ -746,8 +820,8 @@ export class GoodsService {
         ...this.buildScopeAccessWhere(userId)
       },
       include: {
-        place: { select: { id: true, name: true, scope: true } },
-        category: { select: { id: true, name: true, scope: true } },
+        place: { select: { id: true, name: true, scope: true, isVisible: true } },
+        category: { select: { id: true, name: true, scope: true, isVisible: true } },
         uom: { select: { id: true, code: true, label: true, decimals: true, groupKey: true, isActive: true } },
         events: {
           orderBy: { occurredAt: "desc" },
@@ -867,8 +941,8 @@ export class GoodsService {
         ...this.buildScopeAccessWhere(userId)
       },
       include: {
-        place: { select: { id: true, name: true, scope: true } },
-        category: { select: { id: true, name: true, scope: true } },
+        place: { select: { id: true, name: true, scope: true, isVisible: true } },
+        category: { select: { id: true, name: true, scope: true, isVisible: true } },
         uom: { select: { id: true, code: true, label: true, decimals: true, groupKey: true, isActive: true } },
         events: {
           orderBy: { occurredAt: "desc" },
@@ -1022,9 +1096,14 @@ export class GoodsService {
         scope: true,
         name: true,
         sortOrder: true,
+        isVisible: true,
         _count: {
           select: {
-            items: true
+            items: {
+              where: {
+                isArchived: false
+              }
+            }
           }
         }
       }
@@ -1036,6 +1115,7 @@ export class GoodsService {
         scope: place.scope,
         name: place.name,
         sortOrder: place.sortOrder,
+        isVisible: place.isVisible,
         itemCount: place._count.items
       }))
     };
@@ -1064,20 +1144,14 @@ export class GoodsService {
       id: place.id,
       scope: place.scope,
       name: place.name,
-      sortOrder: place.sortOrder
+      sortOrder: place.sortOrder,
+      isVisible: place.isVisible
     };
   }
 
   async updatePlace(userId: string, id: string, dto: UpdateGoodsPlaceDto) {
     const workspace = await this.getWorkspaceContext(userId, false);
-    const existing = await this.prisma.client.goodsPlace.findFirst({
-      where: {
-        id,
-        coupleId: workspace.coupleId,
-        isArchived: false,
-        ...this.buildScopeAccessWhere(userId)
-      }
-    });
+    const existing = await this.findManageablePlace(userId, workspace.coupleId, id);
 
     if (!existing) {
       throw new BadRequestException("Place not found");
@@ -1096,20 +1170,38 @@ export class GoodsService {
       id: updated.id,
       scope: updated.scope,
       name: updated.name,
-      sortOrder: updated.sortOrder
+      sortOrder: updated.sortOrder,
+      isVisible: updated.isVisible
     };
   }
 
-  async archivePlace(userId: string, id: string) {
+  async updatePlaceVisibility(userId: string, id: string, dto: UpdateGoodsVisibilityDto) {
     const workspace = await this.getWorkspaceContext(userId, false);
-    const existing = await this.prisma.client.goodsPlace.findFirst({
-      where: {
-        id,
-        coupleId: workspace.coupleId,
-        isArchived: false,
-        ...this.buildScopeAccessWhere(userId)
+    const existing = await this.findManageablePlace(userId, workspace.coupleId, id);
+
+    if (!existing) {
+      throw new BadRequestException("Place not found");
+    }
+
+    const updated = await this.prisma.client.goodsPlace.update({
+      where: { id },
+      data: {
+        isVisible: dto.isVisible
       }
     });
+
+    return {
+      id: updated.id,
+      scope: updated.scope,
+      name: updated.name,
+      sortOrder: updated.sortOrder,
+      isVisible: updated.isVisible
+    };
+  }
+
+  async deletePlace(userId: string, id: string) {
+    const workspace = await this.getWorkspaceContext(userId, false);
+    const existing = await this.findManageablePlace(userId, workspace.coupleId, id);
 
     if (!existing) {
       throw new BadRequestException("Place not found");
@@ -1123,7 +1215,7 @@ export class GoodsService {
     });
 
     if (activeItemCount > 0) {
-      throw new BadRequestException("Archive or move active goods before archiving this place");
+      throw new BadRequestException("This place still has active goods. Hide it instead or move those goods first.");
     }
 
     await this.prisma.client.goodsPlace.update({
@@ -1136,6 +1228,10 @@ export class GoodsService {
     return {
       success: true
     };
+  }
+
+  async archivePlace(userId: string, id: string) {
+    return this.deletePlace(userId, id);
   }
 
   async listCategories(userId: string) {
@@ -1154,10 +1250,15 @@ export class GoodsService {
         scope: true,
         name: true,
         sortOrder: true,
+        isVisible: true,
         isSeeded: true,
         _count: {
           select: {
-            items: true
+            items: {
+              where: {
+                isArchived: false
+              }
+            }
           }
         }
       }
@@ -1169,6 +1270,7 @@ export class GoodsService {
         scope: category.scope,
         name: category.name,
         sortOrder: category.sortOrder,
+        isVisible: category.isVisible,
         isSeeded: category.isSeeded,
         itemCount: category._count.items
       }))
@@ -1198,20 +1300,15 @@ export class GoodsService {
       id: category.id,
       scope: category.scope,
       name: category.name,
-      sortOrder: category.sortOrder
+      sortOrder: category.sortOrder,
+      isVisible: category.isVisible,
+      isSeeded: category.isSeeded
     };
   }
 
   async updateCategory(userId: string, id: string, dto: UpdateGoodsCategoryDto) {
     const workspace = await this.getWorkspaceContext(userId, false);
-    const existing = await this.prisma.client.goodsCategory.findFirst({
-      where: {
-        id,
-        coupleId: workspace.coupleId,
-        isArchived: false,
-        ...this.buildScopeAccessWhere(userId)
-      }
-    });
+    const existing = await this.findManageableCategory(userId, workspace.coupleId, id);
 
     if (!existing) {
       throw new BadRequestException("Category not found");
@@ -1230,20 +1327,40 @@ export class GoodsService {
       id: updated.id,
       scope: updated.scope,
       name: updated.name,
-      sortOrder: updated.sortOrder
+      sortOrder: updated.sortOrder,
+      isVisible: updated.isVisible,
+      isSeeded: updated.isSeeded
     };
   }
 
-  async archiveCategory(userId: string, id: string) {
+  async updateCategoryVisibility(userId: string, id: string, dto: UpdateGoodsVisibilityDto) {
     const workspace = await this.getWorkspaceContext(userId, false);
-    const existing = await this.prisma.client.goodsCategory.findFirst({
-      where: {
-        id,
-        coupleId: workspace.coupleId,
-        isArchived: false,
-        ...this.buildScopeAccessWhere(userId)
+    const existing = await this.findManageableCategory(userId, workspace.coupleId, id);
+
+    if (!existing) {
+      throw new BadRequestException("Category not found");
+    }
+
+    const updated = await this.prisma.client.goodsCategory.update({
+      where: { id },
+      data: {
+        isVisible: dto.isVisible
       }
     });
+
+    return {
+      id: updated.id,
+      scope: updated.scope,
+      name: updated.name,
+      sortOrder: updated.sortOrder,
+      isVisible: updated.isVisible,
+      isSeeded: updated.isSeeded
+    };
+  }
+
+  async deleteCategory(userId: string, id: string) {
+    const workspace = await this.getWorkspaceContext(userId, false);
+    const existing = await this.findManageableCategory(userId, workspace.coupleId, id);
 
     if (!existing) {
       throw new BadRequestException("Category not found");
@@ -1257,7 +1374,7 @@ export class GoodsService {
     });
 
     if (activeItemCount > 0) {
-      throw new BadRequestException("Archive or move active goods before archiving this category");
+      throw new BadRequestException("This category still has active goods. Hide it instead or move those goods first.");
     }
 
     await this.prisma.client.goodsCategory.update({
@@ -1270,6 +1387,10 @@ export class GoodsService {
     return {
       success: true
     };
+  }
+
+  async archiveCategory(userId: string, id: string) {
+    return this.deleteCategory(userId, id);
   }
 
   async listUoms(userId: string) {
@@ -1391,8 +1512,12 @@ export class GoodsService {
       const nextCategoryId = dto.categoryId ?? existing.categoryId;
       const nextUomId = dto.uomId ?? existing.uomId;
 
-      await this.requireAccessiblePlace(userId, workspace.coupleId, nextPlaceId, scope, tx);
-      await this.requireAccessibleCategory(userId, workspace.coupleId, nextCategoryId, scope, tx);
+      await this.requireAccessiblePlace(userId, workspace.coupleId, nextPlaceId, scope, tx, {
+        allowHiddenId: existing.placeId
+      });
+      await this.requireAccessibleCategory(userId, workspace.coupleId, nextCategoryId, scope, tx, {
+        allowHiddenId: existing.categoryId
+      });
       await this.requireUom(nextUomId, tx);
 
       await tx.goodsItem.update({
@@ -1566,8 +1691,12 @@ export class GoodsService {
       const existing = await this.getAccessibleItemRow(userId, workspace.coupleId, id, tx);
       const materialized = await this.materializeAutoConsumption(tx, id, userId);
       const scope = existing.scope as GoodsScope;
-      await this.requireAccessiblePlace(userId, workspace.coupleId, dto.placeId, scope, tx);
-      await this.requireAccessibleCategory(userId, workspace.coupleId, dto.categoryId, scope, tx);
+      await this.requireAccessiblePlace(userId, workspace.coupleId, dto.placeId, scope, tx, {
+        allowHiddenId: existing.placeId
+      });
+      await this.requireAccessibleCategory(userId, workspace.coupleId, dto.categoryId, scope, tx, {
+        allowHiddenId: existing.categoryId
+      });
       const now = new Date();
 
       await tx.goodsItem.update({

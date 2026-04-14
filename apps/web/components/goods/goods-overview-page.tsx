@@ -55,15 +55,17 @@ export function GoodsOverviewPage() {
           <CardContent className="space-y-4">
             <div className="space-y-3">
               <div className="grid gap-3 md:grid-cols-3">
-                <SelectField value={workspace.createItemForm.scope} onChange={(event) => workspace.setCreateItemForm((current) => ({ ...current, scope: event.target.value as "PERSONAL" | "SHARED", categoryId: "" }))}>
+                <SelectField value={workspace.createItemForm.scope} onChange={(event) => workspace.onCreateItemScopeChange(event.target.value as "PERSONAL" | "SHARED")}>
                   <option value="PERSONAL">Personal</option>
                   {snapshot.workspace.hasPartnerConnection ? <option value="SHARED">Shared</option> : null}
                 </SelectField>
                 <SelectField value={workspace.createItemForm.placeId} onChange={(event) => workspace.setCreateItemForm((current) => ({ ...current, placeId: event.target.value }))} placeholder="Choose place">
-                  {snapshot.catalog.places.filter((item) => item.scope === workspace.createItemForm.scope).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+                  <option value="">Choose place</option>
+                  {workspace.visiblePlaceOptions.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
                 </SelectField>
                 <SelectField value={workspace.createItemForm.categoryId} onChange={(event) => workspace.setCreateItemForm((current) => ({ ...current, categoryId: event.target.value }))} placeholder="Choose category">
-                  {workspace.filteredCategoryOptions.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+                  <option value="">Choose category</option>
+                  {workspace.visibleCategoryOptions.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
                 </SelectField>
               </div>
 
