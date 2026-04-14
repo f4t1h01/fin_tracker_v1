@@ -8,6 +8,7 @@ import { useRouteTransitionPageReady } from "@/components/navigation/route-trans
 import { ProfileLoadingState } from "@/components/profile/profile-loading-state";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { DatePicker } from "@/components/ui/date-picker";
 import { SelectField } from "@/components/ui/select-field";
 import { TextField } from "@/components/ui/text-field";
 import { TextareaField } from "@/components/ui/textarea-field";
@@ -52,34 +53,82 @@ export function GoodsOverviewPage() {
         <Card className="panel-soft">
           <CardHeader><CardTitle>Add item</CardTitle></CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-              <SelectField value={workspace.createItemForm.scope} onChange={(event) => workspace.setCreateItemForm((current) => ({ ...current, scope: event.target.value as "PERSONAL" | "SHARED", categoryId: "" }))}>
-                <option value="PERSONAL">Personal</option>
-                {snapshot.workspace.hasPartnerConnection ? <option value="SHARED">Shared</option> : null}
-              </SelectField>
-              <SelectField value={workspace.createItemForm.placeId} onChange={(event) => workspace.setCreateItemForm((current) => ({ ...current, placeId: event.target.value }))}>
-                {snapshot.catalog.places.filter((item) => item.scope === workspace.createItemForm.scope).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-              </SelectField>
-              <SelectField value={workspace.createItemForm.categoryId} onChange={(event) => workspace.setCreateItemForm((current) => ({ ...current, categoryId: event.target.value }))}>
-                {workspace.filteredCategoryOptions.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-              </SelectField>
-              <SelectField value={workspace.createItemForm.uomId} onChange={(event) => workspace.setCreateItemForm((current) => ({ ...current, uomId: event.target.value }))}>
-                {snapshot.catalog.uoms.map((item) => <option key={item.id} value={item.id}>{item.code}</option>)}
-              </SelectField>
-              <TextField value={workspace.createItemForm.name} onChange={(event) => workspace.setCreateItemForm((current) => ({ ...current, name: event.target.value }))} placeholder="Milk" />
-              <TextField value={workspace.createItemForm.quantity} onChange={(event) => workspace.setCreateItemForm((current) => ({ ...current, quantity: event.target.value }))} placeholder="Quantity" />
-              <TextField value={workspace.createItemForm.lowStockThreshold} onChange={(event) => workspace.setCreateItemForm((current) => ({ ...current, lowStockThreshold: event.target.value }))} placeholder="Low threshold" />
-              <TextField value={workspace.createItemForm.targetQuantity} onChange={(event) => workspace.setCreateItemForm((current) => ({ ...current, targetQuantity: event.target.value }))} placeholder="Target quantity" />
-              <TextField type="date" value={workspace.createItemForm.expirationDate} onChange={(event) => workspace.setCreateItemForm((current) => ({ ...current, expirationDate: event.target.value }))} />
-              <TextField value={workspace.createItemForm.consumptionRateValue} onChange={(event) => workspace.setCreateItemForm((current) => ({ ...current, consumptionRateValue: event.target.value }))} placeholder="Rate value" />
-              <SelectField value={workspace.createItemForm.consumptionRateUnit} onChange={(event) => workspace.setCreateItemForm((current) => ({ ...current, consumptionRateUnit: event.target.value as typeof current.consumptionRateUnit }))}>
-                <option value="PERMANENT">Permanent</option>
-                <option value="HOUR">Per hour</option>
-                <option value="DAY">Per day</option>
-                <option value="WEEK">Per week</option>
-              </SelectField>
+            <div className="space-y-4">
+              <div className="grid gap-3 md:grid-cols-3">
+                <label className="space-y-1 text-sm">
+                  <span className="field-label">Scope</span>
+                  <SelectField value={workspace.createItemForm.scope} onChange={(event) => workspace.setCreateItemForm((current) => ({ ...current, scope: event.target.value as "PERSONAL" | "SHARED", categoryId: "" }))}>
+                    <option value="PERSONAL">Personal</option>
+                    {snapshot.workspace.hasPartnerConnection ? <option value="SHARED">Shared</option> : null}
+                  </SelectField>
+                </label>
+                <label className="space-y-1 text-sm">
+                  <span className="field-label">Place</span>
+                  <SelectField value={workspace.createItemForm.placeId} onChange={(event) => workspace.setCreateItemForm((current) => ({ ...current, placeId: event.target.value }))}>
+                    {snapshot.catalog.places.filter((item) => item.scope === workspace.createItemForm.scope).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+                  </SelectField>
+                </label>
+                <label className="space-y-1 text-sm">
+                  <span className="field-label">Category</span>
+                  <SelectField value={workspace.createItemForm.categoryId} onChange={(event) => workspace.setCreateItemForm((current) => ({ ...current, categoryId: event.target.value }))}>
+                    {workspace.filteredCategoryOptions.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+                  </SelectField>
+                </label>
+              </div>
+
+              <label className="block space-y-1 text-sm">
+                <span className="field-label">Name</span>
+                <TextField value={workspace.createItemForm.name} onChange={(event) => workspace.setCreateItemForm((current) => ({ ...current, name: event.target.value }))} placeholder="Milk" />
+              </label>
+
+              <div className="grid gap-3 md:grid-cols-2">
+                <label className="space-y-1 text-sm">
+                  <span className="field-label">Quantity</span>
+                  <TextField value={workspace.createItemForm.quantity} onChange={(event) => workspace.setCreateItemForm((current) => ({ ...current, quantity: event.target.value }))} placeholder="2" />
+                </label>
+                <label className="space-y-1 text-sm">
+                  <span className="field-label">Unit</span>
+                  <SelectField value={workspace.createItemForm.uomId} onChange={(event) => workspace.setCreateItemForm((current) => ({ ...current, uomId: event.target.value }))}>
+                    {snapshot.catalog.uoms.map((item) => <option key={item.id} value={item.id}>{item.code}</option>)}
+                  </SelectField>
+                </label>
+              </div>
+
+              <div className="grid gap-3 md:grid-cols-2">
+                <label className="space-y-1 text-sm">
+                  <span className="field-label">Low stock threshold</span>
+                  <TextField value={workspace.createItemForm.lowStockThreshold} onChange={(event) => workspace.setCreateItemForm((current) => ({ ...current, lowStockThreshold: event.target.value }))} placeholder="1" />
+                </label>
+                <label className="space-y-1 text-sm">
+                  <span className="field-label">Target quantity</span>
+                  <TextField value={workspace.createItemForm.targetQuantity} onChange={(event) => workspace.setCreateItemForm((current) => ({ ...current, targetQuantity: event.target.value }))} placeholder="4" />
+                </label>
+              </div>
+
+              <div className="grid gap-3 md:grid-cols-3">
+                <label className="space-y-1 text-sm">
+                  <span className="field-label">Expiration date</span>
+                  <DatePicker value={workspace.createItemForm.expirationDate} onChange={(value) => workspace.setCreateItemForm((current) => ({ ...current, expirationDate: value }))} />
+                </label>
+                <label className="space-y-1 text-sm">
+                  <span className="field-label">Usage rate</span>
+                  <TextField value={workspace.createItemForm.consumptionRateValue} onChange={(event) => workspace.setCreateItemForm((current) => ({ ...current, consumptionRateValue: event.target.value }))} placeholder="0.5" />
+                </label>
+                <label className="space-y-1 text-sm">
+                  <span className="field-label">Rate unit</span>
+                  <SelectField value={workspace.createItemForm.consumptionRateUnit} onChange={(event) => workspace.setCreateItemForm((current) => ({ ...current, consumptionRateUnit: event.target.value as typeof current.consumptionRateUnit }))}>
+                    <option value="PERMANENT">Permanent</option>
+                    <option value="HOUR">Per hour</option>
+                    <option value="DAY">Per day</option>
+                    <option value="WEEK">Per week</option>
+                  </SelectField>
+                </label>
+              </div>
             </div>
-            <TextareaField value={workspace.createItemForm.note} onChange={(event) => workspace.setCreateItemForm((current) => ({ ...current, note: event.target.value }))} placeholder="Optional note" rows={3} />
+            <label className="block space-y-1 text-sm">
+              <span className="field-label">Note</span>
+              <TextareaField value={workspace.createItemForm.note} onChange={(event) => workspace.setCreateItemForm((current) => ({ ...current, note: event.target.value }))} placeholder="Optional note" rows={3} />
+            </label>
             <Button type="button" disabled={workspace.isSubmitting} onClick={() => void workspace.onCreateItem()}>
               Add goods item
             </Button>
