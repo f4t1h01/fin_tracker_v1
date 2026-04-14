@@ -180,60 +180,36 @@ export function GoodsItemCard(props: GoodsItemCardProps) {
 
         <div className="detail-box space-y-3 px-3 py-3">
           <p className="field-label">Metadata</p>
-          <div className="space-y-4">
-            <label className="block space-y-1 text-sm">
-              <span className="field-label">Name</span>
-              <TextField value={editName} onChange={(event) => setEditName(event.target.value)} placeholder="Milk" />
-            </label>
+          <div className="space-y-3">
+            <TextField value={editName} onChange={(event) => setEditName(event.target.value)} placeholder="Good name" />
 
             <div className="grid gap-3 md:grid-cols-2">
-              <label className="space-y-1 text-sm">
-                <span className="field-label">Unit</span>
-                <SelectField value={editUomId} onChange={(event) => setEditUomId(event.target.value)}>
-                  {props.uoms.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {item.code}
-                    </option>
-                  ))}
-                </SelectField>
-              </label>
-              <label className="space-y-1 text-sm">
-                <span className="field-label">Expiration date</span>
-                <DatePicker value={editExpirationDate} onChange={setEditExpirationDate} />
-              </label>
+              <SelectField value={editUomId} onChange={(event) => setEditUomId(event.target.value)} placeholder="Unit">
+                {props.uoms.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.code}
+                  </option>
+                ))}
+              </SelectField>
+              <DatePicker value={editExpirationDate} onChange={setEditExpirationDate} placeholder="Expiration date" />
             </div>
 
             <div className="grid gap-3 md:grid-cols-2">
-              <label className="space-y-1 text-sm">
-                <span className="field-label">Low stock threshold</span>
-                <TextField value={editLowStockThreshold} onChange={(event) => setEditLowStockThreshold(event.target.value)} placeholder="1" />
-              </label>
-              <label className="space-y-1 text-sm">
-                <span className="field-label">Target quantity</span>
-                <TextField value={editTargetQuantity} onChange={(event) => setEditTargetQuantity(event.target.value)} placeholder="4" />
-              </label>
+              <TextField value={editLowStockThreshold} onChange={(event) => setEditLowStockThreshold(event.target.value)} placeholder="Low stock threshold" />
+              <TextField value={editTargetQuantity} onChange={(event) => setEditTargetQuantity(event.target.value)} placeholder="Target quantity" />
             </div>
 
             <div className="grid gap-3 md:grid-cols-2">
-              <label className="space-y-1 text-sm">
-                <span className="field-label">Usage rate</span>
-                <TextField value={editRateValue} onChange={(event) => setEditRateValue(event.target.value)} placeholder="0.5" />
-              </label>
-              <label className="space-y-1 text-sm">
-                <span className="field-label">Rate unit</span>
-                <SelectField value={editRateUnit} onChange={(event) => setEditRateUnit(event.target.value as GoodsItem["consumptionRateUnit"])}>
-                  <option value="PERMANENT">Permanent</option>
-                  <option value="HOUR">Per hour</option>
-                  <option value="DAY">Per day</option>
-                  <option value="WEEK">Per week</option>
-                </SelectField>
-              </label>
+              <TextField value={editRateValue} onChange={(event) => setEditRateValue(event.target.value)} placeholder="Usage rate" />
+              <SelectField value={editRateUnit} onChange={(event) => setEditRateUnit(event.target.value as GoodsItem["consumptionRateUnit"])} placeholder="Rate unit">
+                <option value="PERMANENT">Permanent</option>
+                <option value="HOUR">Per hour</option>
+                <option value="DAY">Per day</option>
+                <option value="WEEK">Per week</option>
+              </SelectField>
             </div>
           </div>
-          <label className="block space-y-1 text-sm">
-            <span className="field-label">Note</span>
-            <TextareaField value={editNote} onChange={(event) => setEditNote(event.target.value)} placeholder="Optional note" rows={3} />
-          </label>
+          <TextareaField value={editNote} onChange={(event) => setEditNote(event.target.value)} placeholder="Optional note" rows={3} />
           <div className="flex flex-wrap gap-3">
             <Button
               type="button"
