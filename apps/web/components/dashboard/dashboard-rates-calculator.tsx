@@ -7,9 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { SelectField } from "@/components/ui/select-field";
 import { TextField } from "@/components/ui/text-field";
-import { cn } from "@/lib/cn";
 
-import { currencyLabels, type SupportedCurrency } from "@/components/profile/types";
+import type { SupportedCurrency } from "@/components/profile/types";
 
 type DashboardRatesCalculatorProps = {
   currencies: SupportedCurrency[];
@@ -80,41 +79,38 @@ export function DashboardRatesCalculator({ currencies, rates }: DashboardRatesCa
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="space-y-4">
-          <label className="block space-y-2 text-sm">
-            <span className="field-label text-[13px] uppercase tracking-[0.14em]">Amount</span>
+        <div className="grid gap-3 xl:grid-cols-[minmax(220px,1.15fr)_minmax(180px,0.9fr)_auto_minmax(180px,0.9fr)_minmax(220px,1.15fr)] xl:items-stretch">
+          <div className="detail-box flex min-h-16 items-center px-4 py-3">
             <TextField
               value={amount}
               onChange={(event) => setAmount(event.target.value)}
               type="text"
               inputMode="decimal"
-              placeholder="1"
-              className={cn(
-                "min-h-16 border-[rgba(201,168,76,0.16)] bg-[color-mix(in_srgb,var(--warm-white)_86%,transparent)] px-4 font-[family-name:var(--font-body)] text-[clamp(26px,3.5vw,38px)] font-medium leading-none tracking-[0.01em] text-[var(--ink)] tabular-nums placeholder:text-[var(--ink-soft)] focus-visible:border-[rgba(201,168,76,0.22)]"
-              )}
+              placeholder="Amount"
+              className="min-h-0 border-0 bg-transparent px-0 py-0 font-[family-name:var(--font-body)] text-[clamp(24px,3vw,36px)] font-medium leading-[1.05] tracking-[0.01em] text-[var(--ink)] tabular-nums placeholder:text-[var(--ink-soft)] focus-visible:ring-0"
             />
+          </div>
+
+          <label className="space-y-2 text-[15px]">
+            <span className="field-label text-[15px] uppercase tracking-[0.14em]">From</span>
+            <SelectField
+              value={fromCurrency}
+              onChange={(event) => setFromCurrency(event.target.value as SupportedCurrency)}
+              triggerClassName="min-h-16 px-5 text-[20px] font-medium [&>span]:text-[20px]"
+              optionClassName="text-[18px]"
+            >
+              {currencies.map((currency) => (
+                <option key={currency} value={currency}>
+                  {currency}
+                </option>
+              ))}
+            </SelectField>
           </label>
 
-          <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] lg:items-end">
-            <label className="space-y-2 text-[15px]">
-              <span className="field-label text-[14px] uppercase tracking-[0.14em]">From</span>
-              <SelectField
-                value={fromCurrency}
-                onChange={(event) => setFromCurrency(event.target.value as SupportedCurrency)}
-                triggerClassName="min-h-16 px-4 text-[18px] font-medium [&>span]:text-[18px]"
-                optionClassName="text-[16px]"
-              >
-                {currencies.map((currency) => (
-                  <option key={currency} value={currency}>
-                    {currency}
-                  </option>
-                ))}
-              </SelectField>
-            </label>
+          <div className="flex items-end">
             <Button
               type="button"
-              variant="outline"
-              className="min-h-14 w-full !justify-start px-6 py-4 text-[14px] font-semibold uppercase tracking-[0.14em] lg:w-auto lg:flex-none"
+              className="min-h-12 w-full !justify-start px-6 py-4 text-[14px] font-semibold uppercase tracking-[0.14em] xl:w-auto xl:min-w-[170px] xl:flex-none [&>span]:flex [&>span]:w-full [&>span]:items-center [&>span]:gap-2"
               disabled={!canSwap}
               onClick={() => {
                 if (!canSwap) {
@@ -128,28 +124,29 @@ export function DashboardRatesCalculator({ currencies, rates }: DashboardRatesCa
               <ArrowRightLeft className="size-4" />
               Swap
             </Button>
-            <label className="space-y-2 text-[15px]">
-              <span className="field-label text-[14px] uppercase tracking-[0.14em]">To</span>
-              <SelectField
-                value={toCurrency}
-                onChange={(event) => setToCurrency(event.target.value as SupportedCurrency)}
-                triggerClassName="min-h-16 px-4 text-[18px] font-medium [&>span]:text-[18px]"
-                optionClassName="text-[16px]"
-              >
-                {currencies.map((currency) => (
-                  <option key={currency} value={currency}>
-                    {currency}
-                  </option>
-                ))}
-              </SelectField>
-            </label>
           </div>
 
-          <div className="detail-box space-y-2 px-4 py-4">
+          <label className="space-y-2 text-[15px]">
+            <span className="field-label text-[15px] uppercase tracking-[0.14em]">To</span>
+            <SelectField
+              value={toCurrency}
+              onChange={(event) => setToCurrency(event.target.value as SupportedCurrency)}
+              triggerClassName="min-h-16 px-5 text-[20px] font-medium [&>span]:text-[20px]"
+              optionClassName="text-[18px]"
+            >
+              {currencies.map((currency) => (
+                <option key={currency} value={currency}>
+                  {currency}
+                </option>
+              ))}
+            </SelectField>
+          </label>
+
+          <div className="detail-box flex min-h-16 flex-col justify-center space-y-2 px-4 py-3">
             <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--ink-soft)]">
               Output {toCurrency}
             </p>
-            <p className="font-[family-name:var(--font-body)] text-[clamp(24px,3.6vw,36px)] font-medium leading-[1.05] tabular-nums text-[var(--ink)]">
+            <p className="font-[family-name:var(--font-body)] text-[clamp(24px,3vw,36px)] font-medium leading-[1.05] tabular-nums text-[var(--ink)]">
               {formatAmount(convertedAmount)} {toCurrency}
             </p>
           </div>
