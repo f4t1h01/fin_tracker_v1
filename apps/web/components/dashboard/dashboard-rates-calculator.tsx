@@ -81,21 +81,19 @@ export function DashboardRatesCalculator({ currencies, rates }: DashboardRatesCa
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="space-y-4">
-          <div className="detail-box space-y-3 px-4 py-4">
-            <label className="space-y-2 text-sm">
-              <span className="field-label text-[13px] uppercase tracking-[0.14em]">Amount</span>
-              <TextField
-                value={amount}
-                onChange={(event) => setAmount(event.target.value)}
-                type="text"
-                inputMode="decimal"
-                placeholder="1"
-                className={cn(
-                  "min-h-14 border-transparent bg-[color-mix(in_srgb,var(--warm-white)_86%,transparent)] px-4 font-[family-name:var(--font-body)] text-[28px] font-medium leading-none tracking-[0.01em] text-[var(--ink)] shadow-[inset_0_0_0_1px_rgba(201,168,76,0.14)] placeholder:text-[var(--ink-soft)] focus-visible:border-[rgba(201,168,76,0.22)]"
-                )}
-              />
-            </label>
-          </div>
+          <label className="block space-y-2 text-sm">
+            <span className="field-label text-[13px] uppercase tracking-[0.14em]">Amount</span>
+            <TextField
+              value={amount}
+              onChange={(event) => setAmount(event.target.value)}
+              type="text"
+              inputMode="decimal"
+              placeholder="1"
+              className={cn(
+                "min-h-16 border-[rgba(201,168,76,0.16)] bg-[color-mix(in_srgb,var(--warm-white)_86%,transparent)] px-4 font-[family-name:var(--font-body)] text-[clamp(26px,3.5vw,38px)] font-medium leading-none tracking-[0.01em] text-[var(--ink)] tabular-nums placeholder:text-[var(--ink-soft)] focus-visible:border-[rgba(201,168,76,0.22)]"
+              )}
+            />
+          </label>
 
           <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] lg:items-end">
             <label className="space-y-2 text-[15px]">
@@ -103,7 +101,8 @@ export function DashboardRatesCalculator({ currencies, rates }: DashboardRatesCa
               <SelectField
                 value={fromCurrency}
                 onChange={(event) => setFromCurrency(event.target.value as SupportedCurrency)}
-                className="text-[15px] [&>button]:min-h-14 [&>button]:px-4"
+                triggerClassName="min-h-16 px-4 text-[18px] font-medium [&>span]:text-[18px]"
+                optionClassName="text-[16px]"
               >
                 {currencies.map((currency) => (
                   <option key={currency} value={currency}>
@@ -134,7 +133,8 @@ export function DashboardRatesCalculator({ currencies, rates }: DashboardRatesCa
               <SelectField
                 value={toCurrency}
                 onChange={(event) => setToCurrency(event.target.value as SupportedCurrency)}
-                className="text-[15px] [&>button]:min-h-14 [&>button]:px-4"
+                triggerClassName="min-h-16 px-4 text-[18px] font-medium [&>span]:text-[18px]"
+                optionClassName="text-[16px]"
               >
                 {currencies.map((currency) => (
                   <option key={currency} value={currency}>
@@ -147,10 +147,10 @@ export function DashboardRatesCalculator({ currencies, rates }: DashboardRatesCa
 
           <div className="detail-box space-y-2 px-4 py-4">
             <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--ink-soft)]">
-              {currencyLabels[fromCurrency]} to {currencyLabels[toCurrency]}
+              Output {toCurrency}
             </p>
             <p className="font-[family-name:var(--font-body)] text-[clamp(24px,3.6vw,36px)] font-medium leading-[1.05] tabular-nums text-[var(--ink)]">
-              {formatAmount(parsedAmount)} {fromCurrency} = {formatAmount(convertedAmount)} {toCurrency}
+              {formatAmount(convertedAmount)} {toCurrency}
             </p>
           </div>
         </div>

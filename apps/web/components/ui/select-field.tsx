@@ -8,6 +8,8 @@ import { cn } from "@/lib/cn";
 
 export type SelectFieldProps = React.SelectHTMLAttributes<HTMLSelectElement> & {
   placeholder?: string;
+  optionClassName?: string;
+  triggerClassName?: string;
 };
 
 type SelectOptionItem = {
@@ -37,7 +39,7 @@ function readNodeText(node: React.ReactNode): string {
   return "";
 }
 
-const SelectField = React.forwardRef<HTMLSelectElement, SelectFieldProps>(({ className, children, disabled, name, onBlur, onChange, placeholder, required, value, ...props }, ref) => {
+const SelectField = React.forwardRef<HTMLSelectElement, SelectFieldProps>(({ className, children, disabled, name, onBlur, onChange, optionClassName, placeholder, required, triggerClassName, value, ...props }, ref) => {
   const [open, setOpen] = React.useState(false);
   const [mounted, setMounted] = React.useState(false);
   const rootRef = React.useRef<HTMLDivElement | null>(null);
@@ -126,7 +128,7 @@ const SelectField = React.forwardRef<HTMLSelectElement, SelectFieldProps>(({ cla
         disabled={disabled}
         aria-haspopup="listbox"
         aria-expanded={open}
-        className="field-control field-select flex w-full items-center justify-between gap-3 text-left"
+        className={cn("field-control field-select flex w-full items-center justify-between gap-3 text-left", triggerClassName)}
         onClick={() => setOpen((current) => !current)}
         onBlur={(event) => onBlur?.({
           ...event,
@@ -164,7 +166,8 @@ const SelectField = React.forwardRef<HTMLSelectElement, SelectFieldProps>(({ cla
                 className={cn(
                   "flex w-full items-center justify-between gap-3 rounded-[10px] px-3 py-2 text-left text-sm transition-colors",
                   isSelected ? "bg-[color-mix(in_srgb,var(--gold)_12%,transparent)] text-[var(--ink)]" : "text-[var(--ink-soft)] hover:bg-[color-mix(in_srgb,var(--gold)_8%,transparent)] hover:text-[var(--ink)]",
-                  option.disabled ? "cursor-not-allowed opacity-45" : ""
+                  option.disabled ? "cursor-not-allowed opacity-45" : "",
+                  optionClassName
                 )}
                 onClick={() => handleSelect(option.value)}
               >
