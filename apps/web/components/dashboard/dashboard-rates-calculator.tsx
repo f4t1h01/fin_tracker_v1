@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { SelectField } from "@/components/ui/select-field";
 import { TextField } from "@/components/ui/text-field";
+import { cn } from "@/lib/cn";
 
 import { currencyLabels, type SupportedCurrency } from "@/components/profile/types";
 
@@ -79,65 +80,79 @@ export function DashboardRatesCalculator({ currencies, rates }: DashboardRatesCa
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="grid gap-3 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,0.9fr)_auto_minmax(0,0.9fr)] lg:items-end">
-          <label className="space-y-1 text-sm">
-            <span className="field-label">Amount</span>
-            <TextField
-              value={amount}
-              onChange={(event) => setAmount(event.target.value)}
-              type="number"
-              min="0"
-              step="any"
-              inputMode="decimal"
-              placeholder="1"
-            />
-          </label>
-          <label className="space-y-1 text-sm">
-            <span className="field-label">From</span>
-            <SelectField value={fromCurrency} onChange={(event) => setFromCurrency(event.target.value as SupportedCurrency)}>
-              {currencies.map((currency) => (
-                <option key={currency} value={currency}>
-                  {currency}
-                </option>
-              ))}
-            </SelectField>
-          </label>
-          <Button
-            type="button"
-            variant="outline"
-            className="w-full lg:w-auto"
-            disabled={!canSwap}
-            onClick={() => {
-              if (!canSwap) {
-                return;
-              }
+        <div className="space-y-4">
+          <div className="detail-box space-y-3 px-4 py-4">
+            <label className="space-y-2 text-sm">
+              <span className="field-label text-[13px] uppercase tracking-[0.14em]">Amount</span>
+              <TextField
+                value={amount}
+                onChange={(event) => setAmount(event.target.value)}
+                type="text"
+                inputMode="decimal"
+                placeholder="1"
+                className={cn(
+                  "min-h-14 border-transparent bg-[color-mix(in_srgb,var(--warm-white)_86%,transparent)] px-4 font-[family-name:var(--font-body)] text-[28px] font-medium leading-none tracking-[0.01em] text-[var(--ink)] shadow-[inset_0_0_0_1px_rgba(201,168,76,0.14)] placeholder:text-[var(--ink-soft)] focus-visible:border-[rgba(201,168,76,0.22)]"
+                )}
+              />
+            </label>
+          </div>
 
-              setFromCurrency(toCurrency);
-              setToCurrency(fromCurrency);
-            }}
-          >
-            <ArrowRightLeft className="size-4" />
-            Swap
-          </Button>
-          <label className="space-y-1 text-sm">
-            <span className="field-label">To</span>
-            <SelectField value={toCurrency} onChange={(event) => setToCurrency(event.target.value as SupportedCurrency)}>
-              {currencies.map((currency) => (
-                <option key={currency} value={currency}>
-                  {currency}
-                </option>
-              ))}
-            </SelectField>
-          </label>
-        </div>
+          <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] lg:items-end">
+            <label className="space-y-2 text-[15px]">
+              <span className="field-label text-[14px] uppercase tracking-[0.14em]">From</span>
+              <SelectField
+                value={fromCurrency}
+                onChange={(event) => setFromCurrency(event.target.value as SupportedCurrency)}
+                className="text-[15px] [&>button]:min-h-14 [&>button]:px-4"
+              >
+                {currencies.map((currency) => (
+                  <option key={currency} value={currency}>
+                    {currency}
+                  </option>
+                ))}
+              </SelectField>
+            </label>
+            <Button
+              type="button"
+              variant="outline"
+              className="min-h-14 w-full !justify-start px-6 py-4 text-[14px] font-semibold uppercase tracking-[0.14em] lg:w-auto lg:flex-none"
+              disabled={!canSwap}
+              onClick={() => {
+                if (!canSwap) {
+                  return;
+                }
 
-        <div className="detail-box space-y-2 px-4 py-4">
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--ink-soft)]">
-            {currencyLabels[fromCurrency]} to {currencyLabels[toCurrency]}
-          </p>
-          <p className="font-[family-name:var(--font-body)] text-[clamp(24px,3.6vw,36px)] font-medium leading-[1.05] tabular-nums text-[var(--ink)]">
-            {formatAmount(parsedAmount)} {fromCurrency} = {formatAmount(convertedAmount)} {toCurrency}
-          </p>
+                setFromCurrency(toCurrency);
+                setToCurrency(fromCurrency);
+              }}
+            >
+              <ArrowRightLeft className="size-4" />
+              Swap
+            </Button>
+            <label className="space-y-2 text-[15px]">
+              <span className="field-label text-[14px] uppercase tracking-[0.14em]">To</span>
+              <SelectField
+                value={toCurrency}
+                onChange={(event) => setToCurrency(event.target.value as SupportedCurrency)}
+                className="text-[15px] [&>button]:min-h-14 [&>button]:px-4"
+              >
+                {currencies.map((currency) => (
+                  <option key={currency} value={currency}>
+                    {currency}
+                  </option>
+                ))}
+              </SelectField>
+            </label>
+          </div>
+
+          <div className="detail-box space-y-2 px-4 py-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--ink-soft)]">
+              {currencyLabels[fromCurrency]} to {currencyLabels[toCurrency]}
+            </p>
+            <p className="font-[family-name:var(--font-body)] text-[clamp(24px,3.6vw,36px)] font-medium leading-[1.05] tabular-nums text-[var(--ink)]">
+              {formatAmount(parsedAmount)} {fromCurrency} = {formatAmount(convertedAmount)} {toCurrency}
+            </p>
+          </div>
         </div>
       </CardContent>
     </Card>
