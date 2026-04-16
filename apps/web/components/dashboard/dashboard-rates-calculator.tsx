@@ -6,7 +6,6 @@ import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { SelectField } from "@/components/ui/select-field";
-import { TextField } from "@/components/ui/text-field";
 
 import type { SupportedCurrency } from "@/components/profile/types";
 
@@ -79,24 +78,24 @@ export function DashboardRatesCalculator({ currencies, rates }: DashboardRatesCa
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="grid gap-3 xl:grid-cols-[minmax(220px,1.15fr)_minmax(180px,0.9fr)_auto_minmax(180px,0.9fr)_minmax(220px,1.15fr)] xl:items-stretch">
-          <div className="detail-box flex min-h-16 items-center px-4 py-3">
-            <TextField
+        <div className="grid gap-3 xl:grid-cols-[minmax(220px,1.08fr)_minmax(180px,0.84fr)_auto_minmax(180px,0.84fr)_minmax(250px,1.16fr)] xl:items-stretch">
+          <div className="detail-box flex min-h-[90px] items-center px-5 py-4">
+            <input
               value={amount}
               onChange={(event) => setAmount(event.target.value)}
               type="text"
               inputMode="decimal"
               placeholder="Amount"
-              className="min-h-0 border-0 bg-transparent px-0 py-0 font-[family-name:var(--font-body)] text-[clamp(24px,3vw,36px)] font-medium leading-[1.05] tracking-[0.01em] text-[var(--ink)] tabular-nums placeholder:text-[var(--ink-soft)] focus-visible:ring-0"
+              className="w-full border-0 bg-transparent p-0 font-[family-name:var(--font-body)] text-[clamp(24px,3vw,36px)] font-medium leading-[1.05] tracking-[0.01em] text-[var(--ink)] tabular-nums outline-none placeholder:text-[var(--ink-soft)]"
             />
           </div>
 
-          <label className="space-y-2 text-[15px]">
-            <span className="field-label text-[15px] uppercase tracking-[0.14em]">From</span>
+          <div className="detail-box flex min-h-[90px] flex-col justify-center space-y-2 px-5 py-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--ink-soft)]">From</p>
             <SelectField
               value={fromCurrency}
               onChange={(event) => setFromCurrency(event.target.value as SupportedCurrency)}
-              triggerClassName="min-h-16 px-5 text-[20px] font-medium [&>span]:text-[20px]"
+              triggerClassName="min-h-0 border-0 bg-transparent px-0 py-0 text-[20px] font-medium shadow-none [&>span]:text-[20px]"
               optionClassName="text-[18px]"
             >
               {currencies.map((currency) => (
@@ -105,12 +104,12 @@ export function DashboardRatesCalculator({ currencies, rates }: DashboardRatesCa
                 </option>
               ))}
             </SelectField>
-          </label>
+          </div>
 
-          <div className="flex items-end">
+          <div className="flex items-stretch xl:items-center">
             <Button
               type="button"
-              className="min-h-12 w-full !justify-start px-6 py-4 text-[14px] font-semibold uppercase tracking-[0.14em] xl:w-auto xl:min-w-[170px] xl:flex-none [&>span]:flex [&>span]:w-full [&>span]:items-center [&>span]:gap-2"
+              className="min-h-[90px] w-full !justify-start px-6 py-4 text-[14px] font-semibold uppercase tracking-[0.14em] xl:w-auto xl:min-w-[170px] xl:flex-none [&>span]:flex [&>span]:w-full [&>span]:items-center [&>span]:gap-2"
               disabled={!canSwap}
               onClick={() => {
                 if (!canSwap) {
@@ -126,12 +125,12 @@ export function DashboardRatesCalculator({ currencies, rates }: DashboardRatesCa
             </Button>
           </div>
 
-          <label className="space-y-2 text-[15px]">
-            <span className="field-label text-[15px] uppercase tracking-[0.14em]">To</span>
+          <div className="detail-box flex min-h-[90px] flex-col justify-center space-y-2 px-5 py-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--ink-soft)]">To</p>
             <SelectField
               value={toCurrency}
               onChange={(event) => setToCurrency(event.target.value as SupportedCurrency)}
-              triggerClassName="min-h-16 px-5 text-[20px] font-medium [&>span]:text-[20px]"
+              triggerClassName="min-h-0 border-0 bg-transparent px-0 py-0 text-[20px] font-medium shadow-none [&>span]:text-[20px]"
               optionClassName="text-[18px]"
             >
               {currencies.map((currency) => (
@@ -140,9 +139,9 @@ export function DashboardRatesCalculator({ currencies, rates }: DashboardRatesCa
                 </option>
               ))}
             </SelectField>
-          </label>
+          </div>
 
-          <div className="detail-box flex min-h-16 flex-col justify-center space-y-2 px-4 py-3">
+          <div className="detail-box flex min-h-[90px] flex-col justify-center space-y-2 px-5 py-4">
             <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--ink-soft)]">
               Output {toCurrency}
             </p>
