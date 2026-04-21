@@ -115,27 +115,27 @@ export function AiFeaturesPanel(props: AiFeaturesPanelProps) {
         <Button
           type="button"
           variant="outline"
-          className="!rounded-full border-[rgba(201,168,76,0.28)] bg-[color-mix(in_srgb,var(--warm-white)_82%,transparent)] px-4 py-3 text-[12px] font-semibold tracking-[0.14em]"
+          className="min-h-[56px] !rounded-full border-[rgba(201,168,76,0.28)] bg-[color-mix(in_srgb,var(--warm-white)_82%,transparent)] px-6 py-3 text-[13px] font-semibold tracking-[0.16em] shadow-[0_10px_26px_rgba(26,20,16,0.08)]"
           onClick={() => {
             setIsOpen(true);
             setActiveFeature("menu");
           }}
         >
-          <Sparkles className="size-4" />
+          <Sparkles className="size-[18px]" />
           AI Features
         </Button>
       </div>
 
       {isOpen && portalTarget
         ? createPortal(
-            <div className="fixed inset-0 z-[200] overflow-y-auto overscroll-contain bg-[var(--modal-scrim)] backdrop-blur-[28px] backdrop-saturate-150">
+            <div className="ai-features-overlay fixed inset-0 z-[200] overflow-y-auto overscroll-contain bg-[var(--modal-scrim)] backdrop-saturate-150">
               <div className="flex min-h-[100dvh] items-center justify-center p-4 md:p-8">
                 <div
                   ref={dialogRef}
                   role="dialog"
                   aria-modal="true"
                   aria-label="AI tools"
-                  className="flex max-h-[calc(100dvh-2rem)] w-full max-w-xl flex-col overflow-hidden rounded-[28px] border border-[rgba(201,168,76,0.12)] bg-[var(--surface-glass)] p-5 shadow-[0_24px_56px_rgba(26,20,16,0.2)] backdrop-blur-[18px] md:max-h-[calc(100dvh-4rem)]"
+                  className="ai-features-dialog flex max-h-[calc(100dvh-2rem)] w-full max-w-xl flex-col overflow-hidden rounded-[28px] border border-[rgba(201,168,76,0.12)] bg-[var(--surface-glass)] p-5 shadow-[0_24px_56px_rgba(26,20,16,0.2)] backdrop-blur-[18px] md:max-h-[calc(100dvh-4rem)]"
                 >
                   <div className="flex shrink-0 items-start justify-between gap-4">
                     <div className="space-y-2">

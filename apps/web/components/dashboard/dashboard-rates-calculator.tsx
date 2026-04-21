@@ -109,7 +109,7 @@ export function DashboardRatesCalculator({ currencies, rates }: DashboardRatesCa
           <div className="flex items-stretch xl:items-center">
             <Button
               type="button"
-              className="min-h-[90px] w-full !justify-start px-6 py-4 text-[14px] font-semibold uppercase tracking-[0.14em] xl:w-auto xl:min-w-[170px] xl:flex-none [&>span]:flex [&>span]:w-full [&>span]:items-center [&>span]:gap-2"
+              className="min-h-[90px] w-full px-4 py-4 xl:w-auto xl:min-w-[96px] xl:flex-none [&>span]:flex [&>span]:w-full [&>span]:items-center [&>span]:justify-center"
               disabled={!canSwap}
               onClick={() => {
                 if (!canSwap) {
@@ -119,9 +119,10 @@ export function DashboardRatesCalculator({ currencies, rates }: DashboardRatesCa
                 setFromCurrency(toCurrency);
                 setToCurrency(fromCurrency);
               }}
+              aria-label="Swap currencies"
+              title="Swap currencies"
             >
-              <ArrowRightLeft className="size-4" />
-              Swap
+              <ArrowRightLeft className="size-6" />
             </Button>
           </div>
 

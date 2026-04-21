@@ -1299,9 +1299,47 @@ html[data-theme="dark"] .field-control {
   opacity: 0.64;
 }
 
+.ai-features-overlay {
+  animation: aiFeaturesOverlayIn 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.ai-features-dialog {
+  transform-origin: center bottom;
+  animation: aiFeaturesDialogIn 460ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
 @keyframes fadeUp {
   from { opacity: 0; transform: translateY(30px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes aiFeaturesOverlayIn {
+  from {
+    opacity: 0;
+    backdrop-filter: blur(0px) saturate(100%);
+  }
+  to {
+    opacity: 1;
+    backdrop-filter: blur(28px) saturate(150%);
+  }
+}
+
+@keyframes aiFeaturesDialogIn {
+  0% {
+    opacity: 0;
+    transform: translateY(28px) scale(0.96);
+    filter: blur(14px);
+  }
+  55% {
+    opacity: 1;
+    transform: translateY(-2px) scale(1.01);
+    filter: blur(4px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
 }
 
 @keyframes fadeIn {
@@ -1395,8 +1433,16 @@ html[data-theme="dark"] .field-control {
   .ticker-track,
   .avatar-circle,
   .code-box,
-  .heart-beat {
+  .heart-beat,
+  .ai-features-overlay,
+  .ai-features-dialog {
     animation: none !important;
+  }
+
+  .ai-features-overlay,
+  .ai-features-dialog {
+    filter: none !important;
+    backdrop-filter: none !important;
   }
 
   .cursor-orbit {
