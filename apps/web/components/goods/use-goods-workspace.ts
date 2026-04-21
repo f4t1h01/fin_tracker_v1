@@ -111,6 +111,15 @@ export function useGoodsWorkspace(options?: UseGoodsWorkspaceOptions) {
   const [categoryScope, setCategoryScope] = useState<GoodsScope>("PERSONAL");
   const [categoryName, setCategoryName] = useState("");
 
+  const canCreateItem = Boolean(
+    createItemForm.name.trim() &&
+      createItemForm.quantity.trim() &&
+      createItemForm.placeId &&
+      createItemForm.categoryId &&
+      createItemForm.uomId &&
+      snapshot?.catalog.uoms.some((item) => item.id === createItemForm.uomId),
+  );
+
   useEffect(() => {
     const storedToken = window.localStorage.getItem(tokenKey);
     setToken(storedToken);
@@ -308,6 +317,11 @@ export function useGoodsWorkspace(options?: UseGoodsWorkspaceOptions) {
   }, [apiFetch, categoryName, categoryScope, runMutation]);
 
   const onCreateItem = useCallback(async () => {
+    if (!snapshot?.catalog.uoms.some((item) => item.id === createItemForm.uomId)) {
+      setError("Choose a valid unit of measure before saving.");
+      return;
+    }
+
     await runMutation("Goods item added.", async () => {
       await apiFetch("/profile/me/goods/items", {
         method: "POST",
@@ -327,7 +341,7 @@ export function useGoodsWorkspace(options?: UseGoodsWorkspaceOptions) {
         uomId: current.uomId
       }));
     });
-  }, [apiFetch, createItemForm, runMutation]);
+  }, [apiFetch, createItemForm, runMutation, snapshot?.catalog.uoms]);
 
   const onStockMutation = useCallback(
     async (itemId: string, path: string, quantity: number, reason?: string) => {
@@ -477,6 +491,7 @@ export function useGoodsWorkspace(options?: UseGoodsWorkspaceOptions) {
     setCategoryScope,
     categoryName,
     setCategoryName,
+    canCreateItem,
     refreshSnapshot,
     refreshManagement,
     refreshList,

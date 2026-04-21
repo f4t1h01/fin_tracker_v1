@@ -127,7 +127,7 @@ export class CreateGoodsItemDto {
   @IsPrismaEntityId()
   categoryId!: string;
 
-  @IsPrismaEntityId()
+  @IsPrismaEntityId({ message: "Choose a valid unit of measure." })
   uomId!: string;
 
   @IsString()
@@ -181,7 +181,7 @@ export class UpdateGoodsItemDto {
   categoryId?: string;
 
   @IsOptional()
-  @IsPrismaEntityId()
+  @IsPrismaEntityId({ message: "Choose a valid unit of measure." })
   uomId?: string;
 
   @IsOptional()

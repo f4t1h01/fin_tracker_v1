@@ -95,7 +95,7 @@ export function GoodsOverviewPage() {
               </div>
             </div>
             <TextareaField value={workspace.createItemForm.note} onChange={(event) => workspace.setCreateItemForm((current) => ({ ...current, note: event.target.value }))} placeholder="Optional note" rows={3} />
-            <Button type="button" disabled={workspace.isSubmitting} onClick={() => void workspace.onCreateItem()}>
+            <Button type="button" disabled={workspace.isSubmitting || !workspace.canCreateItem} onClick={() => void workspace.onCreateItem()}>
               Add goods item
             </Button>
           </CardContent>
