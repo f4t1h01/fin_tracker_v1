@@ -1,7 +1,7 @@
 import { Transform, Type } from "class-transformer";
 import { IsBoolean, IsIn, IsNumber, IsOptional, IsString, MaxLength, Min } from "class-validator";
 
-import { IsPrismaEntityId } from "../../common/prisma-id.validator";
+import { IsGoodsUomId, IsPrismaEntityId } from "../../common/prisma-id.validator";
 
 const goodsScopes = ["PERSONAL", "SHARED"] as const;
 const consumptionUnits = ["HOUR", "DAY", "WEEK", "PERMANENT"] as const;
@@ -127,7 +127,7 @@ export class CreateGoodsItemDto {
   @IsPrismaEntityId()
   categoryId!: string;
 
-  @IsPrismaEntityId({ message: "Choose a valid unit of measure." })
+  @IsGoodsUomId({ message: "Choose a valid unit of measure." })
   uomId!: string;
 
   @IsString()
@@ -181,7 +181,7 @@ export class UpdateGoodsItemDto {
   categoryId?: string;
 
   @IsOptional()
-  @IsPrismaEntityId({ message: "Choose a valid unit of measure." })
+  @IsGoodsUomId({ message: "Choose a valid unit of measure." })
   uomId?: string;
 
   @IsOptional()
