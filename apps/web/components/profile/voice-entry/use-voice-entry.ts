@@ -15,14 +15,12 @@ type UseVoiceEntryOptions = {
 };
 
 const VOICE_VISUALIZER_LEVEL_COUNT = 24;
-const VOICE_VISUALIZER_UPDATE_INTERVAL_MS = 72;
-const VOICE_VISUALIZER_SMOOTHING_FACTOR = 0.18;
+const VOICE_VISUALIZER_UPDATE_INTERVAL_MS = 48;
+const VOICE_VISUALIZER_SMOOTHING_FACTOR = 0.32;
+const VOICE_VISUALIZER_NOISE_FLOOR = 0.018;
 const DEFAULT_VISUALIZER_LEVELS = Array.from(
   { length: VOICE_VISUALIZER_LEVEL_COUNT },
-  (_, index) => {
-    const phase = (index / VOICE_VISUALIZER_LEVEL_COUNT) * Math.PI * 2;
-    return Math.min(0.42, Math.max(0.16, 0.24 + Math.sin(phase) * 0.06));
-  },
+  () => 0,
 );
 
 function cloneVisualizerLevels(levels: readonly number[]) {
@@ -51,17 +49,24 @@ function buildVisualizerLevels(samples: Uint8Array<ArrayBuffer>) {
       Math.floor((samples.length * (index + 1)) / VOICE_VISUALIZER_LEVEL_COUNT),
     );
 
-    let sum = 0;
+    let sumSquares = 0;
+    let peak = 0;
     let count = 0;
     for (let cursor = start; cursor < end; cursor += 1) {
       const centered = Math.abs((samples[cursor] ?? 128) - 128) / 128;
-      sum += centered;
+      sumSquares += centered * centered;
+      peak = Math.max(peak, centered);
       count += 1;
     }
 
-    const average = count > 0 ? sum / count : 0;
-    const boosted = Math.pow(average, 0.82) + 0.05;
-    nextLevels.push(Math.min(1, Math.max(0.12, boosted)));
+    const rms = count > 0 ? Math.sqrt(sumSquares / count) : 0;
+    const gated = Math.max(
+      0,
+      (rms - VOICE_VISUALIZER_NOISE_FLOOR) /
+        (1 - VOICE_VISUALIZER_NOISE_FLOOR),
+    );
+    const boosted = Math.pow(gated, 0.58) * 1.35 + peak * 0.18;
+    nextLevels.push(Math.min(1, Math.max(0, boosted)));
   }
 
   return nextLevels;
@@ -220,7 +225,7 @@ export function useVoiceEntry(options: UseVoiceEntryOptions) {
 
         const analyser = audioContext.createAnalyser();
         analyser.fftSize = 128;
-        analyser.smoothingTimeConstant = 0.85;
+        analyser.smoothingTimeConstant = 0.68;
         analyserRef.current = analyser;
 
         source.connect(analyser);

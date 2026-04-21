@@ -48,10 +48,7 @@ const DEFAULT_VOICE_RECORDER_STYLE: VoiceRecorderStyle = {
   "--voice-recorder-visualizer-bar-radius": "999px"
 };
 
-const DEFAULT_VISUALIZER_LEVELS = Array.from({ length: 24 }, (_, index) => {
-  const wave = Math.sin((index / 24) * Math.PI * 2) * 0.07;
-  return Math.min(0.42, Math.max(0.16, 0.22 + wave));
-});
+const DEFAULT_VISUALIZER_LEVELS = Array.from({ length: 24 }, () => 0);
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
@@ -67,15 +64,15 @@ function resampleVisualizerLevels(levels: readonly number[], targetCount: number
   }
 
   if (levels.length === 0) {
-    return Array.from({ length: targetCount }, () => 0.16);
+    return Array.from({ length: targetCount }, () => 0);
   }
 
   if (targetCount === 1) {
-    return [levels[0] ?? 0.16];
+    return [levels[0] ?? 0];
   }
 
   if (levels.length === 1) {
-    return Array.from({ length: targetCount }, () => levels[0] ?? 0.16);
+    return Array.from({ length: targetCount }, () => levels[0] ?? 0);
   }
 
   return Array.from({ length: targetCount }, (_, index) => {
@@ -83,7 +80,7 @@ function resampleVisualizerLevels(levels: readonly number[], targetCount: number
     const leftIndex = Math.floor(position);
     const rightIndex = Math.min(levels.length - 1, leftIndex + 1);
     const blend = position - leftIndex;
-    const left = levels[leftIndex] ?? 0.16;
+    const left = levels[leftIndex] ?? 0;
     const right = levels[rightIndex] ?? left;
 
     return left + (right - left) * blend;
@@ -187,7 +184,7 @@ export function VoiceRecorderButton(props: VoiceRecorderButtonProps) {
 
       <span ref={visualizerTrackRef} className={cn("voice-recorder-visualizer flex-1", props.isRecording ? "is-recording" : props.isBusy ? "is-busy" : "is-idle")} aria-hidden="true">
         {barLevels.map((level, index) => {
-          const normalizedLevel = clamp(level, 0.12, 1);
+          const normalizedLevel = clamp(level, 0, 1);
 
           return (
             <span
