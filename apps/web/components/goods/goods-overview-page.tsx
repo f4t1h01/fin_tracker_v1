@@ -15,6 +15,67 @@ import { TextareaField } from "@/components/ui/textarea-field";
 
 import { useGoodsWorkspace } from "./use-goods-workspace";
 
+const advisorStarterPrompts = [
+  "What can I cook for dinner?",
+  "Give me a quick dinner for 2",
+  "Use items that expire soon",
+  "Suggest something healthy tonight"
+];
+
+function RecipeSuggestionCard(props: {
+  heading: string;
+  recipe: {
+    title: string;
+    whyItFits: string;
+    usesItems: string[];
+    missingItems: string[];
+    steps: string[];
+    wasteReductionNotes: string[];
+    recipePreview: {
+      label: string;
+      url: string;
+      sourceLabel: string;
+    } | null;
+  };
+  showMissingItems?: boolean;
+}) {
+  return (
+    <div className="rounded-[28px] border border-[rgba(201,168,76,0.16)] bg-[rgba(255,248,231,0.5)] p-4">
+      <div className="mb-3 flex items-start justify-between gap-3">
+        <div>
+          <p className="body-muted text-[11px] uppercase tracking-[0.18em]">{props.heading}</p>
+          <h4 className="mt-1 text-base font-semibold">{props.recipe.title}</h4>
+        </div>
+        {props.recipe.recipePreview ? (
+          <Button asChild size="sm" variant="outline">
+            <a href={props.recipe.recipePreview.url} target="_blank" rel="noreferrer">
+              {props.recipe.recipePreview.label}
+            </a>
+          </Button>
+        ) : null}
+      </div>
+
+      <p className="text-sm leading-6">{props.recipe.whyItFits}</p>
+      <p className="body-muted mt-3 text-xs">Uses: {props.recipe.usesItems.join(", ") || "Tracked goods are limited"}</p>
+      {props.showMissingItems && props.recipe.missingItems.length ? (
+        <p className="body-muted mt-2 text-xs">Buy: {props.recipe.missingItems.join(", ")}</p>
+      ) : null}
+      {props.recipe.wasteReductionNotes.length ? (
+        <p className="body-muted mt-2 text-xs">Waste saver: {props.recipe.wasteReductionNotes.join(" ")}</p>
+      ) : null}
+
+      <ol className="mt-3 space-y-2 text-sm">
+        {props.recipe.steps.map((step, index) => (
+          <li key={`${props.recipe.title}-${index}`} className="rounded-2xl border border-[rgba(201,168,76,0.12)] px-3 py-2">
+            {index + 1}. {step}
+          </li>
+        ))}
+      </ol>
+      {props.recipe.recipePreview ? <p className="body-muted mt-3 text-[11px] uppercase tracking-[0.14em]">{props.recipe.recipePreview.sourceLabel}</p> : null}
+    </div>
+  );
+}
+
 export function GoodsOverviewPage() {
   const workspace = useGoodsWorkspace();
   const isPageReady = workspace.isReady && (!workspace.token || Boolean(workspace.snapshot || workspace.error));
@@ -48,6 +109,98 @@ export function GoodsOverviewPage() {
 
       {workspace.error ? <p className="status-error mb-4 text-sm">{workspace.error}</p> : null}
       {workspace.statusMessage ? <p className="status-success mb-4 text-sm">{workspace.statusMessage}</p> : null}
+
+      <section className="mb-6">
+        <Card className="panel-soft overflow-hidden">
+          <CardHeader>
+            <CardTitle>AI Dinner Advisor</CardTitle>
+            <p className="body-muted text-sm">
+              Ask for dinner ideas based on your tracked goods. The advisor keeps the reply compact: two pantry meals and one minimal-buy option.
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex flex-wrap gap-2">
+              {advisorStarterPrompts.map((prompt) => (
+                <Button
+                  key={prompt}
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={workspace.isAdvisorSubmitting}
+                  onClick={() => void workspace.onAskDinnerAdvisor(prompt)}
+                >
+                  {prompt}
+                </Button>
+              ))}
+            </div>
+
+            <div className="grid gap-3 md:grid-cols-[180px_minmax(0,1fr)_auto]">
+              <SelectField value={workspace.advisorScope} onChange={(event) => workspace.setAdvisorScope(event.target.value as typeof workspace.advisorScope)}>
+                <option value="AUTO">All available goods</option>
+                <option value="PERSONAL">Personal only</option>
+                {snapshot.workspace.hasPartnerConnection ? <option value="SHARED">Shared only</option> : null}
+              </SelectField>
+              <TextField
+                value={workspace.advisorDraft}
+                onChange={(event) => workspace.setAdvisorDraft(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    void workspace.onAskDinnerAdvisor();
+                  }
+                }}
+                placeholder="Ask for dinner ideas, for example quick dinner for 2"
+              />
+              <Button type="button" disabled={workspace.isAdvisorSubmitting} onClick={() => void workspace.onAskDinnerAdvisor()}>
+                {workspace.isAdvisorSubmitting ? "Thinking..." : "Ask advisor"}
+              </Button>
+            </div>
+
+            {workspace.advisorError ? <p className="status-error text-sm">{workspace.advisorError}</p> : null}
+
+            <div className="space-y-4">
+              {workspace.advisorChat.length ? (
+                workspace.advisorChat.map((entry) => (
+                  <div key={entry.id} className="space-y-3">
+                    <div className="ml-auto max-w-[90%] rounded-[28px] bg-[var(--ink)] px-4 py-3 text-sm text-[var(--paper)]">
+                      {entry.prompt}
+                    </div>
+
+                    {entry.response ? (
+                      <div className="rounded-[28px] border border-[rgba(201,168,76,0.2)] bg-[rgba(255,250,241,0.78)] p-4">
+                        <p className="text-sm leading-6">{entry.response.assistantMessage}</p>
+                        {entry.response.warnings.length ? (
+                          <div className="mt-3 space-y-1">
+                            {entry.response.warnings.map((warning, index) => (
+                              <p key={`${entry.id}-warning-${index}`} className="body-muted text-xs">
+                                {warning}
+                              </p>
+                            ))}
+                          </div>
+                        ) : null}
+
+                        <div className="mt-4 grid gap-4 xl:grid-cols-3">
+                          <RecipeSuggestionCard heading="Pantry meal 1" recipe={entry.response.pantryMeals[0]} />
+                          <RecipeSuggestionCard heading="Pantry meal 2" recipe={entry.response.pantryMeals[1]} />
+                          <RecipeSuggestionCard heading="Minimal buy" recipe={entry.response.minimalBuyMeal} showMissingItems />
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="max-w-[95%] rounded-[28px] border border-[rgba(201,168,76,0.2)] px-4 py-3 text-sm">
+                        Building dinner ideas from your current goods...
+                      </div>
+                    )}
+                  </div>
+                ))
+              ) : (
+                <div className="rounded-[28px] border border-dashed border-[rgba(201,168,76,0.24)] px-4 py-5 text-sm">
+                  Ask a dinner question and the advisor will return two pantry meals plus one minimal-buy option with a direct recipe button.
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </section>
 
       <section className="mb-6 grid gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
         <Card className="panel-soft">

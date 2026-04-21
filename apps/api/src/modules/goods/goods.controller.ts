@@ -4,6 +4,7 @@ import { CurrentUser } from "../auth/current-user.decorator";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import {
   CreateGoodsCategoryDto,
+  GoodsDinnerAdvisorDto,
   CreateGoodsItemDto,
   CreateGoodsPlaceDto,
   GoodsArchiveDto,
@@ -22,6 +23,11 @@ import { GoodsService } from "./goods.service";
 @Controller("profile/me/goods")
 export class GoodsController {
   constructor(private readonly goodsService: GoodsService) {}
+
+  @Post("advisor/dinner")
+  dinnerAdvisor(@CurrentUser() user: { id: string }, @Body() dto: GoodsDinnerAdvisorDto) {
+    return this.goodsService.requestDinnerAdvice(user.id, dto);
+  }
 
   @Get("snapshot")
   snapshot(@CurrentUser() user: { id: string }) {

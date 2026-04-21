@@ -4,6 +4,7 @@ import { IsBoolean, IsIn, IsNumber, IsOptional, IsString, MaxLength, Min } from 
 import { IsGoodsUomId, IsPrismaEntityId } from "../../common/prisma-id.validator";
 
 const goodsScopes = ["PERSONAL", "SHARED"] as const;
+const goodsAdvisorScopes = ["AUTO", ...goodsScopes] as const;
 const consumptionUnits = ["HOUR", "DAY", "WEEK", "PERMANENT"] as const;
 const stockStatuses = ["FULL", "ENOUGH", "LOW", "OUT_OF_STOCK"] as const;
 const expirationStatuses = ["FRESH", "EXPIRING_SOON", "EXPIRED", "NO_EXPIRATION"] as const;
@@ -253,4 +254,14 @@ export class GoodsArchiveDto {
   @IsString()
   @MaxLength(200)
   reason?: string;
+}
+
+export class GoodsDinnerAdvisorDto {
+  @IsString()
+  @MaxLength(240)
+  message!: string;
+
+  @IsOptional()
+  @IsIn(goodsAdvisorScopes)
+  scope?: (typeof goodsAdvisorScopes)[number];
 }

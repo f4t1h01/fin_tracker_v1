@@ -1,4 +1,5 @@
 export type GoodsScope = "PERSONAL" | "SHARED";
+export type GoodsAdvisorScope = GoodsScope | "AUTO";
 export type GoodsConsumptionUnit = "HOUR" | "DAY" | "WEEK" | "PERMANENT";
 export type GoodsStockStatus = "FULL" | "ENOUGH" | "LOW" | "OUT_OF_STOCK";
 export type GoodsExpirationStatus = "FRESH" | "EXPIRING_SOON" | "EXPIRED" | "NO_EXPIRATION";
@@ -150,4 +151,36 @@ export type GoodsManagePlacesResponse = {
 
 export type GoodsManageCategoriesResponse = {
   items: GoodsManageCategory[];
+};
+
+export type GoodsRecipePreview = {
+  label: string;
+  url: string;
+  sourceType: "youtube_search" | "image_search";
+  sourceLabel: string;
+};
+
+export type GoodsDinnerRecipeSuggestion = {
+  title: string;
+  whyItFits: string;
+  usesItems: string[];
+  assumedStaples: string[];
+  missingItems: string[];
+  steps: string[];
+  confidence: number;
+  wasteReductionNotes: string[];
+  recipePreview: GoodsRecipePreview | null;
+};
+
+export type GoodsDinnerAdvisorResponse = {
+  assistantMessage: string;
+  pantryMeals: [GoodsDinnerRecipeSuggestion, GoodsDinnerRecipeSuggestion];
+  minimalBuyMeal: GoodsDinnerRecipeSuggestion;
+  warnings: string[];
+};
+
+export type GoodsAdvisorChatEntry = {
+  id: string;
+  prompt: string;
+  response: GoodsDinnerAdvisorResponse | null;
 };

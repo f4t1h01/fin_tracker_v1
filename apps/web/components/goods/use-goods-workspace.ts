@@ -7,7 +7,10 @@ import { parseApiResponse } from "@/components/profile/api";
 import { authSourceKey, tokenKey } from "@/components/profile/types";
 
 import type {
+  GoodsAdvisorChatEntry,
+  GoodsAdvisorScope,
   GoodsConsumptionUnit,
+  GoodsDinnerAdvisorResponse,
   GoodsHistoryResponse,
   GoodsItem,
   GoodsListResponse,
@@ -56,6 +59,10 @@ const defaultCreateItemForm = {
   consumptionRateUnit: "PERMANENT" as GoodsConsumptionUnit
 };
 
+function createClientMessageId() {
+  return `advisor-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
 function resolveVisibleScopedOptionId<T extends ScopedVisibleOption>(items: T[], scope: GoodsScope, currentId: string) {
   const scopedVisibleItems = items.filter((item) => item.scope === scope && item.isVisible);
 
@@ -91,6 +98,11 @@ export function useGoodsWorkspace(options?: UseGoodsWorkspaceOptions) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [historyByItemId, setHistoryByItemId] = useState<Record<string, GoodsHistoryResponse["items"]>>({});
+  const [advisorChat, setAdvisorChat] = useState<GoodsAdvisorChatEntry[]>([]);
+  const [advisorDraft, setAdvisorDraft] = useState("");
+  const [advisorScope, setAdvisorScope] = useState<GoodsAdvisorScope>("AUTO");
+  const [advisorError, setAdvisorError] = useState<string | null>(null);
+  const [isAdvisorSubmitting, setIsAdvisorSubmitting] = useState(false);
   const [listFilters, setListFilters] = useState<GoodsListFilters>({
     placeId: "",
     categoryId: "",
@@ -454,6 +466,44 @@ export function useGoodsWorkspace(options?: UseGoodsWorkspaceOptions) {
     [snapshot]
   );
 
+  const onAskDinnerAdvisor = useCallback(
+    async (overrideMessage?: string) => {
+      const prompt = (overrideMessage ?? advisorDraft).trim();
+      if (!prompt) {
+        setAdvisorError("Enter a dinner question first.");
+        return;
+      }
+
+      const nextId = createClientMessageId();
+      setAdvisorError(null);
+      setIsAdvisorSubmitting(true);
+      setAdvisorChat((current) => [...current, { id: nextId, prompt, response: null }]);
+
+      try {
+        const payload = await apiFetch<GoodsDinnerAdvisorResponse>("/profile/me/goods/advisor/dinner", {
+          method: "POST",
+          body: JSON.stringify({
+            message: prompt,
+            scope: advisorScope
+          })
+        });
+
+        setAdvisorChat((current) =>
+          current.map((entry) => (entry.id === nextId ? { ...entry, response: payload } : entry))
+        );
+        if (overrideMessage === undefined) {
+          setAdvisorDraft("");
+        }
+      } catch (reason) {
+        setAdvisorChat((current) => current.filter((entry) => entry.id !== nextId));
+        setAdvisorError(reason instanceof Error ? reason.message : "Could not get dinner advice");
+      } finally {
+        setIsAdvisorSubmitting(false);
+      }
+    },
+    [advisorDraft, advisorScope, apiFetch]
+  );
+
   const visiblePlaceOptions = useMemo(() => {
     const activeScope = createItemForm.scope;
     return snapshot?.catalog.places.filter((item) => item.scope === activeScope && item.isVisible) ?? [];
@@ -477,6 +527,13 @@ export function useGoodsWorkspace(options?: UseGoodsWorkspaceOptions) {
     isSubmitting,
     statusMessage,
     historyByItemId,
+    advisorChat,
+    advisorDraft,
+    setAdvisorDraft,
+    advisorScope,
+    setAdvisorScope,
+    advisorError,
+    isAdvisorSubmitting,
     listFilters,
     setListFilters,
     createItemForm,
@@ -500,6 +557,7 @@ export function useGoodsWorkspace(options?: UseGoodsWorkspaceOptions) {
     onCreateCategory,
     onCreateItem,
     onCreateItemScopeChange,
+    onAskDinnerAdvisor,
     onRestockItem: (itemId: string, quantity: number, reason?: string) => onStockMutation(itemId, "restock", quantity, reason),
     onConsumeItem: (itemId: string, quantity: number, reason?: string) => onStockMutation(itemId, "consume", quantity, reason),
     onReconcileItem: (itemId: string, quantity: number, reason?: string) => onStockMutation(itemId, "reconcile", quantity, reason),

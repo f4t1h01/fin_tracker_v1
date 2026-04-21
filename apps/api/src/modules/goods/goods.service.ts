@@ -1,8 +1,12 @@
-import { BadRequestException, Injectable, UnauthorizedException } from "@nestjs/common";
+import { BadRequestException, Injectable, ServiceUnavailableException, UnauthorizedException } from "@nestjs/common";
+import { createHash, randomUUID } from "node:crypto";
 
+import { AiUsageService } from "../ai/ai-usage.service";
 import { PrismaService } from "../prisma/prisma.service";
+import { OpenAiRequestError } from "../profile/voice/openai-request-error";
 import {
   CreateGoodsCategoryDto,
+  GoodsDinnerAdvisorDto,
   CreateGoodsItemDto,
   CreateGoodsPlaceDto,
   GoodsArchiveDto,
@@ -15,14 +19,41 @@ import {
   UpdateGoodsVisibilityDto,
   UpdateGoodsPlaceDto
 } from "./dto/goods.dto";
+import { GOODS_ADVISOR_CACHE_TTL_MS, GOODS_ADVISOR_ITEM_CAP, OPENAI_GOODS_ADVISOR_MODEL } from "./goods-advisor.constants";
+import type { GoodsDinnerRecipeSuggestion } from "./goods-dinner-advisor.schema";
+import { requestGoodsDinnerAdvice } from "./openai-goods-advisor.client";
 
 const goodsTimeZone = "Asia/Tashkent";
 const defaultGoodsCategories = ["Vegetables", "Fruits", "Meat", "Dairy", "Drinks", "Snacks", "Other"] as const;
 
 type GoodsScope = "PERSONAL" | "SHARED";
+type GoodsAdvisorScope = GoodsScope | "AUTO";
 type GoodsConsumptionUnit = "HOUR" | "DAY" | "WEEK" | "PERMANENT";
 type GoodsStockStatus = "FULL" | "ENOUGH" | "LOW" | "OUT_OF_STOCK";
 type GoodsExpirationStatus = "FRESH" | "EXPIRING_SOON" | "EXPIRED" | "NO_EXPIRATION";
+type GoodsAdvisorRecipePreviewType = "youtube_search" | "image_search";
+
+type GoodsAdvisorCompactItem = {
+  name: string;
+  quantityLabel: string;
+  categoryName: string | null;
+  expirationStatus: GoodsExpirationStatus;
+  daysUntilExpiry: number | null;
+  stockStatus: GoodsStockStatus;
+  score: number;
+};
+
+type GoodsDinnerAdvisorResponse = {
+  assistantMessage: string;
+  pantryMeals: [GoodsDinnerRecipeSuggestion, GoodsDinnerRecipeSuggestion];
+  minimalBuyMeal: GoodsDinnerRecipeSuggestion;
+  warnings: string[];
+};
+
+type GoodsAdvisorCacheEntry = {
+  expiresAt: number;
+  response: GoodsDinnerAdvisorResponse;
+};
 
 function normalizeGoodsName(value: string) {
   return value.trim().replace(/\s+/g, " ");
@@ -58,6 +89,51 @@ function roundRate(value: number) {
 
 function serializeQuantity(value: number) {
   return roundQuantity(value).toFixed(3);
+}
+
+function trimText(value: string, maxLength: number) {
+  const normalized = value.trim();
+  if (normalized.length <= maxLength) {
+    return normalized;
+  }
+
+  return `${normalized.slice(0, Math.max(0, maxLength - 1)).trimEnd()}…`;
+}
+
+function normalizeCacheText(value: string) {
+  return normalizeGoodsLookupName(value);
+}
+
+function expirationRank(value: GoodsExpirationStatus) {
+  if (value === "EXPIRING_SOON") {
+    return 0;
+  }
+
+  if (value === "FRESH") {
+    return 1;
+  }
+
+  if (value === "NO_EXPIRATION") {
+    return 2;
+  }
+
+  return 3;
+}
+
+function stockRank(value: GoodsStockStatus) {
+  if (value === "LOW") {
+    return 0;
+  }
+
+  if (value === "ENOUGH") {
+    return 1;
+  }
+
+  if (value === "FULL") {
+    return 2;
+  }
+
+  return 3;
 }
 
 function parseDateOnly(value?: string | null) {
@@ -235,9 +311,75 @@ function computeExpirationState(expirationDate?: Date | null, now = new Date()) 
   };
 }
 
+function formatAdvisorQuantity(value: number, decimals: number) {
+  const safeDecimals = Math.min(Math.max(decimals, 0), 3);
+  const fixed = value.toFixed(safeDecimals);
+  if (safeDecimals === 0) {
+    return fixed;
+  }
+
+  return fixed.replace(/\.?0+$/, "");
+}
+
+function buildCompactItemScore(item: {
+  effectiveQuantity: number;
+  expirationStatus: GoodsExpirationStatus;
+  daysUntilExpiry: number | null;
+  stockStatus: GoodsStockStatus;
+}) {
+  let score = 0;
+
+  if (item.effectiveQuantity > 0) {
+    score += 20;
+  }
+
+  if (item.expirationStatus === "EXPIRING_SOON") {
+    score += 70;
+    if (typeof item.daysUntilExpiry === "number") {
+      score += Math.max(0, 10 - Math.max(item.daysUntilExpiry, 0));
+    }
+  }
+
+  if (item.expirationStatus === "FRESH") {
+    score += 20;
+  }
+
+  if (item.expirationStatus === "NO_EXPIRATION") {
+    score += 10;
+  }
+
+  if (item.expirationStatus === "EXPIRED") {
+    score -= 80;
+  }
+
+  if (item.stockStatus === "LOW") {
+    score += 18;
+  }
+
+  if (item.stockStatus === "ENOUGH") {
+    score += 10;
+  }
+
+  if (item.stockStatus === "FULL") {
+    score += 6;
+  }
+
+  if (item.stockStatus === "OUT_OF_STOCK") {
+    score -= 50;
+  }
+
+  return score;
+}
+
 @Injectable()
 export class GoodsService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly openAiApiKey = process.env.OPENAI_API_KEY?.trim() ?? null;
+  private readonly advisorCache = new Map<string, GoodsAdvisorCacheEntry>();
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly aiUsageService: AiUsageService
+  ) {}
 
   private async requireUser(userId: string) {
     const user = await this.prisma.client.user.findUnique({
@@ -808,6 +950,192 @@ export class GoodsService {
     };
   }
 
+  private buildAdvisorScopeWhere(userId: string, scope: GoodsAdvisorScope) {
+    if (scope === "PERSONAL") {
+      return {
+        scope: "PERSONAL" as const,
+        ownerUserId: userId
+      };
+    }
+
+    if (scope === "SHARED") {
+      return {
+        scope: "SHARED" as const
+      };
+    }
+
+    return this.buildScopeAccessWhere(userId);
+  }
+
+  private buildRecipePreview(title: string, sourceType: GoodsAdvisorRecipePreviewType = "youtube_search") {
+    const query = encodeURIComponent(`${title} recipe`);
+    const url =
+      sourceType === "image_search"
+        ? `https://www.google.com/search?tbm=isch&q=${query}`
+        : `https://www.youtube.com/results?search_query=${query}`;
+
+    return {
+      label: "See recipe",
+      url,
+      sourceType,
+      sourceLabel: sourceType === "image_search" ? "Image search" : "YouTube"
+    } satisfies GoodsDinnerRecipeSuggestion["recipePreview"];
+  }
+
+  private withRecipePreview(recipe: Omit<GoodsDinnerRecipeSuggestion, "recipePreview">): GoodsDinnerRecipeSuggestion {
+    return {
+      ...recipe,
+      recipePreview: this.buildRecipePreview(recipe.title)
+    };
+  }
+
+  private pruneAdvisorCache(now = Date.now()) {
+    for (const [key, entry] of this.advisorCache.entries()) {
+      if (entry.expiresAt <= now) {
+        this.advisorCache.delete(key);
+      }
+    }
+  }
+
+  private getCachedAdvisorResponse(cacheKey: string) {
+    this.pruneAdvisorCache();
+    const entry = this.advisorCache.get(cacheKey);
+    if (!entry || entry.expiresAt <= Date.now()) {
+      if (entry) {
+        this.advisorCache.delete(cacheKey);
+      }
+
+      return null;
+    }
+
+    return entry.response;
+  }
+
+  private setCachedAdvisorResponse(cacheKey: string, response: GoodsDinnerAdvisorResponse) {
+    this.pruneAdvisorCache();
+    this.advisorCache.set(cacheKey, {
+      expiresAt: Date.now() + GOODS_ADVISOR_CACHE_TTL_MS,
+      response
+    });
+  }
+
+  private buildAdvisorFingerprint(items: GoodsAdvisorCompactItem[]) {
+    return createHash("sha256").update(JSON.stringify(items)).digest("hex");
+  }
+
+  private buildAdvisorPantryContext(items: GoodsAdvisorCompactItem[]) {
+    if (!items.length) {
+      return "Pantry items: none. The pantry is nearly empty, so keep pantry meals extremely simple and make the minimal-buy meal practical.";
+    }
+
+    return [
+      "Pantry items:",
+      ...items.map((item, index) => {
+        const parts = [
+          `${index + 1}. ${item.name}`,
+          `qty ${item.quantityLabel}`,
+          item.categoryName ? `category ${item.categoryName}` : null,
+          `stock ${item.stockStatus}`,
+          `freshness ${item.expirationStatus}`,
+          item.daysUntilExpiry == null ? null : `daysUntilExpiry ${item.daysUntilExpiry}`
+        ].filter(Boolean);
+
+        return parts.join(" | ");
+      })
+    ].join("\n");
+  }
+
+  private async getAdvisorCompactItems(userId: string, coupleId: string, scope: GoodsAdvisorScope) {
+    const rows = await this.prisma.client.goodsItem.findMany({
+      where: {
+        coupleId,
+        isArchived: false,
+        ...this.buildAdvisorScopeWhere(userId, scope)
+      },
+      include: {
+        place: { select: { id: true, name: true, scope: true, isVisible: true } },
+        category: { select: { id: true, name: true, scope: true, isVisible: true } },
+        uom: { select: { id: true, code: true, label: true, decimals: true, groupKey: true, isActive: true } },
+        events: {
+          orderBy: { occurredAt: "desc" },
+          take: 1,
+          select: {
+            id: true,
+            eventType: true,
+            occurredAt: true,
+            quantityDelta: true,
+            quantityAfter: true,
+            reason: true,
+            source: true
+          }
+        }
+      },
+      orderBy: [{ lastStockEventAt: "desc" }, { name: "asc" }]
+    });
+
+    const now = new Date();
+    const items = rows
+      .map((row) => this.buildDerivedItem(row, now))
+      .filter((item) => item.effectiveQuantity > 0 || item.expirationStatus === "EXPIRING_SOON" || item.expirationStatus === "EXPIRED")
+      .map((item) => ({
+        item,
+        normalizedName: normalizeGoodsLookupName(item.name),
+        quantityLabel: `${formatAdvisorQuantity(item.effectiveQuantity, item.uom?.decimals ?? 0)} ${item.uom?.code ?? "unit"}`.trim(),
+        score: buildCompactItemScore(item)
+      }))
+      .sort((left, right) => right.score - left.score || left.item.name.localeCompare(right.item.name));
+
+    const merged = new Map<string, GoodsAdvisorCompactItem & { quantityLabels: string[] }>();
+
+    for (const entry of items) {
+      const existing = merged.get(entry.normalizedName);
+      if (!existing) {
+        merged.set(entry.normalizedName, {
+          name: trimText(entry.item.name, 40),
+          quantityLabel: entry.quantityLabel,
+          quantityLabels: [entry.quantityLabel],
+          categoryName: entry.item.category?.name ? trimText(entry.item.category.name, 30) : null,
+          expirationStatus: entry.item.expirationStatus,
+          daysUntilExpiry: entry.item.daysUntilExpiry,
+          stockStatus: entry.item.stockStatus,
+          score: entry.score
+        });
+        continue;
+      }
+
+      if (existing.quantityLabels.length < 2 && !existing.quantityLabels.includes(entry.quantityLabel)) {
+        existing.quantityLabels.push(entry.quantityLabel);
+        existing.quantityLabel = existing.quantityLabels.join(" + ");
+      }
+
+      if (expirationRank(entry.item.expirationStatus) < expirationRank(existing.expirationStatus)) {
+        existing.expirationStatus = entry.item.expirationStatus;
+      }
+
+      if (stockRank(entry.item.stockStatus) < stockRank(existing.stockStatus)) {
+        existing.stockStatus = entry.item.stockStatus;
+      }
+
+      if (entry.item.daysUntilExpiry != null) {
+        existing.daysUntilExpiry =
+          existing.daysUntilExpiry == null ? entry.item.daysUntilExpiry : Math.min(existing.daysUntilExpiry, entry.item.daysUntilExpiry);
+      }
+
+      existing.score = Math.max(existing.score, entry.score);
+      if (!existing.categoryName && entry.item.category?.name) {
+        existing.categoryName = trimText(entry.item.category.name, 30);
+      }
+    }
+
+    return Array.from(merged.values())
+      .map(({ quantityLabels: _quantityLabels, ...item }) => ({
+        ...item,
+        quantityLabel: trimText(item.quantityLabel, 40)
+      }))
+      .sort((left, right) => right.score - left.score || left.name.localeCompare(right.name))
+      .slice(0, GOODS_ADVISOR_ITEM_CAP);
+  }
+
   async snapshot(userId: string) {
     const workspace = await this.getWorkspaceContext(userId, true);
     await this.ensureSeedGoodsCategories(userId, workspace.coupleId, workspace.hasPartnerConnection);
@@ -928,6 +1256,87 @@ export class GoodsService {
       },
       catalog
     };
+  }
+
+  async requestDinnerAdvice(userId: string, dto: GoodsDinnerAdvisorDto): Promise<GoodsDinnerAdvisorResponse> {
+    if (!this.openAiApiKey) {
+      throw new ServiceUnavailableException("AI dinner advisor is not configured on this server");
+    }
+
+    const message = normalizeGoodsName(dto.message ?? "");
+    if (!message) {
+      throw new BadRequestException("Enter a dinner question first");
+    }
+
+    const requestedScope = dto.scope ?? "AUTO";
+    const workspace = await this.getWorkspaceContext(userId, true);
+    await this.ensureSeedGoodsCategories(userId, workspace.coupleId, workspace.hasPartnerConnection);
+
+    if (requestedScope === "SHARED" && !workspace.hasPartnerConnection) {
+      throw new BadRequestException("Shared dinner advice requires an active partner connection");
+    }
+
+    const compactItems = await this.getAdvisorCompactItems(userId, workspace.coupleId, requestedScope);
+    const pantryFingerprint = this.buildAdvisorFingerprint(compactItems);
+    const cacheKey = `${userId}:${requestedScope}:${normalizeCacheText(message)}:${pantryFingerprint}`;
+    const cached = this.getCachedAdvisorResponse(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
+    const correlationId = randomUUID();
+    const pricing = await this.aiUsageService.getModelPricing(OPENAI_GOODS_ADVISOR_MODEL);
+    const pantryContext = this.buildAdvisorPantryContext(compactItems);
+
+    try {
+      const advice = await requestGoodsDinnerAdvice({
+        apiKey: this.openAiApiKey,
+        userMessage: trimText(message, 240),
+        pantryContext
+      });
+
+      await this.aiUsageService.log({
+        provider: "OPENAI",
+        feature: "GOODS_ADVISOR",
+        operation: "DINNER_ADVICE",
+        status: "SUCCESS",
+        model: OPENAI_GOODS_ADVISOR_MODEL,
+        endpoint: "/v1/responses",
+        correlationId,
+        providerRequestId: advice.providerRequestId,
+        userId,
+        coupleId: workspace.coupleId,
+        usage: advice.usage,
+        pricing
+      });
+
+      const response: GoodsDinnerAdvisorResponse = {
+        assistantMessage: advice.draft.assistantMessage,
+        pantryMeals: [this.withRecipePreview(advice.draft.pantryMeals[0]), this.withRecipePreview(advice.draft.pantryMeals[1])],
+        minimalBuyMeal: this.withRecipePreview(advice.draft.minimalBuyMeal),
+        warnings: advice.draft.warnings
+      };
+
+      this.setCachedAdvisorResponse(cacheKey, response);
+      return response;
+    } catch (error) {
+      await this.aiUsageService.log({
+        provider: "OPENAI",
+        feature: "GOODS_ADVISOR",
+        operation: "DINNER_ADVICE",
+        status: "ERROR",
+        model: OPENAI_GOODS_ADVISOR_MODEL,
+        endpoint: "/v1/responses",
+        correlationId,
+        providerRequestId: error instanceof OpenAiRequestError ? error.details?.providerRequestId ?? null : null,
+        userId,
+        coupleId: workspace.coupleId,
+        usage: error instanceof OpenAiRequestError ? error.details?.usage ?? null : null,
+        pricing,
+        errorMessage: error instanceof Error ? error.message : "Unknown dinner advisor error"
+      });
+      throw error;
+    }
   }
 
   async listItems(userId: string, query: GoodsListQueryDto) {
