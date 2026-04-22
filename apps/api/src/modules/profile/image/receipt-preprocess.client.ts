@@ -15,11 +15,28 @@ type PreprocessedReceiptImage = {
   mimeType: string;
 };
 
-type ReceiptPreprocessPayload = {
+type ReceiptPreviewStageKey = "original" | "cleaned" | "textEnhanced";
+
+export type ReceiptPreprocessPreviewStage = {
+  key: ReceiptPreviewStageKey;
+  title: string;
+  description: string;
+  mimeType: string;
+  dataUrl: string;
+  usedForExtraction: "PRIMARY" | "SECONDARY" | "NONE";
+};
+
+export type ReceiptPreprocessPayload = {
   primaryImage: PreprocessedReceiptImage;
   secondaryImage: PreprocessedReceiptImage | null;
   preprocessingApplied: string[];
   localQualityIssues: ImageQualityIssue[];
+  previewStages: ReceiptPreprocessPreviewStage[];
+};
+
+type ReceiptPreprocessPreviewAsset = {
+  path: string;
+  mimeType: string;
 };
 
 type ReceiptPreprocessScriptOutput = {
@@ -29,11 +46,29 @@ type ReceiptPreprocessScriptOutput = {
   secondaryImageMimeType: string | null;
   preprocessingApplied: string[];
   localQualityIssues: ImageQualityIssue[];
+  previewImages?: Partial<Record<ReceiptPreviewStageKey, ReceiptPreprocessPreviewAsset>>;
 };
 
 const supportedImageExtensions = new Set([".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif"]);
 const supportedImageMimeTypes = new Set(["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"]);
 const apiPackageRoot = join(__dirname, "..", "..", "..", "..");
+const previewStageMetadata: Record<
+  ReceiptPreviewStageKey,
+  Pick<ReceiptPreprocessPreviewStage, "title" | "description">
+> = {
+  original: {
+    title: "Original",
+    description: "Decoded upload after EXIF auto-orientation and size normalization."
+  },
+  cleaned: {
+    title: "Cleaned",
+    description: "Document cleanup after denoise, crop detection, and perspective correction."
+  },
+  textEnhanced: {
+    title: "Text Enhanced",
+    description: "High-contrast variant prepared to recover faint or low-contrast receipt text."
+  }
+};
 
 function resolvePythonCommand() {
   return process.platform === "win32" ? "python" : "python3";
@@ -76,6 +111,39 @@ function resolveImageExtension(filename: string, mimetype: string) {
   }
 
   throw new BadRequestException("Upload a JPG, PNG, WEBP, HEIC, or HEIF image");
+}
+
+function toDataUrl(buffer: Buffer, mimeType: string) {
+  return `data:${mimeType};base64,${buffer.toString("base64")}`;
+}
+
+async function readPreviewStage(params: {
+  key: ReceiptPreviewStageKey;
+  path: string;
+  mimeType: string;
+  primaryImagePath: string;
+  secondaryImagePath: string | null;
+}): Promise<ReceiptPreprocessPreviewStage | null> {
+  try {
+    const buffer = await readFile(params.path);
+    const metadata = previewStageMetadata[params.key];
+
+    return {
+      key: params.key,
+      title: metadata.title,
+      description: metadata.description,
+      mimeType: params.mimeType,
+      dataUrl: toDataUrl(buffer, params.mimeType),
+      usedForExtraction:
+        params.path === params.primaryImagePath
+          ? "PRIMARY"
+          : params.path === params.secondaryImagePath
+            ? "SECONDARY"
+            : "NONE"
+    };
+  } catch {
+    return null;
+  }
 }
 
 async function runPreprocessScript(params: {
@@ -146,6 +214,31 @@ export async function preprocessReceiptImage(file: MultipartFile): Promise<Recei
     const payload = JSON.parse(await readFile(resultPath, "utf8")) as ReceiptPreprocessScriptOutput;
     const primaryBuffer = await readFile(payload.primaryImagePath);
     const secondaryBuffer = payload.secondaryImagePath ? await readFile(payload.secondaryImagePath) : null;
+    const previewStages = (
+      await Promise.all([
+        readPreviewStage({
+          key: "original",
+          path: payload.previewImages?.original?.path ?? join(outputDir, "original.jpg"),
+          mimeType: payload.previewImages?.original?.mimeType ?? "image/jpeg",
+          primaryImagePath: payload.primaryImagePath,
+          secondaryImagePath: payload.secondaryImagePath
+        }),
+        readPreviewStage({
+          key: "cleaned",
+          path: payload.previewImages?.cleaned?.path ?? join(outputDir, "cleaned.jpg"),
+          mimeType: payload.previewImages?.cleaned?.mimeType ?? "image/jpeg",
+          primaryImagePath: payload.primaryImagePath,
+          secondaryImagePath: payload.secondaryImagePath
+        }),
+        readPreviewStage({
+          key: "textEnhanced",
+          path: payload.previewImages?.textEnhanced?.path ?? join(outputDir, "text_enhanced.png"),
+          mimeType: payload.previewImages?.textEnhanced?.mimeType ?? "image/png",
+          primaryImagePath: payload.primaryImagePath,
+          secondaryImagePath: payload.secondaryImagePath
+        })
+      ])
+    ).filter((stage): stage is ReceiptPreprocessPreviewStage => stage !== null);
 
     return {
       primaryImage: {
@@ -159,7 +252,8 @@ export async function preprocessReceiptImage(file: MultipartFile): Promise<Recei
           }
         : null,
       preprocessingApplied: Array.isArray(payload.preprocessingApplied) ? payload.preprocessingApplied.filter((item): item is string => typeof item === "string" && item.trim().length > 0) : [],
-      localQualityIssues: Array.isArray(payload.localQualityIssues) ? payload.localQualityIssues.filter((item): item is ImageQualityIssue => typeof item === "string") : []
+      localQualityIssues: Array.isArray(payload.localQualityIssues) ? payload.localQualityIssues.filter((item): item is ImageQualityIssue => typeof item === "string") : [],
+      previewStages
     };
   } catch (error) {
     if (error instanceof BadRequestException || error instanceof InternalServerErrorException) {

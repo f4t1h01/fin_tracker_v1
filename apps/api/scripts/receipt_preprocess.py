@@ -214,6 +214,20 @@ def main() -> int:
         "secondaryImageMimeType": "image/png" if should_include_secondary else None,
         "preprocessingApplied": preprocessing_applied,
         "localQualityIssues": local_quality_issues,
+        "previewImages": {
+            "original": {
+                "path": original_path,
+                "mimeType": "image/jpeg",
+            },
+            "cleaned": {
+                "path": cleaned_path,
+                "mimeType": "image/jpeg",
+            },
+            "textEnhanced": {
+                "path": text_path,
+                "mimeType": "image/png",
+            },
+        },
     }
 
     with open(args.result_path, "w", encoding="utf-8") as handle:
