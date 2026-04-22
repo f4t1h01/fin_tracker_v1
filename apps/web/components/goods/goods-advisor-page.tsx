@@ -263,7 +263,7 @@ export function GoodsAdvisorPage() {
 
       {workspace.error ? <p className="status-error mb-4 text-sm">{workspace.error}</p> : null}
 
-      <Card className="panel-soft relative min-h-[76vh] overflow-hidden rounded-[32px]">
+      <Card className="panel-soft relative flex h-[calc(100dvh-11rem)] min-h-[76vh] flex-col overflow-hidden rounded-[32px]">
         {drawerOpen ? (
           <div className="pointer-events-none absolute inset-0 z-[25] bg-[var(--modal-scrim)] backdrop-blur-[12px] backdrop-saturate-150" />
         ) : null}
@@ -469,8 +469,8 @@ export function GoodsAdvisorPage() {
           </div>
         </CardHeader>
 
-        <CardContent className="flex min-h-[58vh] flex-col gap-0 p-0">
-          <div className="flex-1 space-y-4 overflow-y-auto px-5 py-5 sm:px-6">
+        <CardContent className="flex min-h-0 flex-1 flex-col gap-0 p-0">
+          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-5 sm:px-6">
             {!workspace.activeThread?.messages.length && !workspace.pendingUserText ? (
               <div className="space-y-4">
                 <div className="rounded-[24px] border border-dashed border-[rgba(201,168,76,0.18)] bg-[rgba(255,250,241,0.42)] px-4 py-5">
@@ -547,7 +547,7 @@ export function GoodsAdvisorPage() {
                       void workspace.sendMessage();
                     }
                   }}
-                  className="max-h-[112px] min-h-[24px] flex-1 resize-none overflow-y-hidden border-none bg-transparent px-1 py-0 text-sm leading-6 shadow-none focus-visible:ring-0"
+                  className="max-h-[124px] min-h-[50px] flex-1 resize-none overflow-y-hidden border-none bg-transparent px-1 py-[13px] text-sm leading-6 shadow-none focus-visible:ring-0"
                   style={{ resize: "none" }}
                 />
                 <Button
