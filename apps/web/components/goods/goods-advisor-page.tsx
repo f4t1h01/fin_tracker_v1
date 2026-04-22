@@ -136,15 +136,15 @@ function ThreadListSection(props: {
               className={cn(
                 "flex items-center gap-2 rounded-[18px] border px-3 py-2 transition-colors",
                 isActive
-                  ? "border-[var(--gold)] bg-[color-mix(in_srgb,var(--gold)_10%,transparent)]"
-                  : "border-[rgba(201,168,76,0.12)] bg-[rgba(255,250,241,0.55)]"
+                  ? "border-[var(--gold)] bg-[color-mix(in_srgb,var(--gold)_10%,var(--surface-glass))]"
+                  : "border-[rgba(201,168,76,0.14)] bg-[var(--surface-glass-strong)]"
               )}
             >
               <button
                 type="button"
                 title={thread.title}
                 onClick={() => props.onOpen(thread.id)}
-                className="min-w-0 flex-1 truncate text-left text-sm font-medium"
+                className="min-w-0 flex-1 truncate pr-1 text-left text-sm font-medium"
               >
                 {thread.title}
               </button>
@@ -160,8 +160,8 @@ function ThreadListSection(props: {
                 className={cn(
                   "inline-flex size-8 shrink-0 items-center justify-center rounded-full border transition-colors",
                   thread.isPinned
-                    ? "border-[rgba(201,168,76,0.28)] bg-[color-mix(in_srgb,var(--gold)_12%,transparent)] text-[var(--gold)]"
-                    : "border-[rgba(201,168,76,0.14)] text-[var(--ink-soft)] hover:text-[var(--ink)]"
+                    ? "border-[rgba(201,168,76,0.32)] bg-[color-mix(in_srgb,var(--gold)_12%,var(--surface-glass))] text-[var(--gold)]"
+                    : "border-[rgba(201,168,76,0.18)] bg-[color-mix(in_srgb,var(--surface-glass)_82%,transparent)] text-[var(--ink-soft)] hover:text-[var(--ink)]"
                 )}
               >
                 <Pin className="size-3.5" fill={thread.isPinned ? "currentColor" : "none"} />
@@ -260,7 +260,9 @@ export function GoodsAdvisorPage() {
       {workspace.error ? <p className="status-error mb-4 text-sm">{workspace.error}</p> : null}
 
       <Card className="panel-soft relative min-h-[76vh] overflow-hidden rounded-[32px]">
-        {drawerOpen ? <div className="absolute inset-0 z-10 bg-[rgba(26,20,16,0.18)]" /> : null}
+        {drawerOpen ? (
+          <div className="absolute inset-0 z-[25] bg-[var(--modal-scrim)] backdrop-blur-[12px] backdrop-saturate-150" />
+        ) : null}
 
         <CardHeader className="relative z-20 border-b border-[rgba(201,168,76,0.12)]">
           <div className="flex flex-col gap-4">
@@ -414,46 +416,51 @@ export function GoodsAdvisorPage() {
           <div
             ref={drawerRef}
             className={cn(
-              "absolute left-5 top-[calc(100%-12px)] z-30 w-[min(92vw,360px)] rounded-[26px] border border-[rgba(201,168,76,0.16)] bg-[color-mix(in_srgb,var(--paper)_96%,white)] p-4 shadow-[0_24px_80px_rgba(26,20,16,0.18)] transition-all duration-200",
+              "absolute left-5 top-[calc(100%-12px)] z-30 w-[min(92vw,360px)] transition-all duration-200",
               drawerOpen ? "pointer-events-auto translate-y-0 opacity-100" : "pointer-events-none -translate-y-2 opacity-0"
             )}
           >
-            <div className="mb-4 flex items-center justify-between gap-3">
-              <p className="eyebrow-row">Chats</p>
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => setDrawerOpen(false)}
-                className="size-8 rounded-full px-0 py-0"
-                title="Close chats"
-                aria-label="Close chats"
-              >
-                <X className="size-4" />
-              </Button>
-            </div>
+            <div className="relative">
+              <div className="absolute inset-0 rounded-[26px] border border-[rgba(201,168,76,0.14)] bg-[color-mix(in_srgb,var(--surface-glass)_92%,transparent)] shadow-[0_24px_80px_rgba(26,20,16,0.18)] backdrop-blur-[18px] backdrop-saturate-150" />
+              <div className="relative overflow-hidden rounded-[26px] border border-[rgba(201,168,76,0.16)] bg-[color-mix(in_srgb,var(--surface-glass-strong)_70%,transparent)] p-4 shadow-[0_24px_80px_rgba(26,20,16,0.16)]">
+                <div className="mb-4 flex items-center justify-between gap-3">
+                  <p className="eyebrow-row">Chats</p>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => setDrawerOpen(false)}
+                    className="size-8 rounded-full px-0 py-0"
+                    title="Close chats"
+                    aria-label="Close chats"
+                  >
+                    <X className="size-4" />
+                  </Button>
+                </div>
 
-            <div className="space-y-4">
-              <ThreadListSection
-                label="Pinned"
-                threads={pinnedThreads}
-                activeThreadId={workspace.activeThreadId}
-                isMutatingThread={workspace.isMutatingThread}
-                onOpen={handleOpenThread}
-                onTogglePin={handleTogglePin}
-              />
+                <div className="space-y-4">
+                  <ThreadListSection
+                    label="Pinned"
+                    threads={pinnedThreads}
+                    activeThreadId={workspace.activeThreadId}
+                    isMutatingThread={workspace.isMutatingThread}
+                    onOpen={handleOpenThread}
+                    onTogglePin={handleTogglePin}
+                  />
 
-              {recentThreads.length ? (
-                <ThreadListSection
-                  label="Recent"
-                  threads={recentThreads}
-                  activeThreadId={workspace.activeThreadId}
-                  isMutatingThread={workspace.isMutatingThread}
-                  onOpen={handleOpenThread}
-                  onTogglePin={handleTogglePin}
-                />
-              ) : (
-                <p className="body-muted px-1 text-sm">No chats yet.</p>
-              )}
+                  {recentThreads.length ? (
+                    <ThreadListSection
+                      label="Recent"
+                      threads={recentThreads}
+                      activeThreadId={workspace.activeThreadId}
+                      isMutatingThread={workspace.isMutatingThread}
+                      onOpen={handleOpenThread}
+                      onTogglePin={handleTogglePin}
+                    />
+                  ) : (
+                    <p className="body-muted px-1 text-sm">No chats yet.</p>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         </CardHeader>
@@ -491,7 +498,7 @@ export function GoodsAdvisorPage() {
             {workspace.activeThread?.messages.map((message) =>
               message.role === "USER" ? (
                 <div key={message.id} className="flex justify-end">
-                  <div className="max-w-[85%] rounded-[26px] rounded-br-[10px] bg-[color-mix(in_srgb,var(--ink)_96%,black)] px-4 py-3 text-sm leading-6 text-[var(--paper)] shadow-[0_14px_32px_rgba(26,20,16,0.16)] sm:max-w-[70%]">
+                  <div className="max-w-[85%] rounded-[26px] rounded-br-[10px] bg-[color-mix(in_srgb,var(--ink)_96%,black)] px-4 py-3 text-sm leading-6 text-[var(--warm-white)] shadow-[0_14px_32px_rgba(26,20,16,0.16)] sm:max-w-[70%]">
                     {message.text}
                   </div>
                 </div>
@@ -505,7 +512,7 @@ export function GoodsAdvisorPage() {
             {workspace.pendingUserText ? (
               <>
                 <div className="flex justify-end">
-                  <div className="max-w-[85%] rounded-[26px] rounded-br-[10px] bg-[color-mix(in_srgb,var(--ink)_96%,black)] px-4 py-3 text-sm leading-6 text-[var(--paper)] shadow-[0_14px_32px_rgba(26,20,16,0.16)] sm:max-w-[70%]">
+                  <div className="max-w-[85%] rounded-[26px] rounded-br-[10px] bg-[color-mix(in_srgb,var(--ink)_96%,black)] px-4 py-3 text-sm leading-6 text-[var(--warm-white)] shadow-[0_14px_32px_rgba(26,20,16,0.16)] sm:max-w-[70%]">
                     {workspace.pendingUserText}
                   </div>
                 </div>
@@ -522,7 +529,7 @@ export function GoodsAdvisorPage() {
           </div>
 
           <div className="border-t border-[rgba(201,168,76,0.12)] px-4 py-4 sm:px-5">
-            <div className="rounded-[26px] border border-[rgba(201,168,76,0.16)] bg-[rgba(255,250,241,0.72)] px-3 py-3">
+            <div className="rounded-[26px] border border-[rgba(201,168,76,0.16)] bg-[rgba(255,250,241,0.72)] px-3 py-2.5">
               <div className="flex items-end gap-3">
                 <TextareaField
                   ref={composerRef}
@@ -536,13 +543,14 @@ export function GoodsAdvisorPage() {
                       void workspace.sendMessage();
                     }
                   }}
-                  className="max-h-[112px] min-h-[24px] flex-1 resize-none overflow-y-hidden border-none bg-transparent px-1 py-0.5 text-sm leading-6 shadow-none focus-visible:ring-0"
+                  className="max-h-[112px] min-h-[22px] flex-1 resize-none overflow-y-hidden border-none bg-transparent px-1 py-0 text-sm leading-6 shadow-none focus-visible:ring-0"
                 />
                 <Button
                   type="button"
+                  variant="outline"
                   disabled={workspace.isSending}
                   onClick={() => void workspace.sendMessage()}
-                  className="flex size-10 shrink-0 items-center justify-center rounded-full px-0 py-0"
+                  className="flex size-10 shrink-0 items-center justify-center rounded-full border-[rgba(26,20,16,0.16)] bg-[var(--ink)] px-0 py-0 text-[var(--warm-white)] shadow-[0_10px_24px_rgba(26,20,16,0.14)] hover:border-[var(--ink)] hover:bg-[color-mix(in_srgb,var(--ink)_92%,var(--gold)_8%)] hover:text-[var(--warm-white)]"
                   title={workspace.isSending ? "Sending" : "Send message"}
                   aria-label={workspace.isSending ? "Sending" : "Send message"}
                 >
