@@ -64,6 +64,7 @@ type GoodsDinnerAdvisorResponse =
     };
 
 type GoodsAdvisorIntent = "DINNER_RECOMMENDATION" | "PANTRY_QA" | "RECEIPT_FOLLOW_UP";
+type GoodsPurchaseFollowUpIntent = "PURCHASE_LIST" | "PURCHASE_WHERE" | "PURCHASE_QUANTITY" | "PURCHASE_CLARIFICATION";
 
 type GoodsAdvisorPantryState = {
   hasAnyItems: boolean;
@@ -138,6 +139,123 @@ function buildAdvisorPantryState(items: GoodsAdvisorCompactItem[]): GoodsAdvisor
     hasUsableItems,
     hasOnlyExpiredOrEmptyItems: hasAnyItems && !hasUsableItems
   };
+}
+
+function findLastAssistantText(messages: Array<{ role: string; text: string }> = []) {
+  for (let index = messages.length - 1; index >= 0; index -= 1) {
+    if (messages[index]?.role === "ASSISTANT" && messages[index]?.text.trim()) {
+      return messages[index].text.trim();
+    }
+  }
+
+  return null;
+}
+
+function isPurchaseFlowAssistantText(text: string | null | undefined) {
+  if (!text) {
+    return false;
+  }
+
+  return /\b(buy|purchase|shopping list|ingredients to buy|store section|produce aisle|protein section)\b/i.test(text);
+}
+
+function detectPurchaseFollowUpIntent(message: string, lastAssistantText: string | null): GoodsPurchaseFollowUpIntent | null {
+  if (!isPurchaseFlowAssistantText(lastAssistantText)) {
+    return null;
+  }
+
+  const normalized = normalizeGoodsLookupName(message);
+  if (!normalized) {
+    return null;
+  }
+
+  if (/^(yes|yeah|yep|sure|okay|ok|why not|please|go on|do it|show me)([!. ]+.*)?$/.test(normalized)) {
+    return "PURCHASE_LIST";
+  }
+
+  if (/^(where|where\?|where exactly|which store|which section|which aisle)(.*)?$/.test(normalized)) {
+    return "PURCHASE_WHERE";
+  }
+
+  if (/^(how much|how many|quantities|amounts|for \d+|for two|for three|for four)(.*)?$/.test(normalized)) {
+    return "PURCHASE_QUANTITY";
+  }
+
+  if (/^(what|what\?|what exactly|which ones|which ingredients|buy what)(.*)?$/.test(normalized)) {
+    return "PURCHASE_CLARIFICATION";
+  }
+
+  return null;
+}
+
+function detectServingCount(message: string, recentMessages: Array<{ role: string; text: string }> = []) {
+  const haystack = [message, ...recentMessages.map((entry) => entry.text)].join(" ").toLowerCase();
+  const numericMatch = /\bfor\s+(\d{1,2})\b/.exec(haystack);
+  if (numericMatch) {
+    return Math.min(Math.max(Number(numericMatch[1]), 1), 8);
+  }
+
+  if (/\bfor two\b/.test(haystack)) {
+    return 2;
+  }
+
+  if (/\bfor three\b/.test(haystack)) {
+    return 3;
+  }
+
+  if (/\bfor four\b/.test(haystack)) {
+    return 4;
+  }
+
+  return null;
+}
+
+function buildPurchaseContextLead(items: GoodsAdvisorCompactItem[]) {
+  const usableItems = items.filter((item) => isUsableAdvisorItem(item)).slice(0, 2);
+  if (!usableItems.length) {
+    return "Your pantry does not have enough safe dinner ingredients right now.";
+  }
+
+  const itemNames = usableItems.map((item) => item.name);
+  if (itemNames.length === 1) {
+    return `You currently have ${itemNames[0]}, but that is not enough for a full dinner.`;
+  }
+
+  return `You currently have ${itemNames.join(" and ")}, but you still need a few more ingredients for dinner.`;
+}
+
+function buildPurchaseShoppingMessage(params: {
+  followUpIntent: GoodsPurchaseFollowUpIntent | "INITIAL";
+  items: GoodsAdvisorCompactItem[];
+  message: string;
+  recentMessages?: Array<{ role: string; text: string }>;
+}) {
+  const servings = detectServingCount(params.message, params.recentMessages) ?? 2;
+  const protein =
+    servings <= 2 ? "2 chicken breasts or 6 eggs" : servings <= 4 ? "4 chicken breasts or 8 eggs" : "6 chicken breasts or 12 eggs";
+  const vegetables =
+    servings <= 2 ? "1 onion, 2 tomatoes, and 1 pepper" : servings <= 4 ? "2 onions, 4 tomatoes, and 2 peppers" : "3 onions, 6 tomatoes, and 3 peppers";
+  const grain =
+    servings <= 2 ? "1 cup rice or 250 g pasta" : servings <= 4 ? "2 cups rice or 500 g pasta" : "3 cups rice or 750 g pasta";
+  const lead = buildPurchaseContextLead(params.items);
+
+  if (params.followUpIntent === "INITIAL") {
+    return `${lead} If you want, I can suggest a short shopping list for ${servings}.`;
+  }
+
+  if (params.followUpIntent === "PURCHASE_WHERE") {
+    return `Buy the vegetables from the produce section, pick ${protein} from the meat or dairy section, and get ${grain} from the pantry aisle. If you want the quickest option, eggs plus rice plus a few vegetables will get dinner ready fast.`;
+  }
+
+  if (params.followUpIntent === "PURCHASE_QUANTITY") {
+    return `For ${servings}, buy ${protein}, ${vegetables}, and ${grain}. That will cover one simple dinner, and you can swap chicken for eggs or beans if you want a cheaper option.`;
+  }
+
+  if (params.followUpIntent === "PURCHASE_CLARIFICATION") {
+    return `A simple short list for ${servings} is: ${protein}, ${vegetables}, and ${grain}. That gives you enough for a quick stir-fry, rice bowl, or omelet-style dinner.`;
+  }
+
+  return `Here is a simple shopping list for ${servings}: ${protein}, ${vegetables}, and ${grain}. That is enough for a quick dinner, and you can swap chicken for beans or eggs if needed.`;
 }
 
 function detectAdvisorIntent(params: {
@@ -1376,6 +1494,8 @@ export class GoodsService {
 
     const compactItems = await this.getAdvisorCompactItems(params.userId, params.coupleId, params.scope);
     const pantryState = buildAdvisorPantryState(compactItems);
+    const lastAssistantText = findLastAssistantText(params.recentMessages ?? []);
+    const purchaseFollowUpIntent = detectPurchaseFollowUpIntent(message, lastAssistantText);
     const intent = detectAdvisorIntent({
       message,
       recentMessages: params.recentMessages,
@@ -1387,10 +1507,24 @@ export class GoodsService {
     const contextFingerprint = createHash("sha256")
       .update(`${params.summaryText ?? ""}|${recentConversation}`)
       .digest("hex");
-    const cacheKey = `${params.cacheScopeKey}:${intent}:${normalizeCacheText(message)}:${pantryFingerprint}:${contextFingerprint}`;
+    const cacheKey = `${params.cacheScopeKey}:${purchaseFollowUpIntent ?? intent}:${normalizeCacheText(message)}:${pantryFingerprint}:${contextFingerprint}`;
     const cached = this.getCachedAdvisorResponse<GoodsDinnerAdvisorResponse>(cacheKey);
     if (cached) {
       return cached;
+    }
+
+    if (purchaseFollowUpIntent) {
+      const response = this.buildAdvisorTextResponse(
+        "NEEDS_PURCHASE",
+        buildPurchaseShoppingMessage({
+          followUpIntent: purchaseFollowUpIntent,
+          items: compactItems,
+          message,
+          recentMessages: params.recentMessages
+        })
+      );
+      this.setCachedAdvisorResponse(cacheKey, response);
+      return response;
     }
 
     if (intent !== "RECEIPT_FOLLOW_UP" && !pantryState.hasAnyItems) {
@@ -1405,7 +1539,12 @@ export class GoodsService {
     if (intent === "DINNER_RECOMMENDATION" && !pantryState.hasUsableItems) {
       const response = this.buildAdvisorTextResponse(
         "NEEDS_PURCHASE",
-        "I cannot suggest a safe meal from the current pantry because the available items are expired or unusable. Please purchase fresh ingredients first."
+        buildPurchaseShoppingMessage({
+          followUpIntent: "INITIAL",
+          items: compactItems,
+          message,
+          recentMessages: params.recentMessages
+        })
       );
       this.setCachedAdvisorResponse(cacheKey, response);
       return response;
