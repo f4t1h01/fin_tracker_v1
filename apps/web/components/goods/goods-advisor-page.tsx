@@ -10,7 +10,7 @@ import {
   Trash2,
   X
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import { WorkspacePageHeader } from "@/components/navigation/workspace-page-header";
 import { goodsHeaderActionGroups } from "@/components/navigation/workspace-navigation";
@@ -33,6 +33,8 @@ const starterPrompts = [
   "Give me a quick dinner for 2",
   "Suggest something healthy tonight"
 ];
+
+const COMPOSER_MAX_ROWS = 4;
 
 function RecipeSuggestionCard(props: {
   label: string;
@@ -209,7 +211,7 @@ export function GoodsAdvisorPage() {
     messagesEndRef.current?.scrollIntoView({ block: "end" });
   }, [workspace.activeThread?.messages, workspace.pendingUserText, workspace.isLoadingThread]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const textarea = composerRef.current;
     if (!textarea) {
       return;
@@ -222,10 +224,11 @@ export function GoodsAdvisorPage() {
       Number.parseFloat(computedStyle.borderTopWidth) + Number.parseFloat(computedStyle.borderBottomWidth);
     const paddingHeight =
       Number.parseFloat(computedStyle.paddingTop) + Number.parseFloat(computedStyle.paddingBottom);
-    const maxHeight = lineHeight * 4 + borderHeight + paddingHeight;
+    const minHeight = lineHeight + borderHeight + paddingHeight;
+    const maxHeight = lineHeight * COMPOSER_MAX_ROWS + borderHeight + paddingHeight;
 
     textarea.style.height = "auto";
-    const nextHeight = Math.min(textarea.scrollHeight, maxHeight);
+    const nextHeight = Math.max(minHeight, Math.min(textarea.scrollHeight, maxHeight));
     textarea.style.height = `${nextHeight}px`;
     textarea.style.overflowY = textarea.scrollHeight > maxHeight ? "auto" : "hidden";
     textarea.scrollTop = textarea.scrollHeight;
@@ -261,10 +264,10 @@ export function GoodsAdvisorPage() {
 
       <Card className="panel-soft relative min-h-[76vh] overflow-hidden rounded-[32px]">
         {drawerOpen ? (
-          <div className="absolute inset-0 z-[25] bg-[var(--modal-scrim)] backdrop-blur-[12px] backdrop-saturate-150" />
+          <div className="pointer-events-none absolute inset-0 z-[25] bg-[var(--modal-scrim)] backdrop-blur-[12px] backdrop-saturate-150" />
         ) : null}
 
-        <CardHeader className="relative z-20 border-b border-[rgba(201,168,76,0.12)]">
+        <CardHeader className="relative z-[30] border-b border-[rgba(201,168,76,0.12)]">
           <div className="flex flex-col gap-4">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="space-y-2">
@@ -416,7 +419,7 @@ export function GoodsAdvisorPage() {
           <div
             ref={drawerRef}
             className={cn(
-              "absolute left-5 top-[calc(100%-12px)] z-30 w-[min(92vw,360px)] transition-all duration-200",
+              "absolute left-5 top-[calc(100%-12px)] z-[40] w-[min(92vw,360px)] transition-all duration-200",
               drawerOpen ? "pointer-events-auto translate-y-0 opacity-100" : "pointer-events-none -translate-y-2 opacity-0"
             )}
           >
@@ -543,7 +546,8 @@ export function GoodsAdvisorPage() {
                       void workspace.sendMessage();
                     }
                   }}
-                  className="max-h-[112px] min-h-[22px] flex-1 resize-none overflow-y-hidden border-none bg-transparent px-1 py-0 text-sm leading-6 shadow-none focus-visible:ring-0"
+                  className="max-h-[112px] min-h-[24px] flex-1 resize-none overflow-y-hidden border-none bg-transparent px-1 py-0 text-sm leading-6 shadow-none focus-visible:ring-0"
+                  style={{ resize: "none" }}
                 />
                 <Button
                   type="button"
