@@ -160,6 +160,13 @@ export type GoodsRecipePreview = {
   sourceLabel: string;
 };
 
+export type GoodsAdvisorResponseMode =
+  | "DINNER_RECOMMENDATION"
+  | "PANTRY_QA"
+  | "RECEIPT_FOLLOW_UP"
+  | "NEEDS_ITEMS"
+  | "NEEDS_PURCHASE";
+
 export type GoodsDinnerRecipeSuggestion = {
   title: string;
   whyItFits: string;
@@ -172,12 +179,23 @@ export type GoodsDinnerRecipeSuggestion = {
   recipePreview: GoodsRecipePreview | null;
 };
 
-export type GoodsDinnerAdvisorResponse = {
+type GoodsDinnerAdvisorDinnerResponse = {
+  mode: "DINNER_RECOMMENDATION";
   assistantMessage: string;
   pantryMeals: [GoodsDinnerRecipeSuggestion, GoodsDinnerRecipeSuggestion];
   minimalBuyMeal: GoodsDinnerRecipeSuggestion;
   warnings: string[];
 };
+
+type GoodsDinnerAdvisorTextResponse = {
+  mode: Exclude<GoodsAdvisorResponseMode, "DINNER_RECOMMENDATION">;
+  assistantMessage: string;
+  pantryMeals: [];
+  minimalBuyMeal: null;
+  warnings: string[];
+};
+
+export type GoodsDinnerAdvisorResponse = GoodsDinnerAdvisorDinnerResponse | GoodsDinnerAdvisorTextResponse;
 
 export type GoodsAdvisorChatEntry = {
   id: string;

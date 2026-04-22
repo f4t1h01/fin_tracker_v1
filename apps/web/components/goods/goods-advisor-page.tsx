@@ -87,6 +87,7 @@ function RecipeSuggestionCard(props: {
 
 function AssistantMessageBubble(props: { message: GoodsAdvisorMessage }) {
   const payload = props.message.payload;
+  const dinnerPayload = payload?.mode === "DINNER_RECOMMENDATION" ? payload : null;
 
   return (
     <div className="max-w-[94%] rounded-[26px] rounded-bl-[10px] border border-[rgba(201,168,76,0.2)] bg-[rgba(255,250,241,0.86)] px-4 py-4 shadow-[0_12px_30px_rgba(26,20,16,0.05)] sm:max-w-[88%]">
@@ -102,11 +103,11 @@ function AssistantMessageBubble(props: { message: GoodsAdvisorMessage }) {
         </div>
       ) : null}
 
-      {payload ? (
+      {dinnerPayload && dinnerPayload.minimalBuyMeal ? (
         <div className="mt-4 grid gap-4 xl:grid-cols-3">
-          <RecipeSuggestionCard label="Pantry meal 1" recipe={payload.pantryMeals[0]} />
-          <RecipeSuggestionCard label="Pantry meal 2" recipe={payload.pantryMeals[1]} />
-          <RecipeSuggestionCard label="Minimal buy" recipe={payload.minimalBuyMeal} showMissingItems />
+          <RecipeSuggestionCard label="Pantry meal 1" recipe={dinnerPayload.pantryMeals[0]} />
+          <RecipeSuggestionCard label="Pantry meal 2" recipe={dinnerPayload.pantryMeals[1]} />
+          <RecipeSuggestionCard label="Minimal buy" recipe={dinnerPayload.minimalBuyMeal} showMissingItems />
         </div>
       ) : null}
     </div>

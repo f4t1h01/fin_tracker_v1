@@ -5,6 +5,13 @@ export type GoodsRecipePreview = {
   sourceLabel: string;
 };
 
+export type GoodsAdvisorResponseMode =
+  | "DINNER_RECOMMENDATION"
+  | "PANTRY_QA"
+  | "RECEIPT_FOLLOW_UP"
+  | "NEEDS_ITEMS"
+  | "NEEDS_PURCHASE";
+
 export type GoodsDinnerRecipeSuggestion = {
   title: string;
   whyItFits: string;
@@ -17,12 +24,25 @@ export type GoodsDinnerRecipeSuggestion = {
   recipePreview: GoodsRecipePreview | null;
 };
 
-export type GoodsDinnerAdvisorExtraction = {
+type GoodsDinnerRecipeSuggestionDraft = Omit<GoodsDinnerRecipeSuggestion, "recipePreview">;
+
+type GoodsDinnerAdvisorDinnerExtraction = {
+  mode: "DINNER_RECOMMENDATION";
   assistantMessage: string;
-  pantryMeals: [Omit<GoodsDinnerRecipeSuggestion, "recipePreview">, Omit<GoodsDinnerRecipeSuggestion, "recipePreview">];
-  minimalBuyMeal: Omit<GoodsDinnerRecipeSuggestion, "recipePreview">;
+  pantryMeals: [GoodsDinnerRecipeSuggestionDraft, GoodsDinnerRecipeSuggestionDraft];
+  minimalBuyMeal: GoodsDinnerRecipeSuggestionDraft;
   warnings: string[];
 };
+
+type GoodsDinnerAdvisorTextExtraction = {
+  mode: Exclude<GoodsAdvisorResponseMode, "DINNER_RECOMMENDATION">;
+  assistantMessage: string;
+  pantryMeals: [];
+  minimalBuyMeal: null;
+  warnings: string[];
+};
+
+export type GoodsDinnerAdvisorExtraction = GoodsDinnerAdvisorDinnerExtraction | GoodsDinnerAdvisorTextExtraction;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -74,96 +94,65 @@ function parseSuggestion(value: unknown) {
   };
 }
 
+const suggestionSchema = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    title: { type: "string", maxLength: 80 },
+    whyItFits: { type: "string", maxLength: 220 },
+    usesItems: {
+      type: "array",
+      maxItems: 8,
+      items: { type: "string", maxLength: 60 }
+    },
+    assumedStaples: {
+      type: "array",
+      maxItems: 6,
+      items: { type: "string", maxLength: 40 }
+    },
+    missingItems: {
+      type: "array",
+      maxItems: 5,
+      items: { type: "string", maxLength: 50 }
+    },
+    steps: {
+      type: "array",
+      maxItems: 5,
+      items: { type: "string", maxLength: 180 }
+    },
+    confidence: {
+      type: "number",
+      minimum: 0,
+      maximum: 1
+    },
+    wasteReductionNotes: {
+      type: "array",
+      maxItems: 3,
+      items: { type: "string", maxLength: 100 }
+    }
+  },
+  required: ["title", "whyItFits", "usesItems", "assumedStaples", "missingItems", "steps", "confidence", "wasteReductionNotes"]
+} as const;
+
 export const goodsDinnerAdvisorJsonSchema = {
   type: "object",
   additionalProperties: false,
   properties: {
+    mode: {
+      type: "string",
+      enum: ["DINNER_RECOMMENDATION", "PANTRY_QA", "RECEIPT_FOLLOW_UP", "NEEDS_ITEMS", "NEEDS_PURCHASE"]
+    },
     assistantMessage: {
       type: "string",
       maxLength: 240
     },
     pantryMeals: {
       type: "array",
-      minItems: 2,
       maxItems: 2,
-      items: {
-        type: "object",
-        additionalProperties: false,
-        properties: {
-          title: { type: "string", maxLength: 80 },
-          whyItFits: { type: "string", maxLength: 220 },
-          usesItems: {
-            type: "array",
-            maxItems: 8,
-            items: { type: "string", maxLength: 60 }
-          },
-          assumedStaples: {
-            type: "array",
-            maxItems: 6,
-            items: { type: "string", maxLength: 40 }
-          },
-          missingItems: {
-            type: "array",
-            maxItems: 5,
-            items: { type: "string", maxLength: 50 }
-          },
-          steps: {
-            type: "array",
-            maxItems: 5,
-            items: { type: "string", maxLength: 180 }
-          },
-          confidence: {
-            type: "number",
-            minimum: 0,
-            maximum: 1
-          },
-          wasteReductionNotes: {
-            type: "array",
-            maxItems: 3,
-            items: { type: "string", maxLength: 100 }
-          }
-        },
-        required: ["title", "whyItFits", "usesItems", "assumedStaples", "missingItems", "steps", "confidence", "wasteReductionNotes"]
-      }
+      items: suggestionSchema
     },
     minimalBuyMeal: {
-      type: "object",
-      additionalProperties: false,
-      properties: {
-        title: { type: "string", maxLength: 80 },
-        whyItFits: { type: "string", maxLength: 220 },
-        usesItems: {
-          type: "array",
-          maxItems: 8,
-          items: { type: "string", maxLength: 60 }
-        },
-        assumedStaples: {
-          type: "array",
-          maxItems: 6,
-          items: { type: "string", maxLength: 40 }
-        },
-        missingItems: {
-          type: "array",
-          maxItems: 5,
-          items: { type: "string", maxLength: 50 }
-        },
-        steps: {
-          type: "array",
-          maxItems: 5,
-          items: { type: "string", maxLength: 180 }
-        },
-        confidence: {
-          type: "number",
-          minimum: 0,
-          maximum: 1
-        },
-        wasteReductionNotes: {
-          type: "array",
-          maxItems: 3,
-          items: { type: "string", maxLength: 100 }
-        }
-      },
-      required: ["title", "whyItFits", "usesItems", "assumedStaples", "missingItems", "steps", "confidence", "wasteReductionNotes"]
+      anyOf: [{ type: "null" }, suggestionSchema]
     },
     warnings: {
       type: "array",
@@ -174,7 +163,7 @@ export const goodsDinnerAdvisorJsonSchema = {
       }
     }
   },
-  required: ["assistantMessage", "pantryMeals", "minimalBuyMeal", "warnings"]
+  required: ["mode", "assistantMessage", "pantryMeals", "minimalBuyMeal", "warnings"]
 } as const;
 
 export function parseGoodsDinnerAdvisorExtraction(value: unknown): GoodsDinnerAdvisorExtraction {
@@ -182,17 +171,47 @@ export function parseGoodsDinnerAdvisorExtraction(value: unknown): GoodsDinnerAd
     throw new Error("Dinner advisor payload is malformed");
   }
 
-  const pantryMeals = Array.isArray(value.pantryMeals) ? value.pantryMeals.map((item) => parseSuggestion(item)).slice(0, 2) : [];
-  if (pantryMeals.length !== 2) {
-    throw new Error("Dinner advisor must return exactly two pantry meals");
+  const mode = normalizeText(value.mode) as GoodsAdvisorResponseMode;
+  if (!["DINNER_RECOMMENDATION", "PANTRY_QA", "RECEIPT_FOLLOW_UP", "NEEDS_ITEMS", "NEEDS_PURCHASE"].includes(mode)) {
+    throw new Error("Dinner advisor mode is invalid");
   }
 
-  const minimalBuyMeal = parseSuggestion(value.minimalBuyMeal);
+  const assistantMessage = normalizeText(value.assistantMessage).slice(0, 240);
+  const warnings = normalizeStringArray(value.warnings, 4, 140);
+  const pantryMeals = Array.isArray(value.pantryMeals) ? value.pantryMeals.map((item) => parseSuggestion(item)).slice(0, 2) : [];
+  const minimalBuyMeal = value.minimalBuyMeal == null ? null : parseSuggestion(value.minimalBuyMeal);
+
+  if (mode === "DINNER_RECOMMENDATION") {
+    if (pantryMeals.length !== 2) {
+      throw new Error("Dinner advisor must return exactly two pantry meals");
+    }
+
+    if (!minimalBuyMeal) {
+      throw new Error("Dinner advisor must return one minimal-buy meal");
+    }
+
+    return {
+      mode,
+      assistantMessage,
+      pantryMeals: [pantryMeals[0], pantryMeals[1]],
+      minimalBuyMeal,
+      warnings
+    };
+  }
+
+  if (pantryMeals.length !== 0) {
+    throw new Error("Non-dinner advisor modes must not return pantry meals");
+  }
+
+  if (minimalBuyMeal !== null) {
+    throw new Error("Non-dinner advisor modes must not return a minimal-buy meal");
+  }
 
   return {
-    assistantMessage: normalizeText(value.assistantMessage).slice(0, 240),
-    pantryMeals: [pantryMeals[0], pantryMeals[1]],
-    minimalBuyMeal,
-    warnings: normalizeStringArray(value.warnings, 4, 140)
+    mode,
+    assistantMessage,
+    pantryMeals: [],
+    minimalBuyMeal: null,
+    warnings
   };
 }

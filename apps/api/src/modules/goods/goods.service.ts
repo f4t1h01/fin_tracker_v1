@@ -24,7 +24,7 @@ import {
   UpdateGoodsPlaceDto
 } from "./dto/goods.dto";
 import { GOODS_ADVISOR_CACHE_TTL_MS, GOODS_ADVISOR_ITEM_CAP, OPENAI_GOODS_ADVISOR_MODEL } from "./goods-advisor.constants";
-import type { GoodsDinnerRecipeSuggestion } from "./goods-dinner-advisor.schema";
+import type { GoodsAdvisorResponseMode, GoodsDinnerRecipeSuggestion } from "./goods-dinner-advisor.schema";
 import { requestGoodsDinnerAdvice } from "./openai-goods-advisor.client";
 
 const goodsTimeZone = "Asia/Tashkent";
@@ -47,11 +47,28 @@ type GoodsAdvisorCompactItem = {
   score: number;
 };
 
-type GoodsDinnerAdvisorResponse = {
-  assistantMessage: string;
-  pantryMeals: [GoodsDinnerRecipeSuggestion, GoodsDinnerRecipeSuggestion];
-  minimalBuyMeal: GoodsDinnerRecipeSuggestion;
-  warnings: string[];
+type GoodsDinnerAdvisorResponse =
+  | {
+      mode: "DINNER_RECOMMENDATION";
+      assistantMessage: string;
+      pantryMeals: [GoodsDinnerRecipeSuggestion, GoodsDinnerRecipeSuggestion];
+      minimalBuyMeal: GoodsDinnerRecipeSuggestion;
+      warnings: string[];
+    }
+  | {
+      mode: Exclude<GoodsAdvisorResponseMode, "DINNER_RECOMMENDATION">;
+      assistantMessage: string;
+      pantryMeals: [];
+      minimalBuyMeal: null;
+      warnings: string[];
+    };
+
+type GoodsAdvisorIntent = "DINNER_RECOMMENDATION" | "PANTRY_QA" | "RECEIPT_FOLLOW_UP";
+
+type GoodsAdvisorPantryState = {
+  hasAnyItems: boolean;
+  hasUsableItems: boolean;
+  hasOnlyExpiredOrEmptyItems: boolean;
 };
 
 type GoodsAdvisorCacheEntry = {
@@ -106,6 +123,50 @@ function trimText(value: string, maxLength: number) {
 
 function normalizeCacheText(value: string) {
   return normalizeGoodsLookupName(value);
+}
+
+function isUsableAdvisorItem(item: Pick<GoodsAdvisorCompactItem, "expirationStatus" | "stockStatus">) {
+  return item.expirationStatus !== "EXPIRED" && item.stockStatus !== "OUT_OF_STOCK";
+}
+
+function buildAdvisorPantryState(items: GoodsAdvisorCompactItem[]): GoodsAdvisorPantryState {
+  const hasAnyItems = items.length > 0;
+  const hasUsableItems = items.some((item) => isUsableAdvisorItem(item));
+
+  return {
+    hasAnyItems,
+    hasUsableItems,
+    hasOnlyExpiredOrEmptyItems: hasAnyItems && !hasUsableItems
+  };
+}
+
+function detectAdvisorIntent(params: {
+  message: string;
+  recentMessages?: Array<{ role: string; text: string }>;
+  summaryText?: string | null;
+}): GoodsAdvisorIntent {
+  const normalizedMessage = normalizeGoodsLookupName(params.message);
+  const dinnerPattern =
+    /\b(dinner|lunch|breakfast|cook|cooking|meal|recipe|recipes|what can i eat|what should i eat|what can i make|what should i make)\b/;
+  const receiptPattern = /\b(receipt|receipts|bill|invoice|total|subtotal|spent|cost|price|charged)\b/;
+  const conversationContext = [params.summaryText ?? "", ...(params.recentMessages ?? []).map((message) => message.text)]
+    .join("\n")
+    .toLowerCase();
+  const hasReceiptContext = /\b(receipt|bill|invoice|subtotal|total|food receipt)\b/.test(conversationContext);
+
+  if (receiptPattern.test(normalizedMessage)) {
+    return "RECEIPT_FOLLOW_UP";
+  }
+
+  if (hasReceiptContext && /\b(it|that|this|there|item|items|total|cost|price)\b/.test(normalizedMessage)) {
+    return "RECEIPT_FOLLOW_UP";
+  }
+
+  if (dinnerPattern.test(normalizedMessage)) {
+    return "DINNER_RECOMMENDATION";
+  }
+
+  return "PANTRY_QA";
 }
 
 function expirationRank(value: GoodsExpirationStatus) {
@@ -1030,7 +1091,7 @@ export class GoodsService {
 
   private buildAdvisorPantryContext(items: GoodsAdvisorCompactItem[]) {
     if (!items.length) {
-      return "Pantry items: none. The pantry is nearly empty, so keep pantry meals extremely simple and make the minimal-buy meal practical.";
+      return "Pantry items: none. There are no tracked goods yet.";
     }
 
     return [
@@ -1058,6 +1119,20 @@ export class GoodsService {
     return messages
       .map((message) => `${message.role === "USER" ? "User" : message.role === "ASSISTANT" ? "Assistant" : "System"}: ${trimText(message.text, 280)}`)
       .join("\n");
+  }
+
+  private buildAdvisorTextResponse(
+    mode: Exclude<GoodsAdvisorResponseMode, "DINNER_RECOMMENDATION">,
+    assistantMessage: string,
+    warnings: string[] = []
+  ): GoodsDinnerAdvisorResponse {
+    return {
+      mode,
+      assistantMessage,
+      pantryMeals: [],
+      minimalBuyMeal: null,
+      warnings
+    };
   }
 
   private normalizeAdvisorThreadScope(scope?: string | null): GoodsAdvisorScope {
@@ -1099,7 +1174,6 @@ export class GoodsService {
     const now = new Date();
     const items = rows
       .map((row) => this.buildDerivedItem(row, now))
-      .filter((item) => item.effectiveQuantity > 0 || item.expirationStatus === "EXPIRING_SOON" || item.expirationStatus === "EXPIRED")
       .map((item) => ({
         item,
         normalizedName: normalizeGoodsLookupName(item.name),
@@ -1301,20 +1375,57 @@ export class GoodsService {
     }
 
     const compactItems = await this.getAdvisorCompactItems(params.userId, params.coupleId, params.scope);
-    const pantryFingerprint = this.buildAdvisorFingerprint(compactItems);
+    const pantryState = buildAdvisorPantryState(compactItems);
+    const intent = detectAdvisorIntent({
+      message,
+      recentMessages: params.recentMessages,
+      summaryText: params.summaryText
+    });
+    const usableCompactItems = compactItems.filter((item) => isUsableAdvisorItem(item));
+    const pantryFingerprint = this.buildAdvisorFingerprint(intent === "DINNER_RECOMMENDATION" ? usableCompactItems : compactItems);
     const recentConversation = this.buildRecentConversationContext(params.recentMessages ?? []);
     const contextFingerprint = createHash("sha256")
       .update(`${params.summaryText ?? ""}|${recentConversation}`)
       .digest("hex");
-    const cacheKey = `${params.cacheScopeKey}:${normalizeCacheText(message)}:${pantryFingerprint}:${contextFingerprint}`;
+    const cacheKey = `${params.cacheScopeKey}:${intent}:${normalizeCacheText(message)}:${pantryFingerprint}:${contextFingerprint}`;
     const cached = this.getCachedAdvisorResponse<GoodsDinnerAdvisorResponse>(cacheKey);
     if (cached) {
       return cached;
     }
 
+    if (intent !== "RECEIPT_FOLLOW_UP" && !pantryState.hasAnyItems) {
+      const response = this.buildAdvisorTextResponse(
+        "NEEDS_ITEMS",
+        "I do not see any goods in your pantry yet. Add a few items first, then I can help with meals or pantry questions."
+      );
+      this.setCachedAdvisorResponse(cacheKey, response);
+      return response;
+    }
+
+    if (intent === "DINNER_RECOMMENDATION" && !pantryState.hasUsableItems) {
+      const response = this.buildAdvisorTextResponse(
+        "NEEDS_PURCHASE",
+        "I cannot suggest a safe meal from the current pantry because the available items are expired or unusable. Please purchase fresh ingredients first."
+      );
+      this.setCachedAdvisorResponse(cacheKey, response);
+      return response;
+    }
+
+    const hasReceiptContext = /\b(receipt|bill|invoice|subtotal|total|food receipt)\b/i.test(
+      `${params.summaryText ?? ""}\n${recentConversation}`
+    );
+    if (intent === "RECEIPT_FOLLOW_UP" && !hasReceiptContext) {
+      const response = this.buildAdvisorTextResponse(
+        "RECEIPT_FOLLOW_UP",
+        "I do not have that food receipt in this conversation yet. Paste the receipt details here and I can help you continue from it."
+      );
+      this.setCachedAdvisorResponse(cacheKey, response);
+      return response;
+    }
+
     const correlationId = randomUUID();
     const pricing = await this.aiUsageService.getModelPricing(OPENAI_GOODS_ADVISOR_MODEL);
-    const pantryContext = this.buildAdvisorPantryContext(compactItems);
+    const pantryContext = this.buildAdvisorPantryContext(intent === "DINNER_RECOMMENDATION" ? usableCompactItems : compactItems);
 
     try {
       const advice = await requestGoodsDinnerAdvice({
@@ -1341,12 +1452,25 @@ export class GoodsService {
         pricing
       });
 
-      const response: GoodsDinnerAdvisorResponse = {
-        assistantMessage: advice.draft.assistantMessage,
-        pantryMeals: [this.withRecipePreview(advice.draft.pantryMeals[0]), this.withRecipePreview(advice.draft.pantryMeals[1])],
-        minimalBuyMeal: this.withRecipePreview(advice.draft.minimalBuyMeal),
-        warnings: advice.draft.warnings
-      };
+      const response: GoodsDinnerAdvisorResponse =
+        advice.draft.mode === "DINNER_RECOMMENDATION"
+          ? {
+              mode: "DINNER_RECOMMENDATION",
+              assistantMessage: advice.draft.assistantMessage,
+              pantryMeals: [
+                this.withRecipePreview(advice.draft.pantryMeals[0]),
+                this.withRecipePreview(advice.draft.pantryMeals[1])
+              ],
+              minimalBuyMeal: this.withRecipePreview(advice.draft.minimalBuyMeal),
+              warnings: advice.draft.warnings
+            }
+          : {
+              mode: advice.draft.mode,
+              assistantMessage: advice.draft.assistantMessage,
+              pantryMeals: [],
+              minimalBuyMeal: null,
+              warnings: advice.draft.warnings
+            };
 
       this.setCachedAdvisorResponse(cacheKey, response);
       return response;
