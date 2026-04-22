@@ -14,6 +14,7 @@ const modules = [
   { href: "/0admin/transactions", label: "Transactions", description: "Search the ledger and apply safe corrections." },
   { href: "/0admin/categories", label: "Categories", description: "Review category trees and repair visibility or parent links." },
   { href: "/0admin/goods/uoms", label: "Goods UOMs", description: "Manage the database-backed unit catalog used by My Goods forms." },
+  { href: "/0admin/ai-demo", label: "AI demo", description: "Run the professor-facing image extraction walkthrough with dry-run previews." },
   { href: "/0admin/ai-usage", label: "AI usage", description: "Track model usage, tokens, and spend per request." },
   { href: "/0admin/sql", label: "SQL console", description: "Run audited read-only SQL against production data." },
   { href: "/0admin/security", label: "Security", description: "Manage admin access and review auth events." },
