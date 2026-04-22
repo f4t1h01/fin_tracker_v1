@@ -1044,7 +1044,7 @@ html[data-theme="dark"] .field-control {
 }
 
 .field-textarea {
-  min-height: 108px;
+  min-height: 50px;
   padding: 12px;
   border-radius: 12px;
   box-shadow: none;
