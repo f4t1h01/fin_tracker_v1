@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import { ArrowLeftRight, Banknote, BarChart3, Carrot, LayoutDashboard, Package, SlidersHorizontal, Tags, UserCog } from "lucide-react";
+import { ArrowLeftRight, Banknote, BarChart3, Carrot, LayoutDashboard, MessageSquareText, Package, SlidersHorizontal, Tags, UserCog } from "lucide-react";
 
 export const workspaceRoutes = {
   transactions: "/profile/me",
@@ -9,6 +9,7 @@ export const workspaceRoutes = {
   manage: "/profile/me/manage",
   categories: "/profile/me/categories",
   goods: "/profile/me/goods",
+  goodsAdvisor: "/profile/me/goods/advisor",
   goodsItems: "/profile/me/goods/items",
   goodsManage: "/profile/me/goods/manage"
 } as const;
@@ -71,6 +72,7 @@ export const goodsHeaderActionGroups = [
     label: "Goods",
     items: [
       { href: workspaceRoutes.goods, label: "My Goods", icon: Carrot },
+      { href: workspaceRoutes.goodsAdvisor, label: "Advisor", icon: MessageSquareText },
       { href: workspaceRoutes.goodsItems, label: "Stock", icon: Package },
       { href: workspaceRoutes.goodsManage, label: "Setup", icon: SlidersHorizontal }
     ]

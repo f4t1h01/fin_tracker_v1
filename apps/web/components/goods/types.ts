@@ -184,3 +184,37 @@ export type GoodsAdvisorChatEntry = {
   prompt: string;
   response: GoodsDinnerAdvisorResponse | null;
 };
+
+export type GoodsAdvisorThreadSummary = {
+  id: string;
+  title: string;
+  scope: GoodsAdvisorScope;
+  isPinned: boolean;
+  lastActivityAt: string;
+  createdAt: string;
+  lastMessagePreview: string | null;
+};
+
+export type GoodsAdvisorThreadsResponse = {
+  items: GoodsAdvisorThreadSummary[];
+};
+
+export type GoodsAdvisorMessage = {
+  id: string;
+  role: "USER" | "ASSISTANT" | "SYSTEM";
+  text: string;
+  payload: GoodsDinnerAdvisorResponse | null;
+  createdAt: string;
+};
+
+export type GoodsAdvisorThreadDetailResponse = {
+  thread: GoodsAdvisorThreadSummary;
+  summaryText: string | null;
+  messages: GoodsAdvisorMessage[];
+};
+
+export type GoodsAdvisorSendMessageResponse = {
+  thread: GoodsAdvisorThreadSummary;
+  userMessage: GoodsAdvisorMessage;
+  assistantMessage: GoodsAdvisorMessage;
+};

@@ -3,6 +3,8 @@ import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } f
 import { CurrentUser } from "../auth/current-user.decorator";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import {
+  CreateGoodsAdvisorMessageDto,
+  CreateGoodsAdvisorThreadDto,
   CreateGoodsCategoryDto,
   GoodsDinnerAdvisorDto,
   CreateGoodsItemDto,
@@ -12,6 +14,7 @@ import {
   GoodsMoveDto,
   GoodsQuantityMutationDto,
   GoodsReconcileDto,
+  UpdateGoodsAdvisorThreadDto,
   UpdateGoodsCategoryDto,
   UpdateGoodsItemDto,
   UpdateGoodsVisibilityDto,
@@ -23,6 +26,36 @@ import { GoodsService } from "./goods.service";
 @Controller("profile/me/goods")
 export class GoodsController {
   constructor(private readonly goodsService: GoodsService) {}
+
+  @Get("advisor/threads")
+  listAdvisorThreads(@CurrentUser() user: { id: string }) {
+    return this.goodsService.listAdvisorThreads(user.id);
+  }
+
+  @Post("advisor/threads")
+  createAdvisorThread(@CurrentUser() user: { id: string }, @Body() dto: CreateGoodsAdvisorThreadDto) {
+    return this.goodsService.createAdvisorThread(user.id, dto);
+  }
+
+  @Get("advisor/threads/:id")
+  getAdvisorThread(@CurrentUser() user: { id: string }, @Param("id") id: string) {
+    return this.goodsService.getAdvisorThread(user.id, id);
+  }
+
+  @Post("advisor/threads/:id/messages")
+  sendAdvisorThreadMessage(@CurrentUser() user: { id: string }, @Param("id") id: string, @Body() dto: CreateGoodsAdvisorMessageDto) {
+    return this.goodsService.sendAdvisorThreadMessage(user.id, id, dto);
+  }
+
+  @Patch("advisor/threads/:id")
+  updateAdvisorThread(@CurrentUser() user: { id: string }, @Param("id") id: string, @Body() dto: UpdateGoodsAdvisorThreadDto) {
+    return this.goodsService.updateAdvisorThread(user.id, id, dto);
+  }
+
+  @Delete("advisor/threads/:id")
+  deleteAdvisorThread(@CurrentUser() user: { id: string }, @Param("id") id: string) {
+    return this.goodsService.deleteAdvisorThread(user.id, id);
+  }
 
   @Post("advisor/dinner")
   dinnerAdvisor(@CurrentUser() user: { id: string }, @Body() dto: GoodsDinnerAdvisorDto) {

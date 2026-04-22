@@ -96,6 +96,7 @@ export class AiUsageService {
         providerRequestId: payload.providerRequestId ?? null,
         userId: payload.userId ?? null,
         coupleId: payload.coupleId ?? null,
+        aiThreadId: payload.aiThreadId ?? null,
         aiModelPricingId: payload.pricingId ?? payload.pricing?.id ?? null,
         inputTokens,
         outputTokens,

@@ -1,10 +1,13 @@
 import { BadRequestException, Injectable, ServiceUnavailableException, UnauthorizedException } from "@nestjs/common";
 import { createHash, randomUUID } from "node:crypto";
 
+import { AiThreadService } from "../ai/ai-thread.service";
 import { AiUsageService } from "../ai/ai-usage.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { OpenAiRequestError } from "../profile/voice/openai-request-error";
 import {
+  CreateGoodsAdvisorMessageDto,
+  CreateGoodsAdvisorThreadDto,
   CreateGoodsCategoryDto,
   GoodsDinnerAdvisorDto,
   CreateGoodsItemDto,
@@ -14,6 +17,7 @@ import {
   GoodsMoveDto,
   GoodsQuantityMutationDto,
   GoodsReconcileDto,
+  UpdateGoodsAdvisorThreadDto,
   UpdateGoodsCategoryDto,
   UpdateGoodsItemDto,
   UpdateGoodsVisibilityDto,
@@ -52,7 +56,7 @@ type GoodsDinnerAdvisorResponse = {
 
 type GoodsAdvisorCacheEntry = {
   expiresAt: number;
-  response: GoodsDinnerAdvisorResponse;
+  response: unknown;
 };
 
 function normalizeGoodsName(value: string) {
@@ -378,7 +382,8 @@ export class GoodsService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly aiUsageService: AiUsageService
+    private readonly aiUsageService: AiUsageService,
+    private readonly aiThreadService: AiThreadService
   ) {}
 
   private async requireUser(userId: string) {
@@ -997,7 +1002,7 @@ export class GoodsService {
     }
   }
 
-  private getCachedAdvisorResponse(cacheKey: string) {
+  private getCachedAdvisorResponse<T>(cacheKey: string) {
     this.pruneAdvisorCache();
     const entry = this.advisorCache.get(cacheKey);
     if (!entry || entry.expiresAt <= Date.now()) {
@@ -1008,10 +1013,10 @@ export class GoodsService {
       return null;
     }
 
-    return entry.response;
+    return entry.response as T;
   }
 
-  private setCachedAdvisorResponse(cacheKey: string, response: GoodsDinnerAdvisorResponse) {
+  private setCachedAdvisorResponse<T>(cacheKey: string, response: T) {
     this.pruneAdvisorCache();
     this.advisorCache.set(cacheKey, {
       expiresAt: Date.now() + GOODS_ADVISOR_CACHE_TTL_MS,
@@ -1043,6 +1048,24 @@ export class GoodsService {
         return parts.join(" | ");
       })
     ].join("\n");
+  }
+
+  private buildRecentConversationContext(messages: Array<{ role: string; text: string }>) {
+    if (!messages.length) {
+      return "No recent conversation yet.";
+    }
+
+    return messages
+      .map((message) => `${message.role === "USER" ? "User" : message.role === "ASSISTANT" ? "Assistant" : "System"}: ${trimText(message.text, 280)}`)
+      .join("\n");
+  }
+
+  private normalizeAdvisorThreadScope(scope?: string | null): GoodsAdvisorScope {
+    if (scope === "PERSONAL" || scope === "SHARED") {
+      return scope;
+    }
+
+    return "AUTO";
   }
 
   private async getAdvisorCompactItems(userId: string, coupleId: string, scope: GoodsAdvisorScope) {
@@ -1258,28 +1281,33 @@ export class GoodsService {
     };
   }
 
-  async requestDinnerAdvice(userId: string, dto: GoodsDinnerAdvisorDto): Promise<GoodsDinnerAdvisorResponse> {
+  private async generateDinnerAdvice(params: {
+    userId: string;
+    coupleId: string;
+    scope: GoodsAdvisorScope;
+    message: string;
+    summaryText?: string | null;
+    recentMessages?: Array<{ role: string; text: string }>;
+    aiThreadId?: string | null;
+    cacheScopeKey: string;
+  }): Promise<GoodsDinnerAdvisorResponse> {
     if (!this.openAiApiKey) {
       throw new ServiceUnavailableException("AI dinner advisor is not configured on this server");
     }
 
-    const message = normalizeGoodsName(dto.message ?? "");
+    const message = normalizeGoodsName(params.message ?? "");
     if (!message) {
       throw new BadRequestException("Enter a dinner question first");
     }
 
-    const requestedScope = dto.scope ?? "AUTO";
-    const workspace = await this.getWorkspaceContext(userId, true);
-    await this.ensureSeedGoodsCategories(userId, workspace.coupleId, workspace.hasPartnerConnection);
-
-    if (requestedScope === "SHARED" && !workspace.hasPartnerConnection) {
-      throw new BadRequestException("Shared dinner advice requires an active partner connection");
-    }
-
-    const compactItems = await this.getAdvisorCompactItems(userId, workspace.coupleId, requestedScope);
+    const compactItems = await this.getAdvisorCompactItems(params.userId, params.coupleId, params.scope);
     const pantryFingerprint = this.buildAdvisorFingerprint(compactItems);
-    const cacheKey = `${userId}:${requestedScope}:${normalizeCacheText(message)}:${pantryFingerprint}`;
-    const cached = this.getCachedAdvisorResponse(cacheKey);
+    const recentConversation = this.buildRecentConversationContext(params.recentMessages ?? []);
+    const contextFingerprint = createHash("sha256")
+      .update(`${params.summaryText ?? ""}|${recentConversation}`)
+      .digest("hex");
+    const cacheKey = `${params.cacheScopeKey}:${normalizeCacheText(message)}:${pantryFingerprint}:${contextFingerprint}`;
+    const cached = this.getCachedAdvisorResponse<GoodsDinnerAdvisorResponse>(cacheKey);
     if (cached) {
       return cached;
     }
@@ -1292,7 +1320,9 @@ export class GoodsService {
       const advice = await requestGoodsDinnerAdvice({
         apiKey: this.openAiApiKey,
         userMessage: trimText(message, 240),
-        pantryContext
+        pantryContext,
+        summaryText: params.summaryText,
+        recentConversation
       });
 
       await this.aiUsageService.log({
@@ -1304,8 +1334,9 @@ export class GoodsService {
         endpoint: "/v1/responses",
         correlationId,
         providerRequestId: advice.providerRequestId,
-        userId,
-        coupleId: workspace.coupleId,
+        userId: params.userId,
+        coupleId: params.coupleId,
+        aiThreadId: params.aiThreadId ?? null,
         usage: advice.usage,
         pricing
       });
@@ -1329,14 +1360,144 @@ export class GoodsService {
         endpoint: "/v1/responses",
         correlationId,
         providerRequestId: error instanceof OpenAiRequestError ? error.details?.providerRequestId ?? null : null,
-        userId,
-        coupleId: workspace.coupleId,
+        userId: params.userId,
+        coupleId: params.coupleId,
+        aiThreadId: params.aiThreadId ?? null,
         usage: error instanceof OpenAiRequestError ? error.details?.usage ?? null : null,
         pricing,
         errorMessage: error instanceof Error ? error.message : "Unknown dinner advisor error"
       });
       throw error;
     }
+  }
+
+  async requestDinnerAdvice(userId: string, dto: GoodsDinnerAdvisorDto): Promise<GoodsDinnerAdvisorResponse> {
+    const workspace = await this.getWorkspaceContext(userId, true);
+    await this.ensureSeedGoodsCategories(userId, workspace.coupleId, workspace.hasPartnerConnection);
+    const requestedScope = this.normalizeAdvisorThreadScope(dto.scope);
+
+    if (requestedScope === "SHARED" && !workspace.hasPartnerConnection) {
+      throw new BadRequestException("Shared dinner advice requires an active partner connection");
+    }
+
+    return this.generateDinnerAdvice({
+      userId,
+      coupleId: workspace.coupleId,
+      scope: requestedScope,
+      message: dto.message,
+      cacheScopeKey: `${userId}:${requestedScope}`
+    });
+  }
+
+  async listAdvisorThreads(userId: string) {
+    await this.getWorkspaceContext(userId, true);
+    return this.aiThreadService.listThreads(userId, "GOODS_ADVISOR");
+  }
+
+  async createAdvisorThread(userId: string, dto: CreateGoodsAdvisorThreadDto) {
+    const workspace = await this.getWorkspaceContext(userId, true);
+    const scope = this.normalizeAdvisorThreadScope(dto.scope);
+    if (scope === "SHARED" && !workspace.hasPartnerConnection) {
+      throw new BadRequestException("Shared dinner advice requires an active partner connection");
+    }
+
+    return this.aiThreadService.createThread({
+      userId,
+      coupleId: workspace.coupleId,
+      feature: "GOODS_ADVISOR",
+      scope
+    });
+  }
+
+  async getAdvisorThread(userId: string, threadId: string) {
+    await this.getWorkspaceContext(userId, true);
+    return this.aiThreadService.getThreadWithMessages({
+      userId,
+      feature: "GOODS_ADVISOR",
+      threadId
+    });
+  }
+
+  async updateAdvisorThread(userId: string, threadId: string, dto: UpdateGoodsAdvisorThreadDto) {
+    const workspace = await this.getWorkspaceContext(userId, true);
+    const scope = dto.scope === undefined ? undefined : this.normalizeAdvisorThreadScope(dto.scope);
+    if (scope === "SHARED" && !workspace.hasPartnerConnection) {
+      throw new BadRequestException("Shared dinner advice requires an active partner connection");
+    }
+
+    return this.aiThreadService.updateThread({
+      userId,
+      feature: "GOODS_ADVISOR",
+      threadId,
+      title: dto.title,
+      isPinned: dto.isPinned,
+      scope
+    });
+  }
+
+  async deleteAdvisorThread(userId: string, threadId: string) {
+    await this.getWorkspaceContext(userId, true);
+    return this.aiThreadService.deleteThread({
+      userId,
+      feature: "GOODS_ADVISOR",
+      threadId
+    });
+  }
+
+  async sendAdvisorThreadMessage(userId: string, threadId: string, dto: CreateGoodsAdvisorMessageDto) {
+    const workspace = await this.getWorkspaceContext(userId, true);
+    await this.ensureSeedGoodsCategories(userId, workspace.coupleId, workspace.hasPartnerConnection);
+    const normalizedMessage = normalizeGoodsName(dto.message ?? "");
+    if (!normalizedMessage) {
+      throw new BadRequestException("Enter a dinner question first");
+    }
+
+    const conversation = await this.aiThreadService.getConversationContext({
+      userId,
+      feature: "GOODS_ADVISOR",
+      threadId
+    });
+    const scope = this.normalizeAdvisorThreadScope(conversation.thread.scope);
+
+    if (scope === "SHARED" && !workspace.hasPartnerConnection) {
+      throw new BadRequestException("Shared dinner advice requires an active partner connection");
+    }
+
+    const advice = await this.generateDinnerAdvice({
+      userId,
+      coupleId: conversation.thread.coupleId ?? workspace.coupleId,
+      scope,
+      message: normalizedMessage,
+      summaryText: conversation.summaryText,
+      recentMessages: conversation.recentMessages,
+      aiThreadId: threadId,
+      cacheScopeKey: `${threadId}:${scope}`
+    });
+
+    const userMessage = await this.aiThreadService.appendMessage({
+      threadId,
+      role: "USER",
+      text: normalizedMessage,
+      userId
+    });
+    const assistantMessage = await this.aiThreadService.appendMessage({
+      threadId,
+      role: "ASSISTANT",
+      text: advice.assistantMessage,
+      payload: advice
+    });
+    await this.aiThreadService.rebuildSummary(threadId);
+    const thread = await this.aiThreadService.getThreadWithMessages({
+      userId,
+      feature: "GOODS_ADVISOR",
+      threadId
+    });
+
+    return {
+      thread: thread.thread,
+      userMessage,
+      assistantMessage
+    };
   }
 
   async listItems(userId: string, query: GoodsListQueryDto) {

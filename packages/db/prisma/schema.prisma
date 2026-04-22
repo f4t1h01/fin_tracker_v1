@@ -61,6 +61,22 @@ enum GoodsUomGroup {
   OTHER
 }
 
+enum AiThreadFeature {
+  GOODS_ADVISOR
+}
+
+enum AiThreadScope {
+  AUTO
+  PERSONAL
+  SHARED
+}
+
+enum AiMessageRole {
+  USER
+  ASSISTANT
+  SYSTEM
+}
+
 model User {
   id                String        @id @default(cuid())
   telegramId        BigInt        @unique
@@ -99,6 +115,8 @@ model User {
   createdGoodsItems  GoodsItem[]  @relation("GoodsItemCreatedBy")
   ownedGoodsItems    GoodsItem[]  @relation("GoodsItemOwner")
   goodsItemEvents    GoodsItemEvent[] @relation("GoodsItemEventCreatedBy")
+  aiThreads          AiThread[]   @relation("AiThreadOwner")
+  aiMessages         AiMessage[]  @relation("AiMessageAuthor")
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
 }
@@ -149,6 +167,7 @@ model Couple {
   goodsPlaces  GoodsPlace[]
   goodsCategories GoodsCategory[]
   goodsItems   GoodsItem[]
+  aiThreads    AiThread[]
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
 }
@@ -167,6 +186,8 @@ model AiUsageLog {
   user                        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
   coupleId                    String?  @map("couple_id")
   couple                      Couple?  @relation(fields: [coupleId], references: [id], onDelete: SetNull)
+  aiThreadId                  String?  @map("ai_thread_id")
+  aiThread                    AiThread? @relation(fields: [aiThreadId], references: [id], onDelete: SetNull)
   aiModelPricingId            String?  @map("ai_model_pricing_id")
   aiModelPricing              AiModelPricing? @relation(fields: [aiModelPricingId], references: [id], onDelete: SetNull)
   inputTokens                 Int?     @map("input_tokens")
@@ -196,6 +217,7 @@ model AiUsageLog {
   @@index([providerRequestId])
   @@index([userId, createdAt])
   @@index([coupleId, createdAt])
+  @@index([aiThreadId, createdAt])
   @@index([aiModelPricingId])
   @@map("ai_usage_log")
 }
@@ -433,4 +455,46 @@ model GoodsItemEvent {
   @@index([goodsItemId, occurredAt(sort: Desc)])
   @@index([eventType, occurredAt(sort: Desc)])
   @@map("goods_item_event")
+}
+
+model AiThread {
+  id                String          @id @default(cuid())
+  userId            String          @map("user_id")
+  user              User            @relation("AiThreadOwner", fields: [userId], references: [id], onDelete: Cascade)
+  coupleId          String?         @map("couple_id")
+  couple            Couple?         @relation(fields: [coupleId], references: [id], onDelete: SetNull)
+  feature           AiThreadFeature
+  scope             AiThreadScope   @default(AUTO)
+  autoTitle         String?         @map("auto_title")
+  titleOverride     String?         @map("title_override")
+  isPinned          Boolean         @default(false) @map("is_pinned")
+  summaryText       String?         @map("summary_text")
+  lastMessagePreview String?        @map("last_message_preview")
+  lastActivityAt    DateTime        @map("last_activity_at")
+  expiresAt         DateTime?       @map("expires_at")
+  messages          AiMessage[]
+  aiUsageLogs       AiUsageLog[]
+  createdAt         DateTime        @default(now()) @map("created_at")
+  updatedAt         DateTime        @updatedAt @map("updated_at")
+
+  @@index([userId, feature, isPinned, lastActivityAt(sort: Desc)])
+  @@index([userId, feature, expiresAt])
+  @@index([coupleId, feature, lastActivityAt(sort: Desc)])
+  @@map("ai_thread")
+}
+
+model AiMessage {
+  id         String        @id @default(cuid())
+  threadId    String        @map("thread_id")
+  thread      AiThread      @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  role       AiMessageRole
+  userId     String?       @map("user_id")
+  user       User?         @relation("AiMessageAuthor", fields: [userId], references: [id], onDelete: SetNull)
+  text       String
+  payload    Json?
+  createdAt  DateTime      @default(now()) @map("created_at")
+
+  @@index([threadId, createdAt])
+  @@index([userId, createdAt])
+  @@map("ai_message")
 }

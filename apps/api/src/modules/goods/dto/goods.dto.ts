@@ -265,3 +265,31 @@ export class GoodsDinnerAdvisorDto {
   @IsIn(goodsAdvisorScopes)
   scope?: (typeof goodsAdvisorScopes)[number];
 }
+
+export class CreateGoodsAdvisorThreadDto {
+  @IsOptional()
+  @IsIn(goodsAdvisorScopes)
+  scope?: (typeof goodsAdvisorScopes)[number];
+}
+
+export class UpdateGoodsAdvisorThreadDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  title?: string | null;
+
+  @IsOptional()
+  @Transform(({ value }) => parseBoolean(value))
+  @IsBoolean()
+  isPinned?: boolean;
+
+  @IsOptional()
+  @IsIn(goodsAdvisorScopes)
+  scope?: (typeof goodsAdvisorScopes)[number];
+}
+
+export class CreateGoodsAdvisorMessageDto {
+  @IsString()
+  @MaxLength(240)
+  message!: string;
+}

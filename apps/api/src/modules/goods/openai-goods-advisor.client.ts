@@ -139,6 +139,8 @@ export async function requestGoodsDinnerAdvice(params: {
   apiKey: string;
   userMessage: string;
   pantryContext: string;
+  summaryText?: string | null;
+  recentConversation?: string;
 }): Promise<{
   draft: GoodsDinnerAdvisorExtraction;
   usage: AiUsageTokenBreakdown;
@@ -155,6 +157,12 @@ export async function requestGoodsDinnerAdvice(params: {
     "Avoid expired ingredients unless the user explicitly asks about them.",
     "Keep the answer short, practical, and dinner-focused.",
     "Use the user's language when obvious from their message.",
+    "",
+    "Conversation summary:",
+    params.summaryText?.trim() || "No prior summary.",
+    "",
+    "Recent conversation:",
+    params.recentConversation?.trim() || "No recent conversation.",
     "",
     "User request:",
     params.userMessage,

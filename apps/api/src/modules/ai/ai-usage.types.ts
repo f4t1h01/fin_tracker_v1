@@ -22,6 +22,7 @@ export type AiUsageLogPayload = {
   providerRequestId?: string | null;
   userId?: string | null;
   coupleId?: string | null;
+  aiThreadId?: string | null;
   pricingId?: string | null;
   usage?: AiUsageTokenBreakdown | null;
   pricing?: AiModelPricing | null;
