@@ -4,7 +4,8 @@ set -eu
 cd "$(dirname "$0")/../.."
 
 docker compose up -d --build --remove-orphans
-docker image prune -f
+docker image prune -af
+docker builder prune -af
 docker volume rm fin_tracker_root_node_modules fin_tracker_pnpm_store fin_tracker_web_next 2>/dev/null || true
 docker compose restart nginx
 docker compose logs web nginx --since=10m
