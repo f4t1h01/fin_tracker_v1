@@ -11,9 +11,10 @@ Kotlin Android client scaffold for Duet that keeps the existing backend and data
 ## Current contents
 
 - Single-activity Jetpack Compose app
-- Warm editorial Duet theme inspired by the current web UI
-- Core screens mocked with sample data: landing, auth, profile, dashboard
-- API config placeholder for wiring the current backend later
+- Warm editorial Duet theme adapted for mobile surfaces
+- Email/password auth against the existing API
+- Profile snapshot, transaction entry/edit/delete, recent activity, dashboard, exchange rates, settings, partner binding, and category basics
+- Online-first cached loading with encrypted JWT storage and DataStore-backed domain snapshots
 
 ## Open in Android Studio
 
@@ -24,6 +25,6 @@ Kotlin Android client scaffold for Duet that keeps the existing backend and data
 
 ## Planned next integration
 
-- Replace sample data with Retrofit or Ktor API calls to the existing backend.
-- Reuse auth, profile, transaction, and dashboard endpoints.
-- Add Room or DataStore only for local session/cache support.
+- Run compile/tests once an Android SDK is configured locally.
+- Add device/emulator QA for weak-network cache behavior and small-screen layouts.
+- Add My Goods, AI advisor, receipt image, and voice drafting in later phases.
