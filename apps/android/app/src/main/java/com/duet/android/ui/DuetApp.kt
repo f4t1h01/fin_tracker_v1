@@ -9,6 +9,7 @@ import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -28,6 +29,7 @@ import com.duet.android.ui.screens.AuthScreen
 import com.duet.android.ui.screens.DashboardScreen
 import com.duet.android.ui.screens.ProfileScreen
 import com.duet.android.ui.screens.RatesScreen
+import com.duet.android.ui.screens.GoodsScreen
 import com.duet.android.ui.screens.SettingsScreen
 import com.duet.android.ui.screens.SplashScreen
 import com.duet.android.ui.theme.BackgroundBlush
@@ -40,6 +42,7 @@ import com.duet.android.ui.theme.DarkSurface
 private enum class DuetDestination(val label: String, val icon: ImageVector) {
     Profile("Home", Icons.Default.Home),
     Dashboard("Dashboard", Icons.Default.Dashboard),
+    Goods("Goods", Icons.Default.Inventory2),
     Rates("Rates", Icons.Default.Payments),
     Settings("Settings", Icons.Default.Settings)
 }
@@ -84,6 +87,7 @@ fun DuetApp(state: DuetUiState, actions: DuetViewModel) {
                     when (destination) {
                         DuetDestination.Profile -> ProfileScreen(state = state, actions = actions)
                         DuetDestination.Dashboard -> DashboardScreen(state = state, actions = actions)
+                        DuetDestination.Goods -> GoodsScreen(state = state, actions = actions)
                         DuetDestination.Rates -> RatesScreen(state = state, actions = actions)
                         DuetDestination.Settings -> SettingsScreen(state = state, actions = actions)
                     }

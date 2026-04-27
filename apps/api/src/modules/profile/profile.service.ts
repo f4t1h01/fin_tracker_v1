@@ -1860,6 +1860,35 @@ export class ProfileService {
   }
 
   async createTransaction(userId: string, dto: CreateProfileTransactionDto) {
+    const clientMutationId = dto.clientMutationId?.trim() || null;
+    if (clientMutationId) {
+      const existing = await this.prisma.client.transaction.findUnique({
+        where: { clientMutationId },
+        include: {
+          category: {
+            select: {
+              id: true,
+              name: true,
+              kind: true
+            }
+          },
+          user: {
+            select: {
+              firstName: true,
+              username: true
+            }
+          }
+        }
+      });
+
+      if (existing) {
+        if (existing.userId !== userId) {
+          throw new BadRequestException("This offline create request belongs to another user");
+        }
+        return existing;
+      }
+    }
+
     const coupleId = await this.resolveActiveCoupleId(userId, true);
 
     if (!coupleId) {
@@ -1906,7 +1935,8 @@ export class ProfileService {
         exchangeRate: exchangeRate.toFixed(6),
         amountInUzs: amountInUzs.toFixed(2),
         note: dto.note,
-        happenedAt: new Date()
+        happenedAt: new Date(),
+        clientMutationId
       },
       include: {
         category: {
@@ -1914,6 +1944,12 @@ export class ProfileService {
             id: true,
             name: true,
             kind: true
+          }
+        },
+        user: {
+          select: {
+            firstName: true,
+            username: true
           }
         }
       }

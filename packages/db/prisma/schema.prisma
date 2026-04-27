@@ -300,6 +300,7 @@ model Category {
 
 model Transaction {
   id         String          @id @default(cuid())
+  clientMutationId String?  @unique @map("client_mutation_id")
   coupleId   String
   couple     Couple          @relation(fields: [coupleId], references: [id], onDelete: Cascade)
   userId     String
@@ -397,6 +398,7 @@ model GoodsUom {
 
 model GoodsItem {
   id                     String               @id @default(cuid())
+  clientMutationId       String?              @unique @map("client_mutation_id")
   coupleId               String               @map("couple_id")
   couple                 Couple               @relation(fields: [coupleId], references: [id], onDelete: Cascade)
   scope                  GoodsScope

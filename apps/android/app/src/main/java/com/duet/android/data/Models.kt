@@ -179,7 +179,8 @@ data class CreateTransactionRequest(
     val categoryId: String? = null,
     val categoryName: String? = null,
     val note: String? = null,
-    val currency: String = "UZS"
+    val currency: String = "UZS",
+    val clientMutationId: String? = null
 )
 
 data class UpdateTransactionRequest(
@@ -277,4 +278,185 @@ data class EditableTransaction(
     val categoryId: String,
     val categoryName: String,
     val note: String
+)
+
+data class GoodsCatalogPlace(
+    val id: String,
+    val scope: String,
+    val name: String,
+    val sortOrder: Int = 0,
+    val isVisible: Boolean = true
+)
+
+data class GoodsCatalogCategory(
+    val id: String,
+    val scope: String,
+    val name: String,
+    val sortOrder: Int = 0,
+    val isVisible: Boolean = true,
+    val isSeeded: Boolean = false
+)
+
+data class GoodsUom(
+    val id: String,
+    val code: String,
+    val label: String,
+    val groupKey: String = "OTHER",
+    val decimals: Int = 0,
+    val isActive: Boolean = true
+)
+
+data class GoodsItemRef(
+    val id: String,
+    val name: String,
+    val scope: String,
+    val isVisible: Boolean = true
+)
+
+data class GoodsItem(
+    val id: String,
+    val scope: String,
+    val name: String,
+    val note: String? = null,
+    val place: GoodsItemRef? = null,
+    val category: GoodsItemRef? = null,
+    val uom: GoodsUom? = null,
+    val quantityBase: Double = 0.0,
+    val effectiveQuantity: Double = 0.0,
+    val lowStockThreshold: Double = 0.0,
+    val targetQuantity: Double = 0.0,
+    val consumptionRateValue: Double? = null,
+    val consumptionRateUnit: String = "PERMANENT",
+    val consumptionRatePerHour: Double? = null,
+    val consumptionStartedAt: String? = null,
+    val expirationDate: String? = null,
+    val expirationStatus: String = "NO_EXPIRATION",
+    val daysUntilExpiry: Int? = null,
+    val stockStatus: String = "ENOUGH",
+    val estimatedRunOutAt: String? = null,
+    val isArchived: Boolean = false,
+    val lastStockEventAt: String = "",
+    val lastManualEventAt: String? = null,
+    val updatedAt: String = ""
+)
+
+data class GoodsEvent(
+    val id: String,
+    val eventType: String,
+    val quantityDelta: Double = 0.0,
+    val quantityAfter: Double = 0.0,
+    val occurredAt: String,
+    val source: String,
+    val reason: String? = null,
+    val item: GoodsEventItem? = null
+)
+
+data class GoodsEventItem(val id: String, val name: String)
+
+data class GoodsSnapshotResponse(
+    val workspace: GoodsWorkspace,
+    val metrics: GoodsMetrics,
+    val highlights: GoodsHighlights,
+    val breakdown: GoodsBreakdown,
+    val catalog: GoodsCatalog
+)
+
+data class GoodsWorkspace(val coupleId: String, val name: String, val hasPartnerConnection: Boolean)
+data class GoodsMetrics(
+    val activeItems: Int = 0,
+    val lowStockItems: Int = 0,
+    val outOfStockItems: Int = 0,
+    val expiringSoonItems: Int = 0,
+    val expiredItems: Int = 0,
+    val recentlyUpdatedItems: Int = 0
+)
+
+data class GoodsHighlights(
+    val attentionItems: List<GoodsItem> = emptyList(),
+    val runOutSoon: List<GoodsItem> = emptyList(),
+    val recentChanges: List<GoodsEvent> = emptyList()
+)
+
+data class GoodsBreakdown(
+    val byPlace: List<GoodsBreakdownPlace> = emptyList(),
+    val byCategory: List<GoodsBreakdownCategory> = emptyList()
+)
+
+data class GoodsBreakdownPlace(
+    val id: String,
+    val scope: String,
+    val name: String,
+    val sortOrder: Int = 0,
+    val isVisible: Boolean = true,
+    val itemCount: Int = 0,
+    val lowCount: Int = 0,
+    val outCount: Int = 0,
+    val expiringCount: Int = 0
+)
+
+data class GoodsBreakdownCategory(
+    val id: String,
+    val scope: String,
+    val name: String,
+    val sortOrder: Int = 0,
+    val isVisible: Boolean = true,
+    val isSeeded: Boolean = false,
+    val itemCount: Int = 0,
+    val lowCount: Int = 0,
+    val outCount: Int = 0,
+    val expiringCount: Int = 0
+)
+
+data class GoodsCatalog(
+    val places: List<GoodsCatalogPlace> = emptyList(),
+    val categories: List<GoodsCatalogCategory> = emptyList(),
+    val uoms: List<GoodsUom> = emptyList()
+)
+
+data class GoodsListResponse(
+    val items: List<GoodsItem> = emptyList(),
+    val page: Int = 1,
+    val pageSize: Int = 20,
+    val totalItems: Int = 0,
+    val totalPages: Int = 1
+)
+
+data class GoodsListQuery(
+    val placeId: String = "",
+    val categoryId: String = "",
+    val scope: String = "",
+    val stockStatus: String = "",
+    val expirationStatus: String = "",
+    val lowOnly: Boolean = false,
+    val recentlyUpdatedOnly: Boolean = false,
+    val autoConsumptionOnly: Boolean = false,
+    val search: String = "",
+    val sort: String = "RECENTLY_UPDATED",
+    val page: Int = 1,
+    val pageSize: Int = 20
+)
+
+data class CreateGoodsItemRequest(
+    val scope: String,
+    val placeId: String,
+    val categoryId: String,
+    val uomId: String,
+    val name: String,
+    val quantity: Double,
+    val lowStockThreshold: Double? = null,
+    val targetQuantity: Double? = null,
+    val note: String? = null,
+    val expirationDate: String? = null,
+    val consumptionRateValue: Double? = null,
+    val consumptionRateUnit: String? = null,
+    val clientMutationId: String? = null
+)
+
+data class PendingMutationPreview(
+    val clientMutationId: String,
+    val type: String,
+    val title: String,
+    val subtitle: String,
+    val createdAt: Long,
+    val lastError: String? = null
 )

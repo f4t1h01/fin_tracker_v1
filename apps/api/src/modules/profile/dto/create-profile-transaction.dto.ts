@@ -25,6 +25,11 @@ export class CreateProfileTransactionDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(80)
+  clientMutationId?: string;
+
+  @IsOptional()
+  @IsString()
   @MaxLength(160)
   note?: string;
 

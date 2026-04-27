@@ -119,6 +119,11 @@ export class UpdateGoodsVisibilityDto {
 }
 
 export class CreateGoodsItemDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  clientMutationId?: string;
+
   @IsIn(goodsScopes)
   scope!: (typeof goodsScopes)[number];
 

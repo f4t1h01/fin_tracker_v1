@@ -6,7 +6,7 @@ import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.PATCH
 import retrofit2.http.POST
-import retrofit2.http.Param
+import retrofit2.http.Path
 import retrofit2.http.Query
 import retrofit2.http.QueryMap
 
@@ -48,10 +48,10 @@ interface DuetApi {
     suspend fun createTransaction(@Body body: CreateTransactionRequest): ResponseBody
 
     @PATCH("profile/me/transactions/{id}")
-    suspend fun updateTransaction(@Param("id") id: String, @Body body: UpdateTransactionRequest): ResponseBody
+    suspend fun updateTransaction(@Path("id") id: String, @Body body: UpdateTransactionRequest): ResponseBody
 
     @DELETE("profile/me/transactions/{id}")
-    suspend fun deleteTransaction(@Param("id") id: String): ResponseBody
+    suspend fun deleteTransaction(@Path("id") id: String): ResponseBody
 
     @GET("profile/me/categories")
     suspend fun categories(): CategoryCatalogResponse
@@ -60,8 +60,17 @@ interface DuetApi {
     suspend fun createCategory(@Body body: CreateCategoryRequest): ResponseBody
 
     @PATCH("profile/me/categories/{id}/visibility")
-    suspend fun updateCategoryVisibility(@Param("id") id: String, @Body body: UpdateCategoryVisibilityRequest): ResponseBody
+    suspend fun updateCategoryVisibility(@Path("id") id: String, @Body body: UpdateCategoryVisibilityRequest): ResponseBody
 
     @DELETE("profile/me/categories/{id}")
-    suspend fun deleteCategory(@Param("id") id: String): ResponseBody
+    suspend fun deleteCategory(@Path("id") id: String): ResponseBody
+
+    @GET("profile/me/goods/snapshot")
+    suspend fun goodsSnapshot(): GoodsSnapshotResponse
+
+    @GET("profile/me/goods/items")
+    suspend fun goodsItems(@QueryMap query: Map<String, String>): GoodsListResponse
+
+    @POST("profile/me/goods/items")
+    suspend fun createGoodsItem(@Body body: CreateGoodsItemRequest): ResponseBody
 }

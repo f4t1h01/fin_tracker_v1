@@ -17,7 +17,15 @@ import com.duet.android.data.SecureTokenStore
 import com.duet.android.data.TOKEN_INVALID_MESSAGE
 import com.duet.android.data.TOKEN_MISSING_MESSAGE
 import com.duet.android.data.CreateTransactionRequest
+import com.duet.android.data.CreateGoodsItemRequest
 import com.duet.android.data.UpdateTransactionRequest
+import com.duet.android.data.GoodsItem
+import com.duet.android.data.GoodsListQuery
+import com.duet.android.data.GoodsListResponse
+import com.duet.android.data.GoodsSnapshotResponse
+import com.duet.android.data.NetworkMonitor
+import com.duet.android.data.PendingMutationPreview
+import com.duet.android.data.local.DuetLocalDatabase
 import com.duet.android.data.toUserMessage
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -35,6 +43,10 @@ data class DuetUiState(
     val snapshot: ProfileSnapshotResponse? = null,
     val dashboard: DashboardResponse? = null,
     val rates: DashboardRatesResponse? = null,
+    val goodsSnapshot: GoodsSnapshotResponse? = null,
+    val goodsList: GoodsListResponse? = null,
+    val goodsQuery: GoodsListQuery = GoodsListQuery(),
+    val pendingMutations: List<PendingMutationPreview> = emptyList(),
     val dashboardQuery: DashboardQuery = DashboardQuery(),
     val editingTransaction: EditableTransaction? = null
 )
@@ -52,8 +64,17 @@ class DuetViewModel(application: Application) : AndroidViewModel(application) {
         repository = DuetRepository(
             api = api,
             tokenStore = tokenStore,
-            preferencesStore = DuetPreferencesStore(application.applicationContext, moshi)
+            preferencesStore = DuetPreferencesStore(application.applicationContext, moshi),
+            context = application.applicationContext,
+            database = DuetLocalDatabase.get(application.applicationContext),
+            moshi = moshi,
+            networkMonitor = NetworkMonitor(application.applicationContext)
         )
+        viewModelScope.launch {
+            repository.observePendingMutations().collect { pending ->
+                _uiState.update { it.copy(pendingMutations = pending) }
+            }
+        }
         boot()
     }
 
@@ -72,7 +93,9 @@ class DuetViewModel(application: Application) : AndroidViewModel(application) {
                     isDark = cache.isDark ?: cache.snapshot?.auth?.isDark ?: false,
                     snapshot = cache.snapshot,
                     dashboard = cache.dashboard,
-                    rates = cache.rates
+                    rates = cache.rates,
+                    goodsSnapshot = cache.goodsSnapshot,
+                    goodsList = cache.goodsList
                 )
             }
             if (cache.token != null) {
@@ -118,6 +141,8 @@ class DuetViewModel(application: Application) : AndroidViewModel(application) {
                 } ?: currentQuery.copy(selectedPreset = "THIS_WEEK", draftFrom = "", draftTo = "", draftMonthKey = "", page = 1)
                 val dashboard = repository.loadDashboard(query)
                 val rates = repository.loadRates()
+                val goodsSnapshot = runCatching { repository.loadGoodsSnapshot() }.getOrElse { _uiState.value.goodsSnapshot }
+                val goodsList = runCatching { repository.loadGoodsList(_uiState.value.goodsQuery) }.getOrElse { _uiState.value.goodsList }
                 _uiState.update {
                     it.copy(
                         isBusy = false,
@@ -126,6 +151,8 @@ class DuetViewModel(application: Application) : AndroidViewModel(application) {
                         snapshot = snapshot,
                         dashboard = dashboard,
                         rates = rates,
+                        goodsSnapshot = goodsSnapshot,
+                        goodsList = goodsList,
                         dashboardQuery = query,
                         error = null
                     )
@@ -166,7 +193,7 @@ class DuetViewModel(application: Application) : AndroidViewModel(application) {
 
     fun createTransaction(amount: Double, kind: String, currency: String, categoryId: String, note: String?) {
         launchBusy {
-            repository.createTransaction(
+            val synced = repository.createTransaction(
                 CreateTransactionRequest(
                     amount = amount,
                     kind = kind,
@@ -175,8 +202,10 @@ class DuetViewModel(application: Application) : AndroidViewModel(application) {
                     currency = currency
                 )
             )
-            _uiState.update { it.copy(message = "Transaction saved") }
-            refreshAll(silent = true)
+            _uiState.update { it.copy(message = if (synced) "Transaction saved" else "Saved offline. It will sync when internet returns.") }
+            if (synced) {
+                refreshAll(silent = true)
+            }
         }
     }
 
@@ -286,6 +315,39 @@ class DuetViewModel(application: Application) : AndroidViewModel(application) {
             repository.deleteCategory(id)
             _uiState.update { it.copy(message = "Category deleted") }
             refreshAll(silent = true)
+        }
+    }
+
+    fun loadGoods() {
+        launchBusy {
+            val snapshot = repository.loadGoodsSnapshot()
+            val list = repository.loadGoodsList(_uiState.value.goodsQuery)
+            _uiState.update { it.copy(goodsSnapshot = snapshot, goodsList = list) }
+        }
+    }
+
+    fun updateGoodsQuery(transform: (GoodsListQuery) -> GoodsListQuery) {
+        val next = transform(_uiState.value.goodsQuery)
+        _uiState.update { it.copy(goodsQuery = next) }
+        loadGoodsList()
+    }
+
+    fun loadGoodsList() {
+        launchBusy {
+            val list = repository.loadGoodsList(_uiState.value.goodsQuery)
+            _uiState.update { it.copy(goodsList = list) }
+        }
+    }
+
+    fun createGoodsItem(request: CreateGoodsItemRequest) {
+        launchBusy {
+            val synced = repository.createGoodsItem(request)
+            _uiState.update { it.copy(message = if (synced) "Goods item saved" else "Goods item saved offline. It will sync when internet returns.") }
+            if (synced) {
+                val snapshot = repository.loadGoodsSnapshot()
+                val list = repository.loadGoodsList(_uiState.value.goodsQuery)
+                _uiState.update { it.copy(goodsSnapshot = snapshot, goodsList = list) }
+            }
         }
     }
 

@@ -2250,6 +2250,27 @@ export class GoodsService {
 
   async createItem(userId: string, dto: CreateGoodsItemDto) {
     const workspace = await this.getWorkspaceContext(userId, true);
+    const clientMutationId = dto.clientMutationId?.trim() || null;
+    if (clientMutationId) {
+      const existing = await this.prisma.client.goodsItem.findUnique({
+        where: { clientMutationId },
+        select: {
+          id: true,
+          coupleId: true,
+          scope: true,
+          ownerUserId: true
+        }
+      });
+
+      if (existing) {
+        if (existing.coupleId !== workspace.coupleId || (existing.scope === "PERSONAL" && existing.ownerUserId !== userId)) {
+          throw new BadRequestException("This offline goods create request belongs to another workspace");
+        }
+
+        return this.itemDetail(userId, existing.id);
+      }
+    }
+
     await this.ensureSeedGoodsCategories(userId, workspace.coupleId, workspace.hasPartnerConnection);
     await this.ensureScopeAllowed(dto.scope, workspace.hasPartnerConnection);
 
@@ -2298,7 +2319,8 @@ export class GoodsService {
           expirationDate,
           lastStockEventAt: now,
           lastManualEventAt: now,
-          createdById: userId
+          createdById: userId,
+          clientMutationId
         }
       });
 

@@ -14,7 +14,9 @@ Kotlin Android client scaffold for Duet that keeps the existing backend and data
 - Warm editorial Duet theme adapted for mobile surfaces
 - Email/password auth against the existing API
 - Profile snapshot, transaction entry/edit/delete, recent activity, dashboard, exchange rates, settings, partner binding, and category basics
-- Online-first cached loading with encrypted JWT storage and DataStore-backed domain snapshots
+- Online-first cached loading with encrypted JWT storage, DataStore preferences, Room cached JSON, and Room-backed offline-create outbox
+- My Goods overview/list/add-item support
+- WorkManager sync for pending offline transaction and goods item creates
 
 ## Open in Android Studio
 
@@ -25,6 +27,5 @@ Kotlin Android client scaffold for Duet that keeps the existing backend and data
 
 ## Planned next integration
 
-- Run compile/tests once an Android SDK is configured locally.
-- Add device/emulator QA for weak-network cache behavior and small-screen layouts.
-- Add My Goods, AI advisor, receipt image, and voice drafting in later phases.
+- Run emulator QA for offline queued creates and reconnect sync.
+- Add AI advisor, receipt image, and voice drafting in later phases.

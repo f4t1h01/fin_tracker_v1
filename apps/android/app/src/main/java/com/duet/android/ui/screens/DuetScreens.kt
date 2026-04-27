@@ -81,13 +81,24 @@ import com.duet.android.DuetViewModel
 import com.duet.android.categoryOptions
 import com.duet.android.data.CategoryOption
 import com.duet.android.data.CategoryTreeNode
+import com.duet.android.data.CreateGoodsItemRequest
 import com.duet.android.data.CurrencyUtils
 import com.duet.android.data.EditableTransaction
+import com.duet.android.data.GoodsItem
+import com.duet.android.data.GoodsSnapshotResponse
+import com.duet.android.data.PendingMutationPreview
 import com.duet.android.data.ProfileSnapshotResponse
 import com.duet.android.data.TransactionListItem
 import com.duet.android.data.currencyLabels
+import com.duet.android.data.local.OUTBOX_TYPE_GOODS_ITEM_CREATE
+import com.duet.android.data.local.OUTBOX_TYPE_TRANSACTION_CREATE
 import com.duet.android.data.supportedCurrencies
 import com.duet.android.displaySummary
+import com.duet.android.ui.components.DuetButton
+import com.duet.android.ui.components.DuetButtonVariant
+import com.duet.android.ui.components.DuetSelectSheet
+import com.duet.android.ui.components.DuetSegmentedControl
+import com.duet.android.ui.components.DuetTextField
 import com.duet.android.ui.theme.AccentGold
 import com.duet.android.ui.theme.AccentSage
 import com.duet.android.ui.theme.CardSurface
@@ -218,6 +229,10 @@ fun ProfileScreen(state: DuetUiState, actions: DuetViewModel) {
                 }
             }
             item { RecentTransactionsCard(snapshot.recent, onEdit = actions::startEditing, onDelete = actions::deleteTransaction) }
+            val pendingTransactions = state.pendingMutations.filter { it.type == OUTBOX_TYPE_TRANSACTION_CREATE }
+            if (pendingTransactions.isNotEmpty()) {
+                item { PendingMutationsCard("Pending finance sync", pendingTransactions) }
+            }
         }
     }
 
@@ -240,6 +255,72 @@ fun ProfileScreen(state: DuetUiState, actions: DuetViewModel) {
             edit = edit,
             onDismiss = actions::stopEditing,
             onSave = actions::updateTransaction
+        )
+    }
+}
+
+@Composable
+fun GoodsScreen(state: DuetUiState, actions: DuetViewModel) {
+    val snapshot = state.goodsSnapshot
+    val list = state.goodsList
+    var showAddSheet by rememberSaveable { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        if (snapshot == null || list == null) {
+            actions.loadGoods()
+        }
+    }
+
+    ScreenList {
+        item {
+            TopLine("My Goods", snapshot?.workspace?.name ?: "Inventory and groceries", actions)
+            StatusBanner(state)
+        }
+        if (snapshot == null) {
+            item { LoadingPanel("Loading My Goods") }
+        } else {
+            item {
+                MetricStrip(
+                    listOf(
+                        "Items" to snapshot.metrics.activeItems.toString(),
+                        "Low" to snapshot.metrics.lowStockItems.toString(),
+                        "Expiring" to snapshot.metrics.expiringSoonItems.toString()
+                    )
+                )
+            }
+            item {
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+                    DuetButton("Add grocery", modifier = Modifier.weight(1f), onClick = { showAddSheet = true })
+                    DuetButton("Refresh", modifier = Modifier.weight(1f), variant = DuetButtonVariant.Outline, onClick = actions::loadGoods)
+                }
+            }
+            item {
+                GoodsFilterCard(state = state, actions = actions, snapshot = snapshot)
+            }
+            val pendingGoods = state.pendingMutations.filter { it.type == OUTBOX_TYPE_GOODS_ITEM_CREATE }
+            if (pendingGoods.isNotEmpty()) {
+                item { PendingMutationsCard("Pending goods sync", pendingGoods) }
+            }
+            if (list?.items.isNullOrEmpty()) {
+                item {
+                    CardPanel { Text("No goods match the current filters.", color = MutedInk) }
+                }
+            } else {
+                items(list?.items.orEmpty(), key = { it.id }) { item ->
+                    GoodsItemRow(item)
+                }
+            }
+        }
+    }
+
+    if (showAddSheet && snapshot != null) {
+        AddGoodsItemSheet(
+            snapshot = snapshot,
+            onDismiss = { showAddSheet = false },
+            onSave = {
+                showAddSheet = false
+                actions.createGoodsItem(it)
+            }
         )
     }
 }
@@ -830,6 +911,158 @@ private fun CategoryDropdownLike(label: String, value: String, options: List<Cat
                     }, label = { Text(it.label) })
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun GoodsFilterCard(state: DuetUiState, actions: DuetViewModel, snapshot: GoodsSnapshotResponse) {
+    CardPanel {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text("Filters", style = MaterialTheme.typography.titleLarge, fontFamily = FontFamily.Serif)
+            DuetTextField(
+                value = state.goodsQuery.search,
+                onValueChange = { value -> actions.updateGoodsQuery { it.copy(search = value, page = 1) } },
+                label = "Search goods, place, category"
+            )
+            DuetSelectSheet(
+                label = "Place",
+                value = state.goodsQuery.placeId,
+                options = listOf("" to "All places") + snapshot.catalog.places.map { it.id to it.name },
+                onSelect = { value -> actions.updateGoodsQuery { it.copy(placeId = value, page = 1) } }
+            )
+            DuetSelectSheet(
+                label = "Category",
+                value = state.goodsQuery.categoryId,
+                options = listOf("" to "All categories") + snapshot.catalog.categories.map { it.id to it.name },
+                onSelect = { value -> actions.updateGoodsQuery { it.copy(categoryId = value, page = 1) } }
+            )
+            DuetSegmentedControl(
+                options = listOf("" to "All", "LOW" to "Low", "OUT_OF_STOCK" to "Out", "FULL" to "Full"),
+                selected = state.goodsQuery.stockStatus,
+                onSelect = { value -> actions.updateGoodsQuery { it.copy(stockStatus = value, page = 1) } }
+            )
+        }
+    }
+}
+
+@Composable
+private fun GoodsItemRow(item: GoodsItem) {
+    CardPanel {
+        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(item.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                Text(listOfNotNull(item.place?.name, item.category?.name, item.expirationStatus.replace("_", " ")).joinToString(" / "), color = MutedInk, style = MaterialTheme.typography.bodySmall)
+                if (!item.note.isNullOrBlank()) {
+                    Text(item.note, color = MutedInk, style = MaterialTheme.typography.bodySmall)
+                }
+            }
+            Column(horizontalAlignment = Alignment.End) {
+                Text("${item.effectiveQuantity} ${item.uom?.code.orEmpty()}", fontWeight = FontWeight.SemiBold)
+                Text(item.stockStatus.replace("_", " "), color = if (item.stockStatus == "LOW" || item.stockStatus == "OUT_OF_STOCK") NegativeTone else PositiveTone, style = MaterialTheme.typography.bodySmall)
+            }
+        }
+    }
+}
+
+@Composable
+private fun PendingMutationsCard(title: String, items: List<PendingMutationPreview>) {
+    CardPanel {
+        Text(title, style = MaterialTheme.typography.titleLarge, fontFamily = FontFamily.Serif)
+        Spacer(Modifier.height(8.dp))
+        items.forEachIndexed { index, item ->
+            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(item.title, fontWeight = FontWeight.SemiBold)
+                    Text(item.subtitle, color = MutedInk, style = MaterialTheme.typography.bodySmall)
+                    if (!item.lastError.isNullOrBlank()) {
+                        Text(item.lastError, color = NegativeTone, style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+                Text("Pending", color = AccentGold, style = MaterialTheme.typography.labelSmall)
+            }
+            if (index != items.lastIndex) {
+                Divider(modifier = Modifier.padding(vertical = 8.dp), color = AccentGold.copy(alpha = 0.14f))
+            }
+        }
+    }
+}
+
+@Composable
+private fun AddGoodsItemSheet(
+    snapshot: GoodsSnapshotResponse,
+    onDismiss: () -> Unit,
+    onSave: (CreateGoodsItemRequest) -> Unit
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    var scope by rememberSaveable { mutableStateOf("PERSONAL") }
+    var placeId by rememberSaveable { mutableStateOf(snapshot.catalog.places.firstOrNull { it.scope == "PERSONAL" && it.isVisible }?.id ?: snapshot.catalog.places.firstOrNull()?.id.orEmpty()) }
+    var categoryId by rememberSaveable { mutableStateOf(snapshot.catalog.categories.firstOrNull { it.scope == "PERSONAL" && it.isVisible }?.id ?: snapshot.catalog.categories.firstOrNull()?.id.orEmpty()) }
+    var uomId by rememberSaveable { mutableStateOf(snapshot.catalog.uoms.firstOrNull()?.id.orEmpty()) }
+    var name by rememberSaveable { mutableStateOf("") }
+    var quantity by rememberSaveable { mutableStateOf("") }
+    var lowStock by rememberSaveable { mutableStateOf("") }
+    var targetQuantity by rememberSaveable { mutableStateOf("") }
+    var expirationDate by rememberSaveable { mutableStateOf("") }
+    var note by rememberSaveable { mutableStateOf("") }
+
+    val places = snapshot.catalog.places.filter { it.isVisible && it.scope == scope }
+    val categories = snapshot.catalog.categories.filter { it.isVisible && it.scope == scope }
+
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+        Column(
+            modifier = Modifier
+                .navigationBarsPadding()
+                .imePadding()
+                .padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text("Add goods item", style = MaterialTheme.typography.titleLarge, fontFamily = FontFamily.Serif)
+            DuetSegmentedControl(
+                options = if (snapshot.workspace.hasPartnerConnection) listOf("PERSONAL" to "Personal", "SHARED" to "Shared") else listOf("PERSONAL" to "Personal"),
+                selected = scope,
+                onSelect = {
+                    scope = it
+                    placeId = snapshot.catalog.places.firstOrNull { place -> place.scope == scope && place.isVisible }?.id.orEmpty()
+                    categoryId = snapshot.catalog.categories.firstOrNull { category -> category.scope == scope && category.isVisible }?.id.orEmpty()
+                }
+            )
+            DuetSelectSheet("Place", placeId, places.map { it.id to it.name }, onSelect = { placeId = it })
+            DuetSelectSheet("Category", categoryId, categories.map { it.id to it.name }, onSelect = { categoryId = it })
+            DuetTextField(name, { name = it }, "Good name")
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+                DuetTextField(quantity, { quantity = it }, "Quantity", modifier = Modifier.weight(1f), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal))
+                DuetSelectSheet("Unit", uomId, snapshot.catalog.uoms.map { it.id to it.code }, modifier = Modifier.weight(1f), onSelect = { uomId = it })
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+                DuetTextField(lowStock, { lowStock = it }, "Low stock", modifier = Modifier.weight(1f), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal))
+                DuetTextField(targetQuantity, { targetQuantity = it }, "Target", modifier = Modifier.weight(1f), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal))
+            }
+            DuetTextField(expirationDate, { expirationDate = it }, "Expiration YYYY-MM-DD")
+            DuetTextField(note, { note = it }, "Note", singleLine = false)
+            DuetButton(
+                text = "Add goods item",
+                modifier = Modifier.fillMaxWidth(),
+                enabled = name.isNotBlank() && quantity.toDoubleOrNull() != null && placeId.isNotBlank() && categoryId.isNotBlank() && uomId.isNotBlank(),
+                onClick = {
+                    onSave(
+                        CreateGoodsItemRequest(
+                            scope = scope,
+                            placeId = placeId,
+                            categoryId = categoryId,
+                            uomId = uomId,
+                            name = name,
+                            quantity = quantity.toDoubleOrNull() ?: 0.0,
+                            lowStockThreshold = lowStock.toDoubleOrNull(),
+                            targetQuantity = targetQuantity.toDoubleOrNull(),
+                            expirationDate = expirationDate.ifBlank { null },
+                            note = note.ifBlank { null },
+                            consumptionRateUnit = "PERMANENT"
+                        )
+                    )
+                }
+            )
+            Spacer(Modifier.height(8.dp))
         }
     }
 }
