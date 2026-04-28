@@ -183,8 +183,6 @@ Manual deploy commands:
 ```bash
 cd ~/telegram_bots/fin_tracker
 git pull origin main
-# Only run the migration command when the pulled batch includes a Prisma migration.
-DATABASE_URL=postgresql://postgres:1536@127.0.0.1:5432/fin_tracker?schema=public corepack pnpm --filter @repo/db exec prisma migrate deploy
 ./ops/docker/deploy-prod.sh
 ```
 
@@ -193,12 +191,12 @@ Routine production recovery and verification:
 ```bash
 cd ~/telegram_bots/fin_tracker
 git pull origin main
-# Run only when the pulled batch includes a Prisma migration.
-DATABASE_URL=postgresql://postgres:1536@127.0.0.1:5432/fin_tracker?schema=public corepack pnpm --filter @repo/db exec prisma migrate deploy
 ./ops/docker/deploy-prod.sh
 docker compose logs web nginx --since=10m
 curl http://127.0.0.1:71/api/health
 ```
+
+`deploy-prod.sh` runs pending Prisma migrations on the server host before rebuilding containers. By default it overrides Prisma's migration connection to `127.0.0.1:5432` so host-run migrations do not use the container-only `host.docker.internal` address from the runtime `.env`.
 
 Reverse proxy target:
 

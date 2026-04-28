@@ -3,6 +3,15 @@ set -eu
 
 cd "$(dirname "$0")/../.."
 
+MIGRATION_DATABASE_URL="${MIGRATION_DATABASE_URL:-postgresql://postgres:1536@127.0.0.1:5432/fin_tracker?schema=public}"
+
+echo "Running host Prisma migrations"
+if command -v pnpm >/dev/null 2>&1; then
+  DATABASE_URL="$MIGRATION_DATABASE_URL" pnpm --filter @repo/db exec prisma migrate deploy
+else
+  DATABASE_URL="$MIGRATION_DATABASE_URL" corepack pnpm --filter @repo/db exec prisma migrate deploy
+fi
+
 docker compose up -d --build --remove-orphans
 docker image prune -af
 docker builder prune -af
