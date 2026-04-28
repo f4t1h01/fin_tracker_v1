@@ -3,7 +3,8 @@
 import { FormEvent, useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
 
 import { webEnv } from "@/lib/env";
-import { persistTheme, type ThemeMode } from "@/lib/theme";
+import { persistTheme, type ThemeMode, themeStorageKey } from "@/lib/theme";
+import { syncAuthenticatedThemePreference } from "@/lib/theme-preference";
 
 import { findCategoryOptionById } from "./category-options";
 import { parseApiResponse } from "./api";
@@ -446,6 +447,11 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
       return;
     }
 
+    const savedTheme = window.localStorage.getItem(themeStorageKey);
+    if (savedTheme === "light" || savedTheme === "dark") {
+      return;
+    }
+
     persistTheme(authMe.isDark ? "dark" : "light");
   }, [authMe]);
 
@@ -492,16 +498,7 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
     });
 
     try {
-      const response = await fetch(`${webEnv.apiUrl}/auth/preferences/theme`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify({ isDark: theme === "dark" })
-      });
-
-      await parseApiResponse<{ isDark: boolean }>(response);
+      await syncAuthenticatedThemePreference(theme);
     } catch (error) {
       setAuthError(error instanceof Error ? error.message : "Could not save theme preference");
     }

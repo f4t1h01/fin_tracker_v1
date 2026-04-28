@@ -4,6 +4,7 @@ import { Moon, SunMedium } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { applyTheme, persistTheme, resolveThemePreference, type ThemeMode, themeStorageKey } from "@/lib/theme";
+import { syncAuthenticatedThemePreference } from "@/lib/theme-preference";
 
 type ThemeToggleProps = {
   onChange?: (theme: ThemeMode) => void;
@@ -52,6 +53,7 @@ export function ThemeToggle({ onChange }: ThemeToggleProps) {
     const next = theme === "light" ? "dark" : "light";
     setTheme(next);
     persistTheme(next, { animate: true });
+    void syncAuthenticatedThemePreference(next).catch(() => undefined);
     onChange?.(next);
   };
 
