@@ -8,6 +8,14 @@ class DtoParsingTest {
     private val moshi = NetworkModule.createMoshi()
 
     @Test
+    fun parsesThemePreferenceResponseContract() {
+        val parsed = moshi.adapter(ThemePreferenceResponse::class.java).fromJson("""{"isDark":true}""")
+
+        requireNotNull(parsed)
+        assertTrue(parsed.isDark)
+    }
+
+    @Test
     fun parsesProfileSnapshotContract() {
         val json = """
             {

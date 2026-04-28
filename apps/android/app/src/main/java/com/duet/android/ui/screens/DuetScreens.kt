@@ -35,6 +35,7 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.SwapVert
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -450,7 +451,7 @@ fun RatesScreen(state: DuetUiState, actions: DuetViewModel) {
                                 val old = from
                                 from = to
                                 to = old
-                            }) { Icon(Icons.Default.SwapVert, contentDescription = "Swap currencies") }
+                            }) { Icon(Icons.Default.SwapVert, contentDescription = "Swap currencies", tint = duetColors().inkSoft) }
                             CurrencyDropdownLike("To", to, selected, Modifier.weight(1f)) { to = it }
                         }
                         val sourceInUzs = (amount.toDoubleOrNull() ?: 0.0) * (rates.rates[from] ?: 1.0)
@@ -687,7 +688,7 @@ private fun StatusBanner(state: DuetUiState) {
 private fun LoadingPanel(text: String) {
     CardPanel {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+            CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp, color = duetColors().gold)
             Text(text)
         }
     }
@@ -800,7 +801,10 @@ private fun CategoryManagementRow(category: CategoryTreeNode, actions: DuetViewM
                 Text(category.name, style = MaterialTheme.typography.titleMedium)
                 Text("${category.kind.lowercase()} / ${category.scope.lowercase()}${if (!category.isVisible) " / hidden" else ""}", color = colors.inkSoft, style = MaterialTheme.typography.bodySmall)
             }
-            TextButton(onClick = { actions.updateCategoryVisibility(category.id, !category.isVisible) }) {
+            TextButton(
+                onClick = { actions.updateCategoryVisibility(category.id, !category.isVisible) },
+                colors = ButtonDefaults.textButtonColors(contentColor = colors.gold)
+            ) {
                 Text(if (category.isVisible) "Hide" else "Show")
             }
             IconButton(onClick = { actions.deleteCategory(category.id) }) {

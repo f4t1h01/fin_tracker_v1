@@ -123,7 +123,7 @@ fun DuetButton(
             CircularProgressIndicator(
                 modifier = Modifier.size(18.dp),
                 strokeWidth = 2.dp,
-                color = if (variant == DuetButtonVariant.Primary) MaterialTheme.colorScheme.onPrimary else colors.gold
+                color = if (variant == DuetButtonVariant.Primary) colors.buttonPrimaryFg else colors.gold
             )
         } else {
             Text(
@@ -141,11 +141,12 @@ fun DuetButton(
             modifier = modifier.height(52.dp),
             enabled = enabled && !pending,
             colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary,
+                containerColor = colors.buttonPrimaryBg,
+                contentColor = colors.buttonPrimaryFg,
                 disabledContainerColor = colors.inkSoft.copy(alpha = 0.22f),
                 disabledContentColor = colors.inkSoft
             ),
+            border = BorderStroke(1.dp, colors.buttonPrimaryBorder),
             shape = RoundedCornerShape(10.dp),
             onClick = onClick
         ) { content() }

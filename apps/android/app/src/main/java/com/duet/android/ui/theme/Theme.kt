@@ -29,8 +29,8 @@ private val LightColors = lightColorScheme(
 )
 
 private val DarkColors = darkColorScheme(
-    primary = DarkAccentGold,
-    onPrimary = DeepInk,
+    primary = DarkButtonPrimaryBg,
+    onPrimary = DarkInk,
     primaryContainer = Color(0xFF3A2E14),
     onPrimaryContainer = DarkInk,
     secondary = DarkAccentBlush,

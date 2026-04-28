@@ -118,9 +118,11 @@ class DuetRepository(
         api.deleteTransaction(id).close()
     }
 
-    suspend fun setThemePreference(isDark: Boolean): AuthMeResponse {
+    suspend fun setThemePreference(isDark: Boolean): ThemePreferenceResponse {
         preferencesStore.saveIsDark(isDark)
-        return api.updateThemePreference(ThemePreferenceRequest(isDark))
+        val response = api.updateThemePreference(ThemePreferenceRequest(isDark))
+        preferencesStore.saveIsDark(response.isDark)
+        return response
     }
 
     suspend fun updateDetails(firstName: String?, lastName: String?, birthday: String?): AuthMeResponse {

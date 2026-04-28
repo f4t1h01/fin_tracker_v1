@@ -11,9 +11,8 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.duet.android.ui.DuetApp
-import com.duet.android.ui.theme.DarkBackground
 import com.duet.android.ui.theme.DuetTheme
-import com.duet.android.ui.theme.BackgroundCream
+import com.duet.android.ui.theme.duetColors
 
 class MainActivity : ComponentActivity() {
     private val viewModel: DuetViewModel by viewModels()
@@ -25,9 +24,10 @@ class MainActivity : ComponentActivity() {
         setContent {
             val state by viewModel.uiState.collectAsStateWithLifecycle()
             DuetTheme(darkTheme = state.isDark) {
+                val colors = duetColors()
                 SideEffect {
                     window.statusBarColor = android.graphics.Color.TRANSPARENT
-                    window.navigationBarColor = if (state.isDark) DarkBackground.toArgb() else BackgroundCream.toArgb()
+                    window.navigationBarColor = colors.navBackgroundStrong.toArgb()
                     WindowInsetsControllerCompat(window, window.decorView).apply {
                         isAppearanceLightStatusBars = !state.isDark
                         isAppearanceLightNavigationBars = !state.isDark

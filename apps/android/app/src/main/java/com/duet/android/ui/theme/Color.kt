@@ -26,6 +26,8 @@ val DarkMutedInk = Color(0xFFB0A898)
 val DarkAccentGold = Color(0xFFD4B05A)
 val DarkAccentBlush = Color(0xFFE09A74)
 val DarkAccentSage = Color(0xFF8AB98E)
+val DarkButtonPrimaryBg = Color(0xFF3C3321)
+val DarkButtonPrimaryHoverBg = Color(0xFF433820)
 
 data class DuetColors(
     val background: Color,
@@ -37,10 +39,17 @@ data class DuetColors(
     val goldLight: Color,
     val sage: Color,
     val blush: Color,
+    val backgroundBlush: Color,
     val positive: Color,
     val negative: Color,
     val ring: Color,
     val modalScrim: Color,
+    val navBackground: Color,
+    val navBackgroundStrong: Color,
+    val buttonPrimaryBg: Color,
+    val buttonPrimaryFg: Color,
+    val buttonPrimaryBorder: Color,
+    val buttonPrimaryHoverBg: Color,
     val phoneSummary: Color,
     val phoneSummaryText: Color,
     val phoneSummarySoft: Color
@@ -56,10 +65,17 @@ val LightDuetColors = DuetColors(
     goldLight = Color(0xFFE8D5A3),
     sage = AccentSage,
     blush = AccentBlush,
+    backgroundBlush = BackgroundBlush,
     positive = PositiveTone,
     negative = NegativeTone,
     ring = AccentGold.copy(alpha = 0.35f),
     modalScrim = DeepInk.copy(alpha = 0.42f),
+    navBackground = BackgroundCream.copy(alpha = 0.60f),
+    navBackgroundStrong = BackgroundCream.copy(alpha = 0.85f),
+    buttonPrimaryBg = DeepInk,
+    buttonPrimaryFg = BackgroundCream,
+    buttonPrimaryBorder = DeepInk,
+    buttonPrimaryHoverBg = DeepInk,
     phoneSummary = DeepInk,
     phoneSummaryText = BackgroundCream,
     phoneSummarySoft = BackgroundCream.copy(alpha = 0.55f)
@@ -75,10 +91,17 @@ val DarkDuetColors = DuetColors(
     goldLight = Color(0xFF3A2E14),
     sage = DarkAccentSage,
     blush = DarkAccentBlush,
+    backgroundBlush = Color(0xFF2A1F18),
     positive = DarkAccentSage,
     negative = DarkAccentBlush,
     ring = DarkAccentGold.copy(alpha = 0.35f),
     modalScrim = Color(0xFF080706).copy(alpha = 0.66f),
+    navBackground = DarkBackground.copy(alpha = 0.60f),
+    navBackgroundStrong = DarkBackground.copy(alpha = 0.92f),
+    buttonPrimaryBg = DarkButtonPrimaryBg,
+    buttonPrimaryFg = DarkInk,
+    buttonPrimaryBorder = DarkAccentGold.copy(alpha = 0.32f),
+    buttonPrimaryHoverBg = DarkButtonPrimaryHoverBg,
     phoneSummary = Color(0xFF14110E),
     phoneSummaryText = DarkInk,
     phoneSummarySoft = DarkInk.copy(alpha = 0.62f)

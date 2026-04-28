@@ -1,8 +1,6 @@
 package com.duet.android.ui
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Dashboard
@@ -22,7 +20,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.duet.android.DuetUiState
 import com.duet.android.DuetViewModel
@@ -33,6 +31,7 @@ import com.duet.android.ui.screens.RatesScreen
 import com.duet.android.ui.screens.GoodsScreen
 import com.duet.android.ui.screens.SettingsScreen
 import com.duet.android.ui.screens.SplashScreen
+import com.duet.android.ui.theme.DuetBackground
 import com.duet.android.ui.theme.duetColors
 
 private enum class DuetDestination(val label: String, val icon: ImageVector) {
@@ -48,24 +47,15 @@ fun DuetApp(state: DuetUiState, actions: DuetViewModel) {
     var destination by rememberSaveable { mutableStateOf(DuetDestination.Profile) }
     val colors = duetColors()
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(
-                Brush.radialGradient(
-                    colors = listOf(colors.blush.copy(alpha = 0.24f), colors.sage.copy(alpha = 0.14f), colors.background),
-                    radius = 1700f
-                )
-            )
-    ) {
+    DuetBackground {
         when {
             state.isBootstrapping -> SplashScreen()
             state.token == null -> AuthScreen(state = state, actions = actions)
             else -> Scaffold(
-                containerColor = androidx.compose.ui.graphics.Color.Transparent,
+                containerColor = Color.Transparent,
                 bottomBar = {
                     NavigationBar(
-                        containerColor = colors.surface.copy(alpha = 0.96f),
+                        containerColor = colors.navBackgroundStrong,
                         contentColor = colors.ink
                     ) {
                         DuetDestination.entries.forEach { item ->

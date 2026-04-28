@@ -21,7 +21,7 @@ interface DuetApi {
     suspend fun me(): AuthMeResponse
 
     @PATCH("auth/preferences/theme")
-    suspend fun updateThemePreference(@Body body: ThemePreferenceRequest): AuthMeResponse
+    suspend fun updateThemePreference(@Body body: ThemePreferenceRequest): ThemePreferenceResponse
 
     @GET("profile/me/snapshot")
     suspend fun snapshot(@Query("month") month: Int, @Query("year") year: Int): ProfileSnapshotResponse
