@@ -5,7 +5,6 @@
 
 package com.duet.android.ui.screens
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -24,33 +23,25 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.SwapVert
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Divider
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -65,11 +56,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -96,23 +85,25 @@ import com.duet.android.data.supportedCurrencies
 import com.duet.android.displaySummary
 import com.duet.android.ui.components.DuetButton
 import com.duet.android.ui.components.DuetButtonVariant
+import com.duet.android.ui.components.DuetChoiceChip
+import com.duet.android.ui.components.DuetDetailBox
+import com.duet.android.ui.components.DuetKindToggle
 import com.duet.android.ui.components.DuetSelectSheet
+import com.duet.android.ui.components.DuetSelectSheetOptions
 import com.duet.android.ui.components.DuetSegmentedControl
+import com.duet.android.ui.components.DuetSelectOption
+import com.duet.android.ui.components.DuetStatusBanner
 import com.duet.android.ui.components.DuetTextField
-import com.duet.android.ui.theme.AccentGold
-import com.duet.android.ui.theme.AccentSage
-import com.duet.android.ui.theme.CardSurface
-import com.duet.android.ui.theme.DeepInk
-import com.duet.android.ui.theme.MutedInk
-import com.duet.android.ui.theme.NegativeTone
-import com.duet.android.ui.theme.PositiveTone
+import com.duet.android.ui.components.DuetThemePill
+import com.duet.android.ui.theme.duetColors
 
 @Composable
 fun SplashScreen() {
+    val colors = duetColors()
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            Text("DUET", fontFamily = FontFamily.Serif, letterSpacing = 6.sp, style = MaterialTheme.typography.headlineSmall)
-            CircularProgressIndicator(color = AccentGold)
+            Text("DUET", letterSpacing = 6.sp, style = MaterialTheme.typography.headlineSmall, color = colors.ink)
+            CircularProgressIndicator(color = colors.gold)
         }
     }
 }
@@ -138,45 +129,37 @@ fun AuthScreen(state: DuetUiState, actions: DuetViewModel) {
                         onSelect = { mode = it }
                     )
                     if (mode == "REGISTER") {
-                        OutlinedTextField(
+                        DuetTextField(
                             value = firstName,
                             onValueChange = { firstName = it },
-                            modifier = Modifier.fillMaxWidth(),
-                            label = { Text("Name") },
-                            singleLine = true
+                            label = "Name"
                         )
                     }
-                    OutlinedTextField(
+                    DuetTextField(
                         value = email,
                         onValueChange = { email = it },
-                        modifier = Modifier.fillMaxWidth(),
-                        label = { Text("Email") },
-                        singleLine = true,
+                        label = "Email",
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Next)
                     )
-                    OutlinedTextField(
+                    DuetTextField(
                         value = password,
                         onValueChange = { password = it },
-                        modifier = Modifier.fillMaxWidth(),
-                        label = { Text("Password") },
-                        singleLine = true,
+                        label = "Password",
                         visualTransformation = PasswordVisualTransformation(),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done)
                     )
                     if (mode == "REGISTER") {
-                        OutlinedTextField(
+                        DuetTextField(
                             value = confirmPassword,
                             onValueChange = { confirmPassword = it },
-                            modifier = Modifier.fillMaxWidth(),
-                            label = { Text("Confirm password") },
-                            singleLine = true,
+                            label = "Confirm password",
                             visualTransformation = PasswordVisualTransformation()
                         )
                     }
-                    Button(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(52.dp),
+                    DuetButton(
+                        text = if (mode == "SIGN_IN") "Sign in" else "Create account",
+                        modifier = Modifier.fillMaxWidth(),
+                        pending = state.isBusy,
                         enabled = !state.isBusy,
                         onClick = {
                             focus.clearFocus()
@@ -186,11 +169,9 @@ fun AuthScreen(state: DuetUiState, actions: DuetViewModel) {
                                 actions.register(email, password, firstName)
                             }
                         }
-                    ) {
-                        if (state.isBusy) CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp) else Text(if (mode == "SIGN_IN") "Sign in" else "Create account")
-                    }
+                    )
                     if (mode == "REGISTER" && password != confirmPassword && confirmPassword.isNotBlank()) {
-                        Text("Passwords do not match", color = NegativeTone, style = MaterialTheme.typography.bodySmall)
+                        Text("Passwords do not match", color = duetColors().negative, style = MaterialTheme.typography.bodySmall)
                     }
                 }
             }
@@ -216,16 +197,8 @@ fun ProfileScreen(state: DuetUiState, actions: DuetViewModel) {
             item { BalanceCard(snapshot) }
             item {
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
-                    Button(modifier = Modifier.weight(1f), onClick = { showAddSheet = true }) {
-                        Icon(Icons.Default.Add, contentDescription = null)
-                        Spacer(Modifier.width(8.dp))
-                        Text("Add")
-                    }
-                    OutlinedButton(modifier = Modifier.weight(1f), onClick = { actions.refreshAll() }) {
-                        Icon(Icons.Default.Refresh, contentDescription = null)
-                        Spacer(Modifier.width(8.dp))
-                        Text("Refresh")
-                    }
+                    DuetButton("Add", modifier = Modifier.weight(1f), onClick = { showAddSheet = true })
+                    DuetButton("Refresh", modifier = Modifier.weight(1f), variant = DuetButtonVariant.Outline, onClick = { actions.refreshAll() })
                 }
             }
             item { RecentTransactionsCard(snapshot.recent, onEdit = actions::startEditing, onDelete = actions::deleteTransaction) }
@@ -303,7 +276,7 @@ fun GoodsScreen(state: DuetUiState, actions: DuetViewModel) {
             }
             if (list?.items.isNullOrEmpty()) {
                 item {
-                    CardPanel { Text("No goods match the current filters.", color = MutedInk) }
+                    CardPanel { Text("No goods match the current filters.", color = duetColors().inkSoft) }
                 }
             } else {
                 items(list?.items.orEmpty(), key = { it.id }) { item ->
@@ -362,71 +335,53 @@ fun DashboardScreen(state: DuetUiState, actions: DuetViewModel) {
                         )
                         if (query.selectedPreset == "SPECIFIC_MONTH") {
                             var monthDraft by rememberSaveable(query.draftMonthKey) { mutableStateOf(query.draftMonthKey) }
-                            OutlinedTextField(
+                            DuetTextField(
                                 value = monthDraft,
                                 onValueChange = { monthDraft = it },
-                                modifier = Modifier.fillMaxWidth(),
-                                label = { Text("Month YYYY-MM") },
-                                singleLine = true,
-                                trailingIcon = {
-                                    TextButton(onClick = { actions.updateDashboardQuery { q -> q.copy(draftMonthKey = monthDraft, page = 1) } }) {
-                                        Text("Apply")
-                                    }
-                                }
+                                label = "Month YYYY-MM"
                             )
+                            DuetButton("Apply", modifier = Modifier.fillMaxWidth(), variant = DuetButtonVariant.Outline, onClick = { actions.updateDashboardQuery { q -> q.copy(draftMonthKey = monthDraft, page = 1) } })
                         }
                         if (query.selectedPreset == "CUSTOM") {
                             var fromDraft by rememberSaveable(query.draftFrom) { mutableStateOf(query.draftFrom) }
                             var toDraft by rememberSaveable(query.draftTo) { mutableStateOf(query.draftTo) }
                             Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
-                                OutlinedTextField(
+                                DuetTextField(
                                     value = fromDraft,
                                     onValueChange = { fromDraft = it },
                                     modifier = Modifier.weight(1f),
-                                    label = { Text("From") },
-                                    singleLine = true
+                                    label = "From"
                                 )
-                                OutlinedTextField(
+                                DuetTextField(
                                     value = toDraft,
                                     onValueChange = { toDraft = it },
                                     modifier = Modifier.weight(1f),
-                                    label = { Text("To") },
-                                    singleLine = true
+                                    label = "To"
                                 )
                             }
-                            Button(
+                            DuetButton(
+                                text = "Apply date range",
                                 modifier = Modifier.fillMaxWidth(),
+                                variant = DuetButtonVariant.Outline,
                                 onClick = { actions.updateDashboardQuery { q -> q.copy(draftFrom = fromDraft, draftTo = toDraft, page = 1) } }
-                            ) {
-                                Text("Apply date range")
-                            }
+                            )
                         }
                         SegmentRow(
                             options = if (dashboard.profile.hasPartnerConnection) listOf("COUPLE" to "Shared", "PERSONAL" to "Mine") else listOf("PERSONAL" to "Mine"),
                             selected = query.viewMode,
                             onSelect = { actions.updateDashboardQuery { q -> q.copy(viewMode = it, page = 1) } }
                         )
-                        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            listOf("ALL" to "All", "EXPENSE" to "Expense", "INCOME" to "Income").forEach { (value, label) ->
-                                FilterChip(
-                                    selected = query.kind == value,
-                                    onClick = { actions.updateDashboardQuery { q -> q.copy(kind = value, page = 1) } },
-                                    label = { Text(label) }
-                                )
-                            }
-                        }
-                        OutlinedTextField(
+                        DuetSegmentedControl(
+                            options = listOf("ALL" to "All", "EXPENSE" to "Expense", "INCOME" to "Income"),
+                            selected = query.kind,
+                            onSelect = { value -> actions.updateDashboardQuery { q -> q.copy(kind = value, page = 1) } }
+                        )
+                        DuetTextField(
                             value = searchDraft,
                             onValueChange = { searchDraft = it },
-                            modifier = Modifier.fillMaxWidth(),
-                            label = { Text("Search") },
-                            singleLine = true,
-                            trailingIcon = {
-                                TextButton(onClick = { actions.updateDashboardQuery { q -> q.copy(search = searchDraft, page = 1) } }) {
-                                    Text("Apply")
-                                }
-                            }
+                            label = "Search"
                         )
+                        DuetButton("Apply search", modifier = Modifier.fillMaxWidth(), variant = DuetButtonVariant.Outline, onClick = { actions.updateDashboardQuery { q -> q.copy(search = searchDraft, page = 1) } })
                     }
                 }
             }
@@ -440,16 +395,20 @@ fun DashboardScreen(state: DuetUiState, actions: DuetViewModel) {
             }
             item {
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
-                    OutlinedButton(
+                    DuetButton(
+                        text = "Prev",
                         modifier = Modifier.weight(1f),
                         enabled = dashboard.transactions.page > 1,
+                        variant = DuetButtonVariant.Outline,
                         onClick = { actions.updateDashboardQuery { it.copy(page = (it.page - 1).coerceAtLeast(1)) } }
-                    ) { Text("Prev") }
-                    OutlinedButton(
+                    )
+                    DuetButton(
+                        text = "Next",
                         modifier = Modifier.weight(1f),
                         enabled = dashboard.transactions.page < dashboard.transactions.totalPages,
+                        variant = DuetButtonVariant.Outline,
                         onClick = { actions.updateDashboardQuery { it.copy(page = it.page + 1) } }
-                    ) { Text("Next") }
+                    )
                 }
             }
         }
@@ -478,12 +437,11 @@ fun RatesScreen(state: DuetUiState, actions: DuetViewModel) {
             item {
                 CardPanel {
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Text("Calculator", style = MaterialTheme.typography.titleLarge, fontFamily = FontFamily.Serif)
-                        OutlinedTextField(
+                        Text("Calculator", style = MaterialTheme.typography.titleLarge, color = duetColors().ink)
+                        DuetTextField(
                             value = amount,
                             onValueChange = { amount = it },
-                            modifier = Modifier.fillMaxWidth(),
-                            label = { Text("Amount") },
+                            label = "Amount",
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
                         )
                         Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -497,28 +455,26 @@ fun RatesScreen(state: DuetUiState, actions: DuetViewModel) {
                         }
                         val sourceInUzs = (amount.toDoubleOrNull() ?: 0.0) * (rates.rates[from] ?: 1.0)
                         val converted = CurrencyUtils.convertFromUzs(sourceInUzs, rates.rates[to] ?: 1.0)
-                        Text(CurrencyUtils.formatAmount(converted, to), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
+                        Text(CurrencyUtils.formatAmount(converted, to), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold, color = duetColors().ink)
                     }
                 }
             }
             item {
                 CardPanel {
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Text("Displayed currencies", style = MaterialTheme.typography.titleLarge, fontFamily = FontFamily.Serif)
+                        Text("Displayed currencies", style = MaterialTheme.typography.titleLarge, color = duetColors().ink)
                         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             supportedCurrencies.forEach { currency ->
-                                FilterChip(
+                                DuetChoiceChip(
+                                    label = currency,
                                     selected = currency in selected,
                                     onClick = {
                                         if (currency in selected && selected.size > 1) selected.remove(currency) else if (currency !in selected) selected.add(currency)
-                                    },
-                                    label = { Text(currency) }
+                                    }
                                 )
                             }
                         }
-                        Button(modifier = Modifier.fillMaxWidth(), onClick = { actions.saveRatesSelection(selected.toList()) }) {
-                            Text("Save selection")
-                        }
+                        DuetButton("Save selection", modifier = Modifier.fillMaxWidth(), onClick = { actions.saveRatesSelection(selected.toList()) })
                     }
                 }
             }
@@ -551,25 +507,25 @@ fun SettingsScreen(state: DuetUiState, actions: DuetViewModel) {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
                         Text("Dark mode", style = MaterialTheme.typography.titleMedium)
-                        Switch(checked = state.isDark, onCheckedChange = actions::setTheme)
+                        DuetThemePill(isDark = state.isDark, onChange = actions::setTheme)
                     }
-                    OutlinedTextField(firstName, { firstName = it }, Modifier.fillMaxWidth(), label = { Text("First name") }, singleLine = true)
-                    OutlinedTextField(lastName, { lastName = it }, Modifier.fillMaxWidth(), label = { Text("Last name") }, singleLine = true)
-                    OutlinedTextField(birthday, { birthday = it }, Modifier.fillMaxWidth(), label = { Text("Birthday YYYY-MM-DD") }, singleLine = true)
-                    Button(modifier = Modifier.fillMaxWidth(), onClick = { actions.updateDetails(firstName, lastName, birthday) }) { Text("Save profile") }
+                    DuetTextField(firstName, { firstName = it }, "First name")
+                    DuetTextField(lastName, { lastName = it }, "Last name")
+                    DuetTextField(birthday, { birthday = it }, "Birthday YYYY-MM-DD")
+                    DuetButton("Save profile", modifier = Modifier.fillMaxWidth(), onClick = { actions.updateDetails(firstName, lastName, birthday) })
                 }
             }
         }
         item {
             CardPanel {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text("Partner connection", style = MaterialTheme.typography.titleLarge, fontFamily = FontFamily.Serif)
-                    Text("Your code: ${snapshot?.profile?.user?.coupleCode ?: "-"}", color = AccentGold)
+                    Text("Partner connection", style = MaterialTheme.typography.titleLarge, color = duetColors().ink)
+                    Text("Your code: ${snapshot?.profile?.user?.coupleCode ?: "-"}", color = duetColors().gold)
                     if (snapshot?.profile?.hasPartnerConnection == true) {
-                        OutlinedButton(modifier = Modifier.fillMaxWidth(), onClick = actions::unbindCouple) { Text("Unlink partner") }
+                        DuetButton("Unlink partner", modifier = Modifier.fillMaxWidth(), variant = DuetButtonVariant.Outline, onClick = actions::unbindCouple)
                     } else {
-                        OutlinedTextField(bindCode, { bindCode = it }, Modifier.fillMaxWidth(), label = { Text("Partner code") }, singleLine = true)
-                        Button(modifier = Modifier.fillMaxWidth(), onClick = { actions.bindCouple(bindCode) }) { Text("Connect partner") }
+                        DuetTextField(bindCode, { bindCode = it }, "Partner code")
+                        DuetButton("Connect partner", modifier = Modifier.fillMaxWidth(), onClick = { actions.bindCouple(bindCode) })
                     }
                 }
             }
@@ -577,17 +533,17 @@ fun SettingsScreen(state: DuetUiState, actions: DuetViewModel) {
         item {
             CardPanel {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text("Categories", style = MaterialTheme.typography.titleLarge, fontFamily = FontFamily.Serif)
+                    Text("Categories", style = MaterialTheme.typography.titleLarge, color = duetColors().ink)
                     SegmentRow(listOf("EXPENSE" to "Expense", "INCOME" to "Income"), categoryKind) { categoryKind = it }
                     SegmentRow(
                         if (snapshot?.profile?.hasPartnerConnection == true) listOf("PERSONAL" to "Personal", "SHARED" to "Shared") else listOf("PERSONAL" to "Personal"),
                         categoryScope
                     ) { categoryScope = it }
-                    OutlinedTextField(categoryName, { categoryName = it }, Modifier.fillMaxWidth(), label = { Text("New category") }, singleLine = true)
-                    Button(modifier = Modifier.fillMaxWidth(), onClick = {
+                    DuetTextField(categoryName, { categoryName = it }, "New category")
+                    DuetButton("Add category", modifier = Modifier.fillMaxWidth(), onClick = {
                         actions.createCategory(categoryKind, categoryScope, categoryName, null)
                         categoryName = ""
-                    }) { Text("Add category") }
+                    })
                 }
             }
         }
@@ -598,9 +554,7 @@ fun SettingsScreen(state: DuetUiState, actions: DuetViewModel) {
             }
         }
         item {
-            OutlinedButton(modifier = Modifier.fillMaxWidth(), onClick = actions::logout) {
-                Text("Log out")
-            }
+            DuetButton("Log out", modifier = Modifier.fillMaxWidth(), variant = DuetButtonVariant.Outline, onClick = actions::logout)
         }
     }
 }
@@ -623,7 +577,12 @@ private fun TransactionSheet(
     var categoryId by rememberSaveable(kind) { mutableStateOf(initial?.categoryId?.takeIf { id -> options.any { it.id == id } } ?: options.firstOrNull()?.id.orEmpty()) }
     var note by rememberSaveable { mutableStateOf(initial?.note ?: "") }
 
-    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = duetColors().surface,
+        contentColor = duetColors().ink
+    ) {
         Column(
             modifier = Modifier
                 .navigationBarsPadding()
@@ -631,28 +590,26 @@ private fun TransactionSheet(
                 .padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text(title, style = MaterialTheme.typography.titleLarge, fontFamily = FontFamily.Serif)
-            SegmentRow(listOf("EXPENSE" to "Expense", "INCOME" to "Income"), kind) {
+            Text(title, style = MaterialTheme.typography.titleLarge, color = duetColors().ink)
+            DuetKindToggle(selected = kind, onSelect = {
                 kind = it
                 categoryId = snapshot.categoryOptions(kind).firstOrNull()?.id.orEmpty()
-            }
-            OutlinedTextField(
+            })
+            DuetTextField(
                 value = amount,
                 onValueChange = { amount = it },
-                modifier = Modifier.fillMaxWidth(),
-                label = { Text("Amount") },
+                label = "Amount",
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
             )
             CurrencyDropdownLike("Currency", currency, preferredCurrencies, Modifier.fillMaxWidth()) { currency = it }
             CategoryDropdownLike("Category", categoryId, options, Modifier.fillMaxWidth()) { categoryId = it }
-            OutlinedTextField(value = note, onValueChange = { note = it }, modifier = Modifier.fillMaxWidth(), label = { Text("Note") })
-            Button(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(52.dp),
+            DuetTextField(value = note, onValueChange = { note = it }, label = "Note", singleLine = false)
+            DuetButton(
+                text = "Save transaction",
+                modifier = Modifier.fillMaxWidth(),
                 enabled = amount.toDoubleOrNull() != null && categoryId.isNotBlank(),
                 onClick = { onSave(amount.toDoubleOrNull() ?: 0.0, kind, currency, categoryId, note) }
-            ) { Text("Save transaction") }
+            )
         }
     }
 }
@@ -691,58 +648,38 @@ private fun ScreenList(content: androidx.compose.foundation.lazy.LazyListScope.(
 
 @Composable
 private fun BrandBlock(eyebrow: String, title: String) {
+    val colors = duetColors()
     Column(verticalArrangement = Arrangement.spacedBy(14.dp), modifier = Modifier.padding(top = 12.dp, bottom = 8.dp)) {
-        Text("DUET", fontFamily = FontFamily.Serif, fontWeight = FontWeight.Light, letterSpacing = 6.sp, style = MaterialTheme.typography.headlineSmall)
-        Text(eyebrow.uppercase(), color = AccentGold, style = MaterialTheme.typography.labelSmall, letterSpacing = 2.sp)
-        Text(title, style = MaterialTheme.typography.displaySmall, fontFamily = FontFamily.Serif, fontWeight = FontWeight.Light)
+        Text("DUET", fontWeight = FontWeight.Light, letterSpacing = 6.sp, style = MaterialTheme.typography.headlineSmall, color = colors.ink)
+        Text(eyebrow.uppercase(), color = colors.gold, style = MaterialTheme.typography.labelSmall, letterSpacing = 2.sp)
+        Text(title, style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.Light, color = colors.ink)
     }
 }
 
 @Composable
 private fun TopLine(title: String, subtitle: String, actions: DuetViewModel) {
+    val colors = duetColors()
     Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
         Column(modifier = Modifier.weight(1f)) {
-            Text(title, style = MaterialTheme.typography.headlineSmall, fontFamily = FontFamily.Serif)
-            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MutedInk)
+            Text(title, style = MaterialTheme.typography.headlineSmall, color = colors.ink)
+            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = colors.inkSoft)
         }
         IconButton(onClick = { actions.refreshAll() }) {
-            Icon(Icons.Default.Refresh, contentDescription = "Refresh")
+            Icon(Icons.Default.Refresh, contentDescription = "Refresh", tint = colors.inkSoft)
         }
     }
 }
 
 @Composable
 private fun CardPanel(content: @Composable ColumnScope.() -> Unit) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f)),
-        border = BorderStroke(1.dp, AccentGold.copy(alpha = 0.16f)),
-        shape = RoundedCornerShape(18.dp)
-    ) {
-        Column(modifier = Modifier.padding(16.dp), content = content)
-    }
+    com.duet.android.ui.components.DuetCard(content = content)
 }
 
 @Composable
 private fun StatusBanner(state: DuetUiState) {
     val message = state.error ?: state.message
     if (message != null) {
-        Card(
-            colors = CardDefaults.cardColors(containerColor = if (state.error != null) NegativeTone.copy(alpha = 0.12f) else AccentSage.copy(alpha = 0.12f)),
-            shape = RoundedCornerShape(14.dp),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text(
-                text = message,
-                modifier = Modifier.padding(12.dp),
-                color = if (state.error != null) NegativeTone else PositiveTone,
-                style = MaterialTheme.typography.bodyMedium
-            )
-        }
-        LaunchedEffect(message) {
-            kotlinx.coroutines.delay(3500)
-            state.message?.let { }
-        }
+        DuetStatusBanner(message = message, isError = state.error != null)
     }
 }
 
@@ -758,16 +695,17 @@ private fun LoadingPanel(text: String) {
 
 @Composable
 private fun BalanceCard(snapshot: ProfileSnapshotResponse) {
+    val colors = duetColors()
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .semantics { contentDescription = "Current balance card" },
-        colors = CardDefaults.cardColors(containerColor = DeepInk),
+        colors = CardDefaults.cardColors(containerColor = colors.phoneSummary),
         shape = RoundedCornerShape(20.dp)
     ) {
         Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Text(snapshot.profile.activeCouple?.name ?: "Personal workspace", color = Color.White.copy(alpha = 0.72f), style = MaterialTheme.typography.bodySmall)
-            Text(CurrencyUtils.formatAmount(snapshot.summary.balance, snapshot.summary.currency), color = Color.White, style = MaterialTheme.typography.displaySmall, fontFamily = FontFamily.Serif)
+            Text(snapshot.profile.activeCouple?.name ?: "Personal workspace", color = colors.phoneSummarySoft, style = MaterialTheme.typography.bodySmall)
+            Text(CurrencyUtils.formatAmount(snapshot.summary.balance, snapshot.summary.currency), color = colors.phoneSummaryText, style = MaterialTheme.typography.displaySmall)
             MetricStrip(
                 listOf(
                     "Income" to CurrencyUtils.formatAmount(snapshot.summary.totalIncome, snapshot.summary.currency),
@@ -781,17 +719,18 @@ private fun BalanceCard(snapshot: ProfileSnapshotResponse) {
 
 @Composable
 private fun MetricStrip(items: List<Pair<String, String>>, dark: Boolean = false) {
+    val colors = duetColors()
     Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
         items.forEach { (label, value) ->
             Column(
                 modifier = Modifier
                     .weight(1f)
                     .clip(RoundedCornerShape(14.dp))
-                    .background(if (dark) Color.White.copy(alpha = 0.08f) else CardSurface.copy(alpha = 0.8f))
+                    .background(if (dark) colors.phoneSummaryText.copy(alpha = 0.08f) else colors.surface.copy(alpha = 0.8f))
                     .padding(12.dp)
             ) {
-                Text(label, color = if (dark) Color.White.copy(alpha = 0.7f) else MutedInk, style = MaterialTheme.typography.labelSmall)
-                Text(value, color = if (dark) Color.White else DeepInk, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                Text(label, color = if (dark) colors.phoneSummarySoft else colors.inkSoft, style = MaterialTheme.typography.labelSmall)
+                Text(value, color = if (dark) colors.phoneSummaryText else colors.ink, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
             }
         }
     }
@@ -805,14 +744,14 @@ private fun RecentTransactionsCard(
     onDelete: (String) -> Unit
 ) {
     CardPanel {
-        Text(title, style = MaterialTheme.typography.titleLarge, fontFamily = FontFamily.Serif)
+        Text(title, style = MaterialTheme.typography.titleLarge, color = duetColors().ink)
         Spacer(Modifier.height(8.dp))
         if (items.isEmpty()) {
-            Text("No transactions yet.", color = MutedInk)
+            Text("No transactions yet.", color = duetColors().inkSoft)
         } else {
             items.forEachIndexed { index, item ->
                 TransactionRow(item, onEdit, onDelete)
-                if (index != items.lastIndex) Divider(modifier = Modifier.padding(vertical = 8.dp), color = AccentGold.copy(alpha = 0.14f))
+                if (index != items.lastIndex) HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), color = duetColors().gold.copy(alpha = 0.14f))
             }
         }
     }
@@ -820,28 +759,32 @@ private fun RecentTransactionsCard(
 
 @Composable
 private fun TransactionRow(item: TransactionListItem, onEdit: (String) -> Unit, onDelete: (String) -> Unit) {
-    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+    val colors = duetColors()
+    DuetDetailBox {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.weight(1f)) {
             Text(item.category.name, style = MaterialTheme.typography.titleMedium)
-            Text(listOfNotNull(item.note, item.happenedAt.take(10), item.user.firstName ?: item.user.username).joinToString(" / "), color = MutedInk, style = MaterialTheme.typography.bodySmall)
+            Text(listOfNotNull(item.note, item.happenedAt.take(10), item.user.firstName ?: item.user.username).joinToString(" / "), color = colors.inkSoft, style = MaterialTheme.typography.bodySmall)
         }
         Text(
             CurrencyUtils.formatAmount(item.amount, item.currency),
-            color = if (item.kind == "INCOME") PositiveTone else NegativeTone,
+            color = if (item.kind == "INCOME") colors.positive else colors.negative,
             fontWeight = FontWeight.SemiBold
         )
-        IconButton(onClick = { onEdit(item.id) }) { Icon(Icons.Default.Edit, contentDescription = "Edit transaction") }
-        IconButton(onClick = { onDelete(item.id) }) { Icon(Icons.Default.Delete, contentDescription = "Delete transaction") }
+        IconButton(onClick = { onEdit(item.id) }) { Icon(Icons.Default.Edit, contentDescription = "Edit transaction", tint = colors.inkSoft) }
+        IconButton(onClick = { onDelete(item.id) }) { Icon(Icons.Default.Delete, contentDescription = "Delete transaction", tint = colors.negative) }
+        }
     }
 }
 
 @Composable
 private fun RateRow(currency: String, label: String, rate: Double) {
+    val colors = duetColors()
     CardPanel {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Column {
-                Text(currency, color = AccentGold, fontWeight = FontWeight.SemiBold)
-                Text(label, color = MutedInk, style = MaterialTheme.typography.bodySmall)
+                Text(currency, color = colors.gold, fontWeight = FontWeight.SemiBold)
+                Text(label, color = colors.inkSoft, style = MaterialTheme.typography.bodySmall)
             }
             Text("1 $currency = ${CurrencyUtils.formatAmount(rate, "UZS")}", fontWeight = FontWeight.SemiBold)
         }
@@ -850,17 +793,18 @@ private fun RateRow(currency: String, label: String, rate: Double) {
 
 @Composable
 private fun CategoryManagementRow(category: CategoryTreeNode, actions: DuetViewModel) {
+    val colors = duetColors()
     CardPanel {
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(category.name, style = MaterialTheme.typography.titleMedium)
-                Text("${category.kind.lowercase()} / ${category.scope.lowercase()}${if (!category.isVisible) " / hidden" else ""}", color = MutedInk, style = MaterialTheme.typography.bodySmall)
+                Text("${category.kind.lowercase()} / ${category.scope.lowercase()}${if (!category.isVisible) " / hidden" else ""}", color = colors.inkSoft, style = MaterialTheme.typography.bodySmall)
             }
             TextButton(onClick = { actions.updateCategoryVisibility(category.id, !category.isVisible) }) {
                 Text(if (category.isVisible) "Hide" else "Show")
             }
             IconButton(onClick = { actions.deleteCategory(category.id) }) {
-                Icon(Icons.Default.Delete, contentDescription = "Delete category")
+                Icon(Icons.Default.Delete, contentDescription = "Delete category", tint = colors.negative)
             }
         }
     }
@@ -869,57 +813,38 @@ private fun CategoryManagementRow(category: CategoryTreeNode, actions: DuetViewM
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun SegmentRow(options: List<Pair<String, String>>, selected: String, onSelect: (String) -> Unit) {
-    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        options.forEach { (value, label) ->
-            FilterChip(selected = selected == value, onClick = { onSelect(value) }, label = { Text(label) })
-        }
-    }
+    DuetSegmentedControl(options = options, selected = selected, onSelect = onSelect)
 }
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun CurrencyDropdownLike(label: String, value: String, options: List<String>, modifier: Modifier = Modifier, onChange: (String) -> Unit) {
-    var expanded by rememberSaveable { mutableStateOf(false) }
-    Column(modifier = modifier) {
-        AssistChip(onClick = { expanded = !expanded }, label = { Text("$label: $value") })
-        if (expanded) {
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 8.dp)) {
-                options.forEach {
-                    FilterChip(selected = value == it, onClick = {
-                        onChange(it)
-                        expanded = false
-                    }, label = { Text(it) })
-                }
-            }
-        }
-    }
+    DuetSelectSheet(
+        label = label,
+        value = value,
+        options = options.map { it to it },
+        modifier = modifier,
+        onSelect = onChange
+    )
 }
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun CategoryDropdownLike(label: String, value: String, options: List<CategoryOption>, modifier: Modifier = Modifier, onChange: (String) -> Unit) {
-    var expanded by rememberSaveable { mutableStateOf(false) }
-    val selected = options.firstOrNull { it.id == value }?.label ?: "Choose"
-    Column(modifier = modifier) {
-        AssistChip(onClick = { expanded = !expanded }, label = { Text("$label: $selected") })
-        if (expanded) {
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 8.dp)) {
-                options.forEach {
-                    FilterChip(selected = value == it.id, onClick = {
-                        onChange(it.id)
-                        expanded = false
-                    }, label = { Text(it.label) })
-                }
-            }
-        }
-    }
+    DuetSelectSheetOptions(
+        label = label,
+        value = value,
+        options = options.map { DuetSelectOption(value = it.id, label = it.label, group = if (it.scope == "SHARED") "Shared categories" else "My categories") },
+        modifier = modifier,
+        onSelect = onChange
+    )
 }
 
 @Composable
 private fun GoodsFilterCard(state: DuetUiState, actions: DuetViewModel, snapshot: GoodsSnapshotResponse) {
     CardPanel {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text("Filters", style = MaterialTheme.typography.titleLarge, fontFamily = FontFamily.Serif)
+            Text("Filters", style = MaterialTheme.typography.titleLarge, color = duetColors().ink)
             DuetTextField(
                 value = state.goodsQuery.search,
                 onValueChange = { value -> actions.updateGoodsQuery { it.copy(search = value, page = 1) } },
@@ -948,18 +873,19 @@ private fun GoodsFilterCard(state: DuetUiState, actions: DuetViewModel, snapshot
 
 @Composable
 private fun GoodsItemRow(item: GoodsItem) {
+    val colors = duetColors()
     CardPanel {
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(item.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                Text(listOfNotNull(item.place?.name, item.category?.name, item.expirationStatus.replace("_", " ")).joinToString(" / "), color = MutedInk, style = MaterialTheme.typography.bodySmall)
+                Text(listOfNotNull(item.place?.name, item.category?.name, item.expirationStatus.replace("_", " ")).joinToString(" / "), color = colors.inkSoft, style = MaterialTheme.typography.bodySmall)
                 if (!item.note.isNullOrBlank()) {
-                    Text(item.note, color = MutedInk, style = MaterialTheme.typography.bodySmall)
+                    Text(item.note, color = colors.inkSoft, style = MaterialTheme.typography.bodySmall)
                 }
             }
             Column(horizontalAlignment = Alignment.End) {
                 Text("${item.effectiveQuantity} ${item.uom?.code.orEmpty()}", fontWeight = FontWeight.SemiBold)
-                Text(item.stockStatus.replace("_", " "), color = if (item.stockStatus == "LOW" || item.stockStatus == "OUT_OF_STOCK") NegativeTone else PositiveTone, style = MaterialTheme.typography.bodySmall)
+                Text(item.stockStatus.replace("_", " "), color = if (item.stockStatus == "LOW" || item.stockStatus == "OUT_OF_STOCK") colors.negative else colors.positive, style = MaterialTheme.typography.bodySmall)
             }
         }
     }
@@ -967,22 +893,23 @@ private fun GoodsItemRow(item: GoodsItem) {
 
 @Composable
 private fun PendingMutationsCard(title: String, items: List<PendingMutationPreview>) {
+    val colors = duetColors()
     CardPanel {
-        Text(title, style = MaterialTheme.typography.titleLarge, fontFamily = FontFamily.Serif)
+        Text(title, style = MaterialTheme.typography.titleLarge, color = colors.ink)
         Spacer(Modifier.height(8.dp))
         items.forEachIndexed { index, item ->
             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(item.title, fontWeight = FontWeight.SemiBold)
-                    Text(item.subtitle, color = MutedInk, style = MaterialTheme.typography.bodySmall)
+                    Text(item.subtitle, color = colors.inkSoft, style = MaterialTheme.typography.bodySmall)
                     if (!item.lastError.isNullOrBlank()) {
-                        Text(item.lastError, color = NegativeTone, style = MaterialTheme.typography.bodySmall)
+                        Text(item.lastError, color = colors.negative, style = MaterialTheme.typography.bodySmall)
                     }
                 }
-                Text("Pending", color = AccentGold, style = MaterialTheme.typography.labelSmall)
+                Text("Pending", color = colors.gold, style = MaterialTheme.typography.labelSmall)
             }
             if (index != items.lastIndex) {
-                Divider(modifier = Modifier.padding(vertical = 8.dp), color = AccentGold.copy(alpha = 0.14f))
+                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), color = colors.gold.copy(alpha = 0.14f))
             }
         }
     }
@@ -1009,7 +936,12 @@ private fun AddGoodsItemSheet(
     val places = snapshot.catalog.places.filter { it.isVisible && it.scope == scope }
     val categories = snapshot.catalog.categories.filter { it.isVisible && it.scope == scope }
 
-    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = duetColors().surface,
+        contentColor = duetColors().ink
+    ) {
         Column(
             modifier = Modifier
                 .navigationBarsPadding()
@@ -1017,7 +949,7 @@ private fun AddGoodsItemSheet(
                 .padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text("Add goods item", style = MaterialTheme.typography.titleLarge, fontFamily = FontFamily.Serif)
+            Text("Add goods item", style = MaterialTheme.typography.titleLarge, color = duetColors().ink)
             DuetSegmentedControl(
                 options = if (snapshot.workspace.hasPartnerConnection) listOf("PERSONAL" to "Personal", "SHARED" to "Shared") else listOf("PERSONAL" to "Personal"),
                 selected = scope,

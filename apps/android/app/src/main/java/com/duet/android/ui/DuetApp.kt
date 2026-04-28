@@ -13,6 +13,7 @@ import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -32,12 +33,7 @@ import com.duet.android.ui.screens.RatesScreen
 import com.duet.android.ui.screens.GoodsScreen
 import com.duet.android.ui.screens.SettingsScreen
 import com.duet.android.ui.screens.SplashScreen
-import com.duet.android.ui.theme.BackgroundBlush
-import com.duet.android.ui.theme.BackgroundCream
-import com.duet.android.ui.theme.BackgroundSage
-import com.duet.android.ui.theme.DarkBackground
-import com.duet.android.ui.theme.DarkCard
-import com.duet.android.ui.theme.DarkSurface
+import com.duet.android.ui.theme.duetColors
 
 private enum class DuetDestination(val label: String, val icon: ImageVector) {
     Profile("Home", Icons.Default.Home),
@@ -50,17 +46,14 @@ private enum class DuetDestination(val label: String, val icon: ImageVector) {
 @Composable
 fun DuetApp(state: DuetUiState, actions: DuetViewModel) {
     var destination by rememberSaveable { mutableStateOf(DuetDestination.Profile) }
+    val colors = duetColors()
 
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(
                 Brush.radialGradient(
-                    colors = if (state.isDark) {
-                        listOf(DarkCard.copy(alpha = 0.9f), DarkSurface, DarkBackground)
-                    } else {
-                        listOf(BackgroundBlush.copy(alpha = 0.42f), BackgroundSage.copy(alpha = 0.26f), BackgroundCream)
-                    },
+                    colors = listOf(colors.blush.copy(alpha = 0.24f), colors.sage.copy(alpha = 0.14f), colors.background),
                     radius = 1700f
                 )
             )
@@ -71,13 +64,23 @@ fun DuetApp(state: DuetUiState, actions: DuetViewModel) {
             else -> Scaffold(
                 containerColor = androidx.compose.ui.graphics.Color.Transparent,
                 bottomBar = {
-                    NavigationBar {
+                    NavigationBar(
+                        containerColor = colors.surface.copy(alpha = 0.96f),
+                        contentColor = colors.ink
+                    ) {
                         DuetDestination.entries.forEach { item ->
                             NavigationBarItem(
                                 selected = destination == item,
                                 onClick = { destination = item },
                                 icon = { Icon(item.icon, contentDescription = item.label) },
-                                label = { Text(item.label) }
+                                label = { Text(item.label) },
+                                colors = NavigationBarItemDefaults.colors(
+                                    selectedIconColor = colors.ink,
+                                    selectedTextColor = colors.ink,
+                                    indicatorColor = colors.gold.copy(alpha = 0.20f),
+                                    unselectedIconColor = colors.inkSoft,
+                                    unselectedTextColor = colors.inkSoft
+                                )
                             )
                         }
                     }
