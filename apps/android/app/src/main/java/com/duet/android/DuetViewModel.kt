@@ -1,8 +1,11 @@
 package com.duet.android
 
 import android.app.Application
+import android.media.MediaRecorder
+import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.duet.android.data.AiTransactionDraft
 import com.duet.android.data.CategoryOption
 import com.duet.android.data.CurrencyUtils
 import com.duet.android.data.DashboardQuery
@@ -22,6 +25,14 @@ import com.duet.android.data.UpdateTransactionRequest
 import com.duet.android.data.GoodsItem
 import com.duet.android.data.GoodsListQuery
 import com.duet.android.data.GoodsListResponse
+import com.duet.android.data.GoodsAdvisorMessage
+import com.duet.android.data.GoodsAdvisorThreadDetailResponse
+import com.duet.android.data.GoodsAdvisorThreadSummary
+import com.duet.android.data.GoodsManageCategoriesResponse
+import com.duet.android.data.GoodsManagePlacesResponse
+import com.duet.android.data.GoodsHistoryResponse
+import com.duet.android.data.GoodsUpdateItemRequest
+import com.duet.android.data.GoodsAdvisorUpdateThreadRequest
 import com.duet.android.data.GoodsSnapshotResponse
 import com.duet.android.data.NetworkMonitor
 import com.duet.android.data.PendingMutationPreview
@@ -32,6 +43,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.io.File
 
 data class DuetUiState(
     val isBootstrapping: Boolean = true,
@@ -45,16 +57,29 @@ data class DuetUiState(
     val rates: DashboardRatesResponse? = null,
     val goodsSnapshot: GoodsSnapshotResponse? = null,
     val goodsList: GoodsListResponse? = null,
+    val goodsPlaces: GoodsManagePlacesResponse? = null,
+    val goodsCategories: GoodsManageCategoriesResponse? = null,
+    val goodsHistoryByItemId: Map<String, GoodsHistoryResponse> = emptyMap(),
+    val advisorThreads: List<GoodsAdvisorThreadSummary> = emptyList(),
+    val advisorActiveThread: GoodsAdvisorThreadDetailResponse? = null,
+    val advisorDraft: String = "",
+    val advisorScope: String = "AUTO",
+    val pendingAdvisorText: String? = null,
     val goodsQuery: GoodsListQuery = GoodsListQuery(),
     val pendingMutations: List<PendingMutationPreview> = emptyList(),
     val dashboardQuery: DashboardQuery = DashboardQuery(),
-    val editingTransaction: EditableTransaction? = null
+    val editingTransaction: EditableTransaction? = null,
+    val aiDraft: AiTransactionDraft? = null,
+    val aiStage: String = "READY",
+    val aiError: String? = null
 )
 
 class DuetViewModel(application: Application) : AndroidViewModel(application) {
     private val tokenStore = SecureTokenStore(application.applicationContext)
     private val moshi = NetworkModule.createMoshi()
     private lateinit var repository: DuetRepository
+    private var mediaRecorder: MediaRecorder? = null
+    private var recordingFile: File? = null
 
     private val _uiState = MutableStateFlow(DuetUiState())
     val uiState: StateFlow<DuetUiState> = _uiState.asStateFlow()
@@ -143,6 +168,8 @@ class DuetViewModel(application: Application) : AndroidViewModel(application) {
                 val rates = repository.loadRates()
                 val goodsSnapshot = runCatching { repository.loadGoodsSnapshot() }.getOrElse { _uiState.value.goodsSnapshot }
                 val goodsList = runCatching { repository.loadGoodsList(_uiState.value.goodsQuery) }.getOrElse { _uiState.value.goodsList }
+                val goodsPlaces = runCatching { repository.loadGoodsPlaces() }.getOrElse { _uiState.value.goodsPlaces }
+                val goodsCategories = runCatching { repository.loadGoodsCategories() }.getOrElse { _uiState.value.goodsCategories }
                 _uiState.update {
                     it.copy(
                         isBusy = false,
@@ -153,6 +180,8 @@ class DuetViewModel(application: Application) : AndroidViewModel(application) {
                         rates = rates,
                         goodsSnapshot = goodsSnapshot,
                         goodsList = goodsList,
+                        goodsPlaces = goodsPlaces,
+                        goodsCategories = goodsCategories,
                         dashboardQuery = query,
                         error = null
                     )
@@ -205,6 +234,74 @@ class DuetViewModel(application: Application) : AndroidViewModel(application) {
             _uiState.update { it.copy(message = if (synced) "Transaction saved" else "Saved offline. It will sync when internet returns.") }
             if (synced) {
                 refreshAll(silent = true)
+            }
+        }
+    }
+
+    fun clearAiDraft() {
+        _uiState.update { it.copy(aiDraft = null, aiError = null, aiStage = "READY") }
+    }
+
+    fun createImageDraft(uri: Uri) {
+        launchAi("Reading receipt image") {
+            val response = repository.createImageDraft(uri)
+            _uiState.update { it.copy(aiDraft = response.draft, aiStage = "READY", aiError = null, message = "Image draft ready") }
+        }
+    }
+
+    fun startVoiceRecording(): Boolean {
+        return runCatching {
+            val file = File.createTempFile("duet-voice-", ".m4a", getApplication<Application>().cacheDir)
+            val recorder = MediaRecorder().apply {
+                setAudioSource(MediaRecorder.AudioSource.MIC)
+                setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
+                setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
+                setAudioEncodingBitRate(96000)
+                setAudioSamplingRate(44100)
+                setOutputFile(file.absolutePath)
+                prepare()
+                start()
+            }
+            recordingFile = file
+            mediaRecorder = recorder
+            _uiState.update { it.copy(aiStage = "RECORDING", aiError = null, aiDraft = null) }
+            true
+        }.getOrElse {
+            _uiState.update { state -> state.copy(aiStage = "READY", aiError = it.toUserMessage(moshi)) }
+            false
+        }
+    }
+
+    fun stopVoiceRecordingAndDraft() {
+        val file = recordingFile ?: return
+        runCatching {
+            mediaRecorder?.stop()
+        }
+        mediaRecorder?.release()
+        mediaRecorder = null
+        recordingFile = null
+        launchAi("Transcribing voice note") {
+            val response = repository.createVoiceDraft(Uri.fromFile(file))
+            _uiState.update { it.copy(aiDraft = response.draft, aiStage = "READY", aiError = null, message = "Voice draft ready") }
+        }
+    }
+
+    fun cancelVoiceRecording() {
+        runCatching { mediaRecorder?.stop() }
+        mediaRecorder?.release()
+        mediaRecorder = null
+        recordingFile?.delete()
+        recordingFile = null
+        _uiState.update { it.copy(aiStage = "READY") }
+    }
+
+    private fun launchAi(stage: String, block: suspend () -> Unit) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(aiStage = stage, aiError = null) }
+            try {
+                block()
+            } catch (error: Throwable) {
+                _uiState.update { it.copy(aiStage = "READY", aiError = error.toUserMessage(moshi)) }
             }
         }
     }
@@ -302,6 +399,30 @@ class DuetViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun saveProfilePreferences(weekStartsOn: String) {
+        launchBusy {
+            repository.updateProfilePreferences(weekStartsOn)
+            _uiState.update { it.copy(message = "Preferences saved") }
+            refreshAll(silent = true)
+        }
+    }
+
+    fun setupPassword(email: String, password: String) {
+        launchBusy {
+            repository.setupPassword(email, password)
+            _uiState.update { it.copy(message = "Email login is ready") }
+            refreshAll(silent = true)
+        }
+    }
+
+    fun saveCategoryPreferences(showShared: Boolean, defaultIncomeId: String?, defaultExpenseId: String?) {
+        launchBusy {
+            repository.updateCategoryPreferences(showShared, defaultIncomeId, defaultExpenseId)
+            _uiState.update { it.copy(message = "Category preferences saved") }
+            refreshAll(silent = true)
+        }
+    }
+
     fun updateCategoryVisibility(id: String, isVisible: Boolean) {
         launchBusy {
             repository.updateCategoryVisibility(id, isVisible)
@@ -322,7 +443,9 @@ class DuetViewModel(application: Application) : AndroidViewModel(application) {
         launchBusy {
             val snapshot = repository.loadGoodsSnapshot()
             val list = repository.loadGoodsList(_uiState.value.goodsQuery)
-            _uiState.update { it.copy(goodsSnapshot = snapshot, goodsList = list) }
+            val places = runCatching { repository.loadGoodsPlaces() }.getOrNull()
+            val categories = runCatching { repository.loadGoodsCategories() }.getOrNull()
+            _uiState.update { it.copy(goodsSnapshot = snapshot, goodsList = list, goodsPlaces = places, goodsCategories = categories) }
         }
     }
 
@@ -348,6 +471,146 @@ class DuetViewModel(application: Application) : AndroidViewModel(application) {
                 val list = repository.loadGoodsList(_uiState.value.goodsQuery)
                 _uiState.update { it.copy(goodsSnapshot = snapshot, goodsList = list) }
             }
+        }
+    }
+
+    fun createGoodsPlace(scope: String, name: String) {
+        launchGoodsMutation("Place created") { repository.createGoodsPlace(scope, name) }
+    }
+
+    fun createGoodsCategory(scope: String, name: String) {
+        launchGoodsMutation("Category created") { repository.createGoodsCategory(scope, name) }
+    }
+
+    fun updateGoodsPlaceVisibility(id: String, isVisible: Boolean) {
+        launchGoodsMutation(if (isVisible) "Place shown" else "Place hidden") { repository.updateGoodsPlaceVisibility(id, isVisible) }
+    }
+
+    fun updateGoodsCategoryVisibility(id: String, isVisible: Boolean) {
+        launchGoodsMutation(if (isVisible) "Category shown" else "Category hidden") { repository.updateGoodsCategoryVisibility(id, isVisible) }
+    }
+
+    fun deleteGoodsPlace(id: String) {
+        launchGoodsMutation("Place deleted") { repository.deleteGoodsPlace(id) }
+    }
+
+    fun deleteGoodsCategory(id: String) {
+        launchGoodsMutation("Category deleted") { repository.deleteGoodsCategory(id) }
+    }
+
+    fun loadGoodsHistory(id: String) {
+        viewModelScope.launch {
+            val history = repository.loadGoodsHistory(id)
+            _uiState.update { it.copy(goodsHistoryByItemId = it.goodsHistoryByItemId + (id to history)) }
+        }
+    }
+
+    fun mutateGoodsQuantity(id: String, action: String, quantity: Double, reason: String?) {
+        launchGoodsMutation("Item updated") { repository.mutateGoodsQuantity(id, action, quantity, reason) }
+    }
+
+    fun moveGoodsItem(id: String, placeId: String, categoryId: String, reason: String?) {
+        launchGoodsMutation("Item moved") { repository.moveGoodsItem(id, placeId, categoryId, reason) }
+    }
+
+    fun updateGoodsItem(id: String, request: GoodsUpdateItemRequest) {
+        launchGoodsMutation("Item settings saved") { repository.updateGoodsItem(id, request) }
+    }
+
+    fun archiveGoodsItem(id: String) {
+        launchGoodsMutation("Item archived") { repository.archiveGoodsItem(id) }
+    }
+
+    private fun launchGoodsMutation(message: String, block: suspend () -> Unit) {
+        launchBusy {
+            block()
+            val snapshot = repository.loadGoodsSnapshot()
+            val list = repository.loadGoodsList(_uiState.value.goodsQuery)
+            val places = repository.loadGoodsPlaces()
+            val categories = repository.loadGoodsCategories()
+            _uiState.update {
+                it.copy(
+                    message = message,
+                    goodsSnapshot = snapshot,
+                    goodsList = list,
+                    goodsPlaces = places,
+                    goodsCategories = categories
+                )
+            }
+        }
+    }
+
+    fun loadAdvisor() {
+        launchBusy {
+            val threads = repository.loadAdvisorThreads().items.sortedWith(compareByDescending<GoodsAdvisorThreadSummary> { it.isPinned }.thenByDescending { it.lastActivityAt })
+            val active = threads.firstOrNull()?.let { repository.loadAdvisorThread(it.id) }
+            _uiState.update { it.copy(advisorThreads = threads, advisorActiveThread = active) }
+        }
+    }
+
+    fun setAdvisorDraft(value: String) {
+        _uiState.update { it.copy(advisorDraft = value) }
+    }
+
+    fun setAdvisorScope(value: String) {
+        _uiState.update { it.copy(advisorScope = value) }
+    }
+
+    fun openAdvisorThread(id: String) {
+        launchBusy {
+            _uiState.update { it.copy(advisorActiveThread = repository.loadAdvisorThread(id)) }
+        }
+    }
+
+    fun startNewAdvisorChat() {
+        _uiState.update { it.copy(advisorActiveThread = null, advisorDraft = "", pendingAdvisorText = null) }
+    }
+
+    fun sendAdvisorMessage(override: String? = null) {
+        val prompt = (override ?: _uiState.value.advisorDraft).trim()
+        if (prompt.isBlank()) {
+            _uiState.update { it.copy(error = "Enter a message first") }
+            return
+        }
+        viewModelScope.launch {
+            _uiState.update { it.copy(isBusy = true, error = null, pendingAdvisorText = prompt) }
+            try {
+                val threadId = _uiState.value.advisorActiveThread?.thread?.id
+                    ?: repository.createAdvisorThread(_uiState.value.advisorScope).id
+                val response = repository.sendAdvisorMessage(threadId, prompt)
+                val detail = repository.loadAdvisorThread(response.thread.id)
+                val threads = repository.loadAdvisorThreads().items.sortedWith(compareByDescending<GoodsAdvisorThreadSummary> { it.isPinned }.thenByDescending { it.lastActivityAt })
+                _uiState.update {
+                    it.copy(
+                        isBusy = false,
+                        advisorDraft = "",
+                        pendingAdvisorText = null,
+                        advisorThreads = threads,
+                        advisorActiveThread = detail
+                    )
+                }
+            } catch (error: Throwable) {
+                handleError(error)
+                _uiState.update { it.copy(pendingAdvisorText = null) }
+            }
+        }
+    }
+
+    fun updateAdvisorThread(id: String, title: String? = null, isPinned: Boolean? = null) {
+        launchBusy {
+            repository.updateAdvisorThread(id, GoodsAdvisorUpdateThreadRequest(title = title, isPinned = isPinned))
+            val threads = repository.loadAdvisorThreads().items.sortedWith(compareByDescending<GoodsAdvisorThreadSummary> { it.isPinned }.thenByDescending { it.lastActivityAt })
+            val active = _uiState.value.advisorActiveThread?.thread?.id?.let { repository.loadAdvisorThread(it) }
+            _uiState.update { it.copy(advisorThreads = threads, advisorActiveThread = active) }
+        }
+    }
+
+    fun deleteAdvisorThread(id: String) {
+        launchBusy {
+            repository.deleteAdvisorThread(id)
+            val threads = repository.loadAdvisorThreads().items.sortedWith(compareByDescending<GoodsAdvisorThreadSummary> { it.isPinned }.thenByDescending { it.lastActivityAt })
+            val active = threads.firstOrNull()?.let { repository.loadAdvisorThread(it.id) }
+            _uiState.update { it.copy(advisorThreads = threads, advisorActiveThread = active) }
         }
     }
 

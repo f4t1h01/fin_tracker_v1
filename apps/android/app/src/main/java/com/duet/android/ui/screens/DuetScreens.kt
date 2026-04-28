@@ -32,6 +32,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SwapVert
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -68,6 +69,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.duet.android.DuetUiState
 import com.duet.android.DuetViewModel
+import com.duet.android.ui.DuetDestination
 import com.duet.android.categoryOptions
 import com.duet.android.data.CategoryOption
 import com.duet.android.data.CategoryTreeNode
@@ -182,14 +184,19 @@ fun AuthScreen(state: DuetUiState, actions: DuetViewModel) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ProfileScreen(state: DuetUiState, actions: DuetViewModel) {
+fun ProfileScreen(
+    state: DuetUiState,
+    actions: DuetViewModel,
+    current: DuetDestination = DuetDestination.Profile,
+    onNavigate: (DuetDestination) -> Unit = {}
+) {
     val snapshot = state.snapshot
     var showAddSheet by rememberSaveable { mutableStateOf(false) }
     val edit = state.editingTransaction
 
     ScreenList {
         item {
-            TopLine(title = greeting(snapshot), subtitle = snapshot?.profile?.activeCouple?.name ?: "Personal workspace", actions = actions)
+            TopLine(title = greeting(snapshot), subtitle = snapshot?.profile?.activeCouple?.name ?: "Personal workspace", actions = actions, current = current, onNavigate = onNavigate)
             StatusBanner(state)
         }
         if (snapshot == null) {
@@ -234,7 +241,12 @@ fun ProfileScreen(state: DuetUiState, actions: DuetViewModel) {
 }
 
 @Composable
-fun GoodsScreen(state: DuetUiState, actions: DuetViewModel) {
+fun GoodsOverviewScreen(
+    state: DuetUiState,
+    actions: DuetViewModel,
+    current: DuetDestination = DuetDestination.Goods,
+    onNavigate: (DuetDestination) -> Unit = {}
+) {
     val snapshot = state.goodsSnapshot
     val list = state.goodsList
     var showAddSheet by rememberSaveable { mutableStateOf(false) }
@@ -247,7 +259,7 @@ fun GoodsScreen(state: DuetUiState, actions: DuetViewModel) {
 
     ScreenList {
         item {
-            TopLine("My Goods", snapshot?.workspace?.name ?: "Inventory and groceries", actions)
+            TopLine("My Goods", snapshot?.workspace?.name ?: "Inventory and groceries", actions, current, onNavigate)
             StatusBanner(state)
         }
         if (snapshot == null) {
@@ -261,6 +273,9 @@ fun GoodsScreen(state: DuetUiState, actions: DuetViewModel) {
                         "Expiring" to snapshot.metrics.expiringSoonItems.toString()
                     )
                 )
+            }
+            item {
+                GoodsOverviewHighlights(snapshot)
             }
             item {
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
@@ -301,14 +316,19 @@ fun GoodsScreen(state: DuetUiState, actions: DuetViewModel) {
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun DashboardScreen(state: DuetUiState, actions: DuetViewModel) {
+fun DashboardScreen(
+    state: DuetUiState,
+    actions: DuetViewModel,
+    current: DuetDestination = DuetDestination.Dashboard,
+    onNavigate: (DuetDestination) -> Unit = {}
+) {
     val dashboard = state.dashboard
     val query = state.dashboardQuery
     var searchDraft by rememberSaveable(query.search) { mutableStateOf(query.search) }
 
     ScreenList {
         item {
-            TopLine("Dashboard", dashboard?.filter?.label ?: "Transactions at a glance", actions)
+            TopLine("Dashboard", dashboard?.filter?.label ?: "Transactions at a glance", actions, current, onNavigate)
             StatusBanner(state)
         }
         if (dashboard == null) {
@@ -418,7 +438,12 @@ fun DashboardScreen(state: DuetUiState, actions: DuetViewModel) {
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun RatesScreen(state: DuetUiState, actions: DuetViewModel) {
+fun RatesScreen(
+    state: DuetUiState,
+    actions: DuetViewModel,
+    current: DuetDestination = DuetDestination.Rates,
+    onNavigate: (DuetDestination) -> Unit = {}
+) {
     val rates = state.rates
     var amount by rememberSaveable { mutableStateOf("100000") }
     var from by rememberSaveable { mutableStateOf("UZS") }
@@ -429,7 +454,7 @@ fun RatesScreen(state: DuetUiState, actions: DuetViewModel) {
 
     ScreenList {
         item {
-            TopLine("Rates", rates?.lastUpdatedAt ?: "Exchange rates", actions)
+            TopLine("Rates", rates?.lastUpdatedAt ?: "Exchange rates", actions, current, onNavigate)
             StatusBanner(state)
         }
         if (rates == null) {
@@ -488,7 +513,12 @@ fun RatesScreen(state: DuetUiState, actions: DuetViewModel) {
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun SettingsScreen(state: DuetUiState, actions: DuetViewModel) {
+fun SettingsScreen(
+    state: DuetUiState,
+    actions: DuetViewModel,
+    current: DuetDestination = DuetDestination.Settings,
+    onNavigate: (DuetDestination) -> Unit = {}
+) {
     val snapshot = state.snapshot
     var firstName by rememberSaveable(snapshot?.auth?.firstName) { mutableStateOf(snapshot?.auth?.firstName.orEmpty()) }
     var lastName by rememberSaveable(snapshot?.auth?.lastName) { mutableStateOf(snapshot?.auth?.lastName.orEmpty()) }
@@ -497,10 +527,16 @@ fun SettingsScreen(state: DuetUiState, actions: DuetViewModel) {
     var categoryName by rememberSaveable { mutableStateOf("") }
     var categoryKind by rememberSaveable { mutableStateOf("EXPENSE") }
     var categoryScope by rememberSaveable { mutableStateOf("PERSONAL") }
+    var weekStartsOn by rememberSaveable(snapshot?.auth?.weekStartsOn) { mutableStateOf(snapshot?.auth?.weekStartsOn ?: "MONDAY") }
+    var setupEmail by rememberSaveable(snapshot?.auth?.email) { mutableStateOf(snapshot?.auth?.email.orEmpty()) }
+    var setupPassword by rememberSaveable { mutableStateOf("") }
+    var showShared by rememberSaveable(snapshot?.categories?.preferences?.showSharedCategories) { mutableStateOf(snapshot?.categories?.preferences?.showSharedCategories ?: true) }
+    var defaultIncomeId by rememberSaveable(snapshot?.categories?.preferences?.defaultIncomeCategoryId) { mutableStateOf(snapshot?.categories?.preferences?.defaultIncomeCategoryId.orEmpty()) }
+    var defaultExpenseId by rememberSaveable(snapshot?.categories?.preferences?.defaultExpenseCategoryId) { mutableStateOf(snapshot?.categories?.preferences?.defaultExpenseCategoryId.orEmpty()) }
 
     ScreenList {
         item {
-            TopLine("Settings", snapshot?.auth?.email ?: "Profile and categories", actions)
+            TopLine("Settings", snapshot?.auth?.email ?: "Profile and categories", actions, current, onNavigate)
             StatusBanner(state)
         }
         item {
@@ -517,6 +553,18 @@ fun SettingsScreen(state: DuetUiState, actions: DuetViewModel) {
                 }
             }
         }
+        if (snapshot?.auth?.hasPassword == false) {
+            item {
+                CardPanel {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Text("Email login", style = MaterialTheme.typography.titleLarge, color = duetColors().ink)
+                        DuetTextField(setupEmail, { setupEmail = it }, "Email")
+                        DuetTextField(setupPassword, { setupPassword = it }, "Password", visualTransformation = PasswordVisualTransformation())
+                        DuetButton("Setup password", modifier = Modifier.fillMaxWidth(), enabled = setupEmail.isNotBlank() && setupPassword.length >= 6, onClick = { actions.setupPassword(setupEmail, setupPassword) })
+                    }
+                }
+            }
+        }
         item {
             CardPanel {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -527,6 +575,30 @@ fun SettingsScreen(state: DuetUiState, actions: DuetViewModel) {
                     } else {
                         DuetTextField(bindCode, { bindCode = it }, "Partner code")
                         DuetButton("Connect partner", modifier = Modifier.fillMaxWidth(), onClick = { actions.bindCouple(bindCode) })
+                    }
+                }
+            }
+        }
+        item {
+            CardPanel {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text("Analytics preferences", style = MaterialTheme.typography.titleLarge, color = duetColors().ink)
+                    DuetSegmentedControl(listOf("MONDAY" to "Monday", "SUNDAY" to "Sunday"), weekStartsOn, onSelect = { weekStartsOn = it })
+                    DuetButton("Save preferences", modifier = Modifier.fillMaxWidth(), onClick = { actions.saveProfilePreferences(weekStartsOn) })
+                }
+            }
+        }
+        if (snapshot != null) {
+            item {
+                CardPanel {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Text("Category preferences", style = MaterialTheme.typography.titleLarge, color = duetColors().ink)
+                        DuetChoiceChip("Show shared categories", showShared, onClick = { showShared = !showShared })
+                        val incomeOptions = snapshot.categoryOptions("INCOME")
+                        val expenseOptions = snapshot.categoryOptions("EXPENSE")
+                        DuetSelectSheet("Default income", defaultIncomeId, listOf("" to "No default") + incomeOptions.map { it.id to it.label }, onSelect = { defaultIncomeId = it })
+                        DuetSelectSheet("Default expense", defaultExpenseId, listOf("" to "No default") + expenseOptions.map { it.id to it.label }, onSelect = { defaultExpenseId = it })
+                        DuetButton("Save category preferences", modifier = Modifier.fillMaxWidth(), onClick = { actions.saveCategoryPreferences(showShared, defaultIncomeId, defaultExpenseId) })
                     }
                 }
             }
@@ -658,15 +730,49 @@ private fun BrandBlock(eyebrow: String, title: String) {
 }
 
 @Composable
-private fun TopLine(title: String, subtitle: String, actions: DuetViewModel) {
+internal fun TopLine(
+    title: String,
+    subtitle: String,
+    actions: DuetViewModel,
+    current: DuetDestination,
+    onNavigate: (DuetDestination) -> Unit
+) {
     val colors = duetColors()
-    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(title, style = MaterialTheme.typography.headlineSmall, color = colors.ink)
-            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = colors.inkSoft)
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+            IconButton(onClick = { onNavigate(DuetDestination.Settings) }) {
+                Icon(Icons.Default.Settings, contentDescription = "Settings", tint = colors.inkSoft)
+            }
+            Column(modifier = Modifier.weight(1f)) {
+                Text(title, style = MaterialTheme.typography.headlineSmall, color = colors.ink)
+                Text(subtitle, style = MaterialTheme.typography.bodySmall, color = colors.inkSoft)
+            }
+            IconButton(onClick = { actions.refreshAll() }) {
+                Icon(Icons.Default.Refresh, contentDescription = "Refresh", tint = colors.inkSoft)
+            }
         }
-        IconButton(onClick = { actions.refreshAll() }) {
-            Icon(Icons.Default.Refresh, contentDescription = "Refresh", tint = colors.inkSoft)
+        WorkspaceActionStrip(current = current, onNavigate = onNavigate)
+    }
+}
+
+@Composable
+internal fun WorkspaceActionStrip(current: DuetDestination, onNavigate: (DuetDestination) -> Unit) {
+    val goodsRoutes = listOf(
+        DuetDestination.Goods to "My Goods",
+        DuetDestination.GoodsAdvisor to "Advisor",
+        DuetDestination.GoodsStock to "Stock",
+        DuetDestination.GoodsSetup to "Setup"
+    )
+    val financeRoutes = listOf(
+        DuetDestination.AddTransaction to "Transactions",
+        DuetDestination.Dashboard to "Dashboard",
+        DuetDestination.Trends to "Trends",
+        DuetDestination.Rates to "Rates"
+    )
+    val routes = if (current in listOf(DuetDestination.Goods, DuetDestination.GoodsAdvisor, DuetDestination.GoodsStock, DuetDestination.GoodsSetup)) goodsRoutes else financeRoutes
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        routes.forEach { (destination, label) ->
+            DuetChoiceChip(label = label, selected = current == destination, onClick = { onNavigate(destination) })
         }
     }
 }
@@ -890,6 +996,42 @@ private fun GoodsItemRow(item: GoodsItem) {
             Column(horizontalAlignment = Alignment.End) {
                 Text("${item.effectiveQuantity} ${item.uom?.code.orEmpty()}", fontWeight = FontWeight.SemiBold)
                 Text(item.stockStatus.replace("_", " "), color = if (item.stockStatus == "LOW" || item.stockStatus == "OUT_OF_STOCK") colors.negative else colors.positive, style = MaterialTheme.typography.bodySmall)
+            }
+        }
+    }
+}
+
+@Composable
+private fun GoodsOverviewHighlights(snapshot: GoodsSnapshotResponse) {
+    CardPanel {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text("Needs attention now", style = MaterialTheme.typography.titleLarge, color = duetColors().ink)
+            if (snapshot.highlights.attentionItems.isEmpty()) {
+                Text("No urgent goods right now.", color = duetColors().inkSoft)
+            } else {
+                snapshot.highlights.attentionItems.take(4).forEach { item ->
+                    DuetDetailBox {
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(item.name, fontWeight = FontWeight.SemiBold)
+                                Text(listOfNotNull(item.place?.name, item.category?.name).joinToString(" / "), color = duetColors().inkSoft, style = MaterialTheme.typography.bodySmall)
+                            }
+                            Text("${item.effectiveQuantity} ${item.uom?.code.orEmpty()}", fontWeight = FontWeight.SemiBold)
+                        }
+                    }
+                }
+            }
+            Text("Run out soon", style = MaterialTheme.typography.titleMedium, color = duetColors().ink)
+            if (snapshot.highlights.runOutSoon.isEmpty()) {
+                Text("No projected run-outs yet.", color = duetColors().inkSoft, style = MaterialTheme.typography.bodySmall)
+            } else {
+                snapshot.highlights.runOutSoon.take(3).forEach { item ->
+                    Text("${item.name}: ${item.estimatedRunOutAt?.take(10) ?: "Not estimated"}", color = duetColors().inkSoft, style = MaterialTheme.typography.bodySmall)
+                }
+            }
+            Text("By place", style = MaterialTheme.typography.titleMedium, color = duetColors().ink)
+            snapshot.breakdown.byPlace.take(4).forEach { item ->
+                Text("${item.name}: ${item.itemCount} items / Low ${item.lowCount} / Out ${item.outCount}", color = duetColors().inkSoft, style = MaterialTheme.typography.bodySmall)
             }
         }
     }

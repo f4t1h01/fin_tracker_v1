@@ -1,6 +1,7 @@
 package com.duet.android.data
 
 import android.content.Context
+import android.net.Uri
 import com.duet.android.data.local.CachedJsonEntity
 import com.duet.android.data.local.DuetLocalDatabase
 import com.duet.android.data.local.OUTBOX_STATUS_FAILED
@@ -11,6 +12,9 @@ import com.duet.android.data.local.OutboxMutationEntity
 import com.squareup.moshi.Moshi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.MultipartBody
+import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.IOException
 import java.util.Calendar
 import java.util.UUID
@@ -110,6 +114,14 @@ class DuetRepository(
         return false
     }
 
+    suspend fun createVoiceDraft(uri: Uri): AiTransactionDraftResponse {
+        return api.createVoiceDraft(uriPart(uri, "audio", "android-voice.m4a", "audio/mp4"))
+    }
+
+    suspend fun createImageDraft(uri: Uri): AiTransactionDraftResponse {
+        return api.createImageDraft(uriPart(uri, "image", "android-receipt.jpg", "image/jpeg"))
+    }
+
     suspend fun updateTransaction(id: String, body: UpdateTransactionRequest) {
         api.updateTransaction(id, body).close()
     }
@@ -127,6 +139,24 @@ class DuetRepository(
 
     suspend fun updateDetails(firstName: String?, lastName: String?, birthday: String?): AuthMeResponse {
         return api.updateDetails(UpdateProfileDetailsRequest(firstName?.ifBlank { null }, lastName?.ifBlank { null }, birthday?.ifBlank { null }))
+    }
+
+    suspend fun updateProfilePreferences(weekStartsOn: String): AuthMeResponse {
+        return api.updateProfilePreferences(UpdateProfilePreferencesRequest(weekStartsOn))
+    }
+
+    suspend fun setupPassword(email: String, password: String): AuthMeResponse {
+        return api.setupPassword(PasswordSetupRequest(email.trim(), password))
+    }
+
+    suspend fun updateCategoryPreferences(showShared: Boolean, defaultIncomeId: String?, defaultExpenseId: String?): CategoryCatalogResponse {
+        return api.updateCategoryPreferences(
+            CategoryPreferencesRequest(
+                showSharedCategories = showShared,
+                defaultIncomeCategoryId = defaultIncomeId?.ifBlank { null },
+                defaultExpenseCategoryId = defaultExpenseId?.ifBlank { null }
+            )
+        )
     }
 
     suspend fun bindCouple(code: String) {
@@ -176,6 +206,73 @@ class DuetRepository(
 
         queueGoodsItemCreate(request)
         return false
+    }
+
+    suspend fun loadGoodsPlaces(): GoodsManagePlacesResponse = api.goodsPlaces()
+
+    suspend fun loadGoodsCategories(): GoodsManageCategoriesResponse = api.goodsCategories()
+
+    suspend fun createGoodsPlace(scope: String, name: String) {
+        api.createGoodsPlace(GoodsCreateNameRequest(scope, name.trim())).close()
+    }
+
+    suspend fun createGoodsCategory(scope: String, name: String) {
+        api.createGoodsCategory(GoodsCreateNameRequest(scope, name.trim())).close()
+    }
+
+    suspend fun updateGoodsPlaceVisibility(id: String, isVisible: Boolean) {
+        api.updateGoodsPlaceVisibility(id, UpdateVisibilityRequest(isVisible)).close()
+    }
+
+    suspend fun updateGoodsCategoryVisibility(id: String, isVisible: Boolean) {
+        api.updateGoodsCategoryVisibility(id, UpdateVisibilityRequest(isVisible)).close()
+    }
+
+    suspend fun deleteGoodsPlace(id: String) {
+        api.deleteGoodsPlace(id).close()
+    }
+
+    suspend fun deleteGoodsCategory(id: String) {
+        api.deleteGoodsCategory(id).close()
+    }
+
+    suspend fun loadGoodsHistory(id: String): GoodsHistoryResponse = api.goodsItemEvents(id)
+
+    suspend fun mutateGoodsQuantity(id: String, action: String, quantity: Double, reason: String?) {
+        val body = GoodsQuantityMutationRequest(quantity, reason?.trim()?.ifBlank { null })
+        when (action) {
+            "RESTOCK" -> api.restockGoodsItem(id, body).close()
+            "CONSUME" -> api.consumeGoodsItem(id, body).close()
+            "RECONCILE" -> api.reconcileGoodsItem(id, body).close()
+        }
+    }
+
+    suspend fun moveGoodsItem(id: String, placeId: String, categoryId: String, reason: String?) {
+        api.moveGoodsItem(id, GoodsMoveItemRequest(placeId, categoryId, reason?.trim()?.ifBlank { null })).close()
+    }
+
+    suspend fun updateGoodsItem(id: String, request: GoodsUpdateItemRequest) {
+        api.updateGoodsItem(id, request).close()
+    }
+
+    suspend fun archiveGoodsItem(id: String) {
+        api.archiveGoodsItem(id).close()
+    }
+
+    suspend fun loadAdvisorThreads(): GoodsAdvisorThreadsResponse = api.advisorThreads()
+
+    suspend fun createAdvisorThread(scope: String): GoodsAdvisorThreadSummary = api.createAdvisorThread(GoodsAdvisorCreateThreadRequest(scope))
+
+    suspend fun loadAdvisorThread(id: String): GoodsAdvisorThreadDetailResponse = api.advisorThread(id)
+
+    suspend fun updateAdvisorThread(id: String, request: GoodsAdvisorUpdateThreadRequest): GoodsAdvisorThreadSummary = api.updateAdvisorThread(id, request)
+
+    suspend fun deleteAdvisorThread(id: String) {
+        api.deleteAdvisorThread(id).close()
+    }
+
+    suspend fun sendAdvisorMessage(threadId: String, message: String): GoodsAdvisorSendMessageResponse {
+        return api.sendAdvisorMessage(threadId, GoodsAdvisorSendMessageRequest(message.trim()))
     }
 
     fun observePendingMutations(): Flow<List<PendingMutationPreview>> {
@@ -236,6 +333,14 @@ class DuetRepository(
     private suspend fun <T> readCache(key: String, type: Class<T>): T? {
         val raw = database.cachedJsonDao().get(key)?.json ?: return null
         return runCatching { moshi.adapter(type).fromJson(raw) }.getOrNull()
+    }
+
+    private fun uriPart(uri: Uri, fieldName: String, fallbackName: String, fallbackMime: String): MultipartBody.Part {
+        val resolver = context.contentResolver
+        val mime = resolver.getType(uri) ?: fallbackMime
+        val bytes = resolver.openInputStream(uri)?.use { it.readBytes() } ?: ByteArray(0)
+        val body = bytes.toRequestBody(mime.toMediaTypeOrNull())
+        return MultipartBody.Part.createFormData(fieldName, fallbackName, body)
     }
 
     private companion object {

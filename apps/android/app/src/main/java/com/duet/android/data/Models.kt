@@ -27,6 +27,13 @@ data class ThemePreferenceResponse(val isDark: Boolean)
 data class DashboardRatesUpdateRequest(val selectedCurrencies: List<String>)
 data class BindCoupleRequest(val code: String)
 data class UpdateProfileDetailsRequest(val firstName: String? = null, val lastName: String? = null, val birthday: String? = null)
+data class UpdateProfilePreferencesRequest(val weekStartsOn: String)
+data class PasswordSetupRequest(val email: String, val password: String)
+data class CategoryPreferencesRequest(
+    val showSharedCategories: Boolean,
+    val defaultIncomeCategoryId: String? = null,
+    val defaultExpenseCategoryId: String? = null
+)
 
 data class AuthResponse(
     val accessToken: String,
@@ -191,6 +198,20 @@ data class UpdateTransactionRequest(
     val categoryName: String? = null,
     val note: String? = null,
     val currency: String = "UZS"
+)
+
+data class AiTransactionDraftResponse(val draft: AiTransactionDraft)
+
+data class AiTransactionDraft(
+    val kind: String? = null,
+    val amount: Double? = null,
+    val currency: String? = null,
+    val categoryId: String? = null,
+    val categoryNameCandidate: String? = null,
+    val note: String? = null,
+    val confidence: Double = 0.0,
+    val missingFields: List<String> = emptyList(),
+    val warnings: List<String> = emptyList()
 )
 
 data class DashboardResponse(
@@ -461,3 +482,70 @@ data class PendingMutationPreview(
     val createdAt: Long,
     val lastError: String? = null
 )
+
+data class GoodsManagePlacesResponse(val items: List<GoodsBreakdownPlace> = emptyList())
+data class GoodsManageCategoriesResponse(val items: List<GoodsBreakdownCategory> = emptyList())
+data class GoodsCreateNameRequest(val scope: String, val name: String)
+data class UpdateVisibilityRequest(val isVisible: Boolean)
+data class GoodsQuantityMutationRequest(val quantity: Double, val reason: String? = null)
+data class GoodsMoveItemRequest(val placeId: String, val categoryId: String, val reason: String? = null)
+data class GoodsUpdateItemRequest(
+    val name: String? = null,
+    val note: String? = null,
+    val lowStockThreshold: Double? = null,
+    val targetQuantity: Double? = null,
+    val expirationDate: String? = null,
+    val consumptionRateValue: Double? = null,
+    val consumptionRateUnit: String? = null
+)
+data class GoodsHistoryResponse(val items: List<GoodsEvent> = emptyList())
+
+data class GoodsAdvisorThreadsResponse(val items: List<GoodsAdvisorThreadSummary> = emptyList())
+data class GoodsAdvisorCreateThreadRequest(val scope: String)
+data class GoodsAdvisorUpdateThreadRequest(
+    val title: String? = null,
+    val isPinned: Boolean? = null,
+    val scope: String? = null
+)
+data class GoodsAdvisorSendMessageRequest(val message: String)
+data class GoodsAdvisorSendMessageResponse(
+    val thread: GoodsAdvisorThreadSummary,
+    val userMessage: GoodsAdvisorMessage,
+    val assistantMessage: GoodsAdvisorMessage
+)
+data class GoodsAdvisorThreadDetailResponse(
+    val thread: GoodsAdvisorThreadSummary,
+    val summaryText: String? = null,
+    val messages: List<GoodsAdvisorMessage> = emptyList()
+)
+data class GoodsAdvisorThreadSummary(
+    val id: String,
+    val title: String,
+    val scope: String = "AUTO",
+    val isPinned: Boolean = false,
+    val lastActivityAt: String = "",
+    val expiresAt: String? = null
+)
+data class GoodsAdvisorMessage(
+    val id: String,
+    val role: String,
+    val text: String,
+    val createdAt: String = "",
+    val payload: GoodsAdvisorPayload? = null
+)
+data class GoodsAdvisorPayload(
+    val mode: String? = null,
+    val warnings: List<String> = emptyList(),
+    val pantryMeals: List<GoodsDinnerRecipeSuggestion> = emptyList(),
+    val minimalBuyMeal: GoodsDinnerRecipeSuggestion? = null
+)
+data class GoodsDinnerRecipeSuggestion(
+    val title: String,
+    val whyItFits: String = "",
+    val usesItems: List<String> = emptyList(),
+    val missingItems: List<String> = emptyList(),
+    val wasteReductionNotes: List<String> = emptyList(),
+    val steps: List<String> = emptyList(),
+    val recipePreview: GoodsRecipePreview? = null
+)
+data class GoodsRecipePreview(val label: String, val url: String)
