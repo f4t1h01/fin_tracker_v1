@@ -89,6 +89,8 @@ class DuetViewModel(application: Application) : AndroidViewModel(application) {
     private lateinit var repository: DuetRepository
     private var mediaRecorder: MediaRecorder? = null
     private var recordingFile: File? = null
+    private var recordingStartedAtMs: Long? = null
+    private var isFinishingVoiceRecording = false
     private var voiceVisualizerJob: Job? = null
 
     private val _uiState = MutableStateFlow(DuetUiState())
@@ -260,6 +262,9 @@ class DuetViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun startVoiceRecording(): Boolean {
+        if (_uiState.value.aiStage != "READY") {
+            return false
+        }
         return runCatching {
             val file = File.createTempFile("duet-voice-", ".m4a", getApplication<Application>().cacheDir)
             val recorder = MediaRecorder().apply {
@@ -272,6 +277,8 @@ class DuetViewModel(application: Application) : AndroidViewModel(application) {
                 prepare()
                 start()
             }
+            recordingStartedAtMs = System.currentTimeMillis()
+            isFinishingVoiceRecording = false
             recordingFile = file
             mediaRecorder = recorder
             _uiState.update {
@@ -293,28 +300,63 @@ class DuetViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun stopVoiceRecordingAndDraft() {
-        val file = recordingFile ?: return
-        stopVoiceVisualizer()
-        runCatching {
-            mediaRecorder?.stop()
-        }
-        mediaRecorder?.release()
-        mediaRecorder = null
-        recordingFile = null
-        launchAi("Transcribing voice note") {
-            val response = repository.createVoiceDraft(Uri.fromFile(file))
-            _uiState.update { it.copy(aiDraft = response.draft, aiStage = "READY", aiError = null, message = "Voice draft ready") }
-        }
+        finishVoiceRecording(submit = true)
     }
 
     fun cancelVoiceRecording() {
+        finishVoiceRecording(submit = false)
+    }
+
+    private fun finishVoiceRecording(submit: Boolean) {
+        if (isFinishingVoiceRecording) {
+            return
+        }
+        isFinishingVoiceRecording = true
+        val file = recordingFile
+        val startedAt = recordingStartedAtMs
+        val elapsedSeconds = startedAt?.let { ((System.currentTimeMillis() - it) / 1000).toInt() }
+            ?: _uiState.value.voiceRecordingSeconds
+
         stopVoiceVisualizer()
         runCatching { mediaRecorder?.stop() }
         mediaRecorder?.release()
         mediaRecorder = null
-        recordingFile?.delete()
         recordingFile = null
-        _uiState.update { it.copy(aiStage = "READY", voiceRecordingSeconds = 0, voiceVisualizerLevels = DEFAULT_VISUALIZER_LEVELS) }
+        recordingStartedAtMs = null
+        isFinishingVoiceRecording = false
+
+        if (file == null) {
+            _uiState.update { it.copy(aiStage = "READY", voiceRecordingSeconds = 0, voiceVisualizerLevels = DEFAULT_VISUALIZER_LEVELS) }
+            return
+        }
+
+        if (!submit) {
+            file.delete()
+            _uiState.update { it.copy(aiStage = "READY", aiError = null, voiceRecordingSeconds = 0, voiceVisualizerLevels = DEFAULT_VISUALIZER_LEVELS) }
+            return
+        }
+
+        if (elapsedSeconds < VOICE_RECORDING_MIN_SECONDS) {
+            file.delete()
+            _uiState.update {
+                it.copy(
+                    aiStage = "READY",
+                    aiError = "Too short. Speak for at least $VOICE_RECORDING_MIN_SECONDS seconds.",
+                    voiceRecordingSeconds = 0,
+                    voiceVisualizerLevels = DEFAULT_VISUALIZER_LEVELS
+                )
+            }
+            return
+        }
+
+        launchAi("Transcribing voice note") {
+            try {
+                val response = repository.createVoiceDraft(Uri.fromFile(file))
+                _uiState.update { it.copy(aiDraft = response.draft, aiStage = "READY", aiError = null, message = "Voice draft ready") }
+            } finally {
+                file.delete()
+            }
+        }
     }
 
     private fun launchAi(stage: String, block: suspend () -> Unit) {
@@ -337,8 +379,14 @@ class DuetViewModel(application: Application) : AndroidViewModel(application) {
             while (isActive && _uiState.value.aiStage == "RECORDING") {
                 val amplitude = runCatching { mediaRecorder?.maxAmplitude ?: 0 }.getOrDefault(0)
                 levels = smoothVoiceLevels(levels, buildVoiceLevels(amplitude))
-                val seconds = ((System.currentTimeMillis() - startedAt) / 1000).toInt()
+                val seconds = min(VOICE_RECORDING_LIMIT_SECONDS, ((System.currentTimeMillis() - startedAt) / 1000).toInt())
                 _uiState.update { it.copy(voiceRecordingSeconds = seconds, voiceVisualizerLevels = levels) }
+                if (seconds >= VOICE_RECORDING_LIMIT_SECONDS) {
+                    viewModelScope.launch {
+                        finishVoiceRecording(submit = true)
+                    }
+                    break
+                }
                 delay(VOICE_VISUALIZER_UPDATE_MS)
             }
         }
@@ -686,6 +734,8 @@ class DuetViewModel(application: Application) : AndroidViewModel(application) {
 }
 
 private const val LOG_TAG = "DuetAndroid"
+private const val VOICE_RECORDING_LIMIT_SECONDS = 60
+private const val VOICE_RECORDING_MIN_SECONDS = 3
 private const val VOICE_VISUALIZER_LEVEL_COUNT = 24
 private const val VOICE_VISUALIZER_UPDATE_MS = 48L
 private const val VOICE_VISUALIZER_SMOOTHING = 0.32f

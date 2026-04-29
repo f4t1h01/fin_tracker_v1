@@ -1,4 +1,4 @@
-import { BadGatewayException } from "@nestjs/common";
+import { BadGatewayException, GatewayTimeoutException } from "@nestjs/common";
 import type { MultipartFile } from "@fastify/multipart";
 import { createWriteStream, openAsBlob } from "node:fs";
 import { mkdtemp, rm } from "node:fs/promises";
@@ -10,6 +10,29 @@ import { pipeline } from "node:stream/promises";
 import type { AiUsageTokenBreakdown } from "../../ai/ai-usage.types";
 import { OpenAiRequestError } from "./openai-request-error";
 import { OPENAI_TRANSCRIPTION_MODEL } from "./voice.constants";
+
+const OPENAI_TRANSCRIPTION_TIMEOUT_MS = 90_000;
+
+function createTimeoutSignal(timeoutMs: number) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => {
+    controller.abort();
+  }, timeoutMs);
+
+  return {
+    signal: controller.signal,
+    clear: () => clearTimeout(timeoutId)
+  };
+}
+
+function isAbortError(error: unknown) {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "name" in error &&
+    error.name === "AbortError"
+  );
+}
 
 async function readJsonResponse(response: Response) {
   const text = await response.text();
@@ -150,13 +173,27 @@ export async function transcribeVoiceAudio(params: {
     form.append("response_format", "json");
     form.append("prompt", "Finance transaction voice note with amounts, currencies, and categories.");
 
-    const response = await fetch("https://api.openai.com/v1/audio/transcriptions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${params.apiKey}`
-      },
-      body: form
-    });
+    const timeout = createTimeoutSignal(OPENAI_TRANSCRIPTION_TIMEOUT_MS);
+    let response: Response;
+
+    try {
+      response = await fetch("https://api.openai.com/v1/audio/transcriptions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${params.apiKey}`
+        },
+        body: form,
+        signal: timeout.signal
+      });
+    } catch (error) {
+      if (isAbortError(error)) {
+        throw new GatewayTimeoutException("Voice transcription timed out. Try a shorter recording.");
+      }
+
+      throw error;
+    } finally {
+      timeout.clear();
+    }
 
     const { payload, usage, providerRequestId } = await readJsonResponse(response);
     const transcript = typeof payload === "object" && payload !== null && "text" in payload && typeof (payload as { text?: unknown }).text === "string"
