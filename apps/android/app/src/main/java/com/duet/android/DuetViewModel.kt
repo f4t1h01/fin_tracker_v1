@@ -3,6 +3,7 @@ package com.duet.android
 import android.app.Application
 import android.media.MediaRecorder
 import android.net.Uri
+import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.duet.android.data.AiTransactionDraft
@@ -38,12 +39,18 @@ import com.duet.android.data.NetworkMonitor
 import com.duet.android.data.PendingMutationPreview
 import com.duet.android.data.local.DuetLocalDatabase
 import com.duet.android.data.toUserMessage
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.io.File
+import kotlin.math.max
+import kotlin.math.min
+import kotlin.math.pow
 
 data class DuetUiState(
     val isBootstrapping: Boolean = true,
@@ -71,7 +78,9 @@ data class DuetUiState(
     val editingTransaction: EditableTransaction? = null,
     val aiDraft: AiTransactionDraft? = null,
     val aiStage: String = "READY",
-    val aiError: String? = null
+    val aiError: String? = null,
+    val voiceRecordingSeconds: Int = 0,
+    val voiceVisualizerLevels: List<Float> = DEFAULT_VISUALIZER_LEVELS
 )
 
 class DuetViewModel(application: Application) : AndroidViewModel(application) {
@@ -80,6 +89,7 @@ class DuetViewModel(application: Application) : AndroidViewModel(application) {
     private lateinit var repository: DuetRepository
     private var mediaRecorder: MediaRecorder? = null
     private var recordingFile: File? = null
+    private var voiceVisualizerJob: Job? = null
 
     private val _uiState = MutableStateFlow(DuetUiState())
     val uiState: StateFlow<DuetUiState> = _uiState.asStateFlow()
@@ -264,9 +274,19 @@ class DuetViewModel(application: Application) : AndroidViewModel(application) {
             }
             recordingFile = file
             mediaRecorder = recorder
-            _uiState.update { it.copy(aiStage = "RECORDING", aiError = null, aiDraft = null) }
+            _uiState.update {
+                it.copy(
+                    aiStage = "RECORDING",
+                    aiError = null,
+                    aiDraft = null,
+                    voiceRecordingSeconds = 0,
+                    voiceVisualizerLevels = DEFAULT_VISUALIZER_LEVELS
+                )
+            }
+            startVoiceVisualizer()
             true
         }.getOrElse {
+            stopVoiceVisualizer()
             _uiState.update { state -> state.copy(aiStage = "READY", aiError = it.toUserMessage(moshi)) }
             false
         }
@@ -274,6 +294,7 @@ class DuetViewModel(application: Application) : AndroidViewModel(application) {
 
     fun stopVoiceRecordingAndDraft() {
         val file = recordingFile ?: return
+        stopVoiceVisualizer()
         runCatching {
             mediaRecorder?.stop()
         }
@@ -287,12 +308,13 @@ class DuetViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun cancelVoiceRecording() {
+        stopVoiceVisualizer()
         runCatching { mediaRecorder?.stop() }
         mediaRecorder?.release()
         mediaRecorder = null
         recordingFile?.delete()
         recordingFile = null
-        _uiState.update { it.copy(aiStage = "READY") }
+        _uiState.update { it.copy(aiStage = "READY", voiceRecordingSeconds = 0, voiceVisualizerLevels = DEFAULT_VISUALIZER_LEVELS) }
     }
 
     private fun launchAi(stage: String, block: suspend () -> Unit) {
@@ -301,9 +323,31 @@ class DuetViewModel(application: Application) : AndroidViewModel(application) {
             try {
                 block()
             } catch (error: Throwable) {
+                Log.e(LOG_TAG, "AI request failed during $stage", error)
                 _uiState.update { it.copy(aiStage = "READY", aiError = error.toUserMessage(moshi)) }
             }
         }
+    }
+
+    private fun startVoiceVisualizer() {
+        voiceVisualizerJob?.cancel()
+        voiceVisualizerJob = viewModelScope.launch {
+            val startedAt = System.currentTimeMillis()
+            var levels = DEFAULT_VISUALIZER_LEVELS
+            while (isActive && _uiState.value.aiStage == "RECORDING") {
+                val amplitude = runCatching { mediaRecorder?.maxAmplitude ?: 0 }.getOrDefault(0)
+                levels = smoothVoiceLevels(levels, buildVoiceLevels(amplitude))
+                val seconds = ((System.currentTimeMillis() - startedAt) / 1000).toInt()
+                _uiState.update { it.copy(voiceRecordingSeconds = seconds, voiceVisualizerLevels = levels) }
+                delay(VOICE_VISUALIZER_UPDATE_MS)
+            }
+        }
+    }
+
+    private fun stopVoiceVisualizer() {
+        voiceVisualizerJob?.cancel()
+        voiceVisualizerJob = null
+        _uiState.update { it.copy(voiceRecordingSeconds = 0, voiceVisualizerLevels = DEFAULT_VISUALIZER_LEVELS) }
     }
 
     fun startEditing(itemId: String) {
@@ -638,6 +682,33 @@ class DuetViewModel(application: Application) : AndroidViewModel(application) {
             return
         }
         _uiState.update { it.copy(isBusy = false, error = message) }
+    }
+}
+
+private const val LOG_TAG = "DuetAndroid"
+private const val VOICE_VISUALIZER_LEVEL_COUNT = 24
+private const val VOICE_VISUALIZER_UPDATE_MS = 48L
+private const val VOICE_VISUALIZER_SMOOTHING = 0.32f
+private const val VOICE_VISUALIZER_NOISE_FLOOR = 0.018f
+private val DEFAULT_VISUALIZER_LEVELS = List(VOICE_VISUALIZER_LEVEL_COUNT) { 0f }
+private val VOICE_LEVEL_SHAPE = listOf(0.38f, 0.52f, 0.78f, 0.62f, 0.94f, 0.58f, 0.86f, 0.48f)
+
+private fun smoothVoiceLevels(previous: List<Float>, next: List<Float>): List<Float> {
+    return next.mapIndexed { index, level ->
+        val before = previous.getOrNull(index) ?: level
+        before + (level - before) * VOICE_VISUALIZER_SMOOTHING
+    }
+}
+
+private fun buildVoiceLevels(amplitude: Int): List<Float> {
+    val normalized = min(1f, max(0f, amplitude / 32767f))
+    val gated = max(0f, (normalized - VOICE_VISUALIZER_NOISE_FLOOR) / (1f - VOICE_VISUALIZER_NOISE_FLOOR))
+    val boosted = min(1f, gated.toDouble().pow(0.58).toFloat() * 1.35f)
+    if (boosted <= 0f) return DEFAULT_VISUALIZER_LEVELS
+
+    return List(VOICE_VISUALIZER_LEVEL_COUNT) { index ->
+        val shape = VOICE_LEVEL_SHAPE[index % VOICE_LEVEL_SHAPE.size]
+        min(1f, boosted * shape + boosted * 0.18f)
     }
 }
 

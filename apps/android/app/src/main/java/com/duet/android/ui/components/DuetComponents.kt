@@ -41,6 +41,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
@@ -50,6 +51,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -86,7 +88,9 @@ fun DuetCard(
         border = BorderStroke(1.dp, colors.gold.copy(alpha = 0.16f)),
         shape = RoundedCornerShape(12.dp)
     ) {
-        Column(modifier = Modifier.padding(16.dp), content = content)
+        CompositionLocalProvider(LocalContentColor provides colors.ink) {
+            Column(modifier = Modifier.padding(16.dp), content = content)
+        }
     }
 }
 
@@ -96,15 +100,17 @@ fun DuetDetailBox(
     content: @Composable ColumnScope.() -> Unit
 ) {
     val colors = duetColors()
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(colors.surface.copy(alpha = 0.72f))
-            .border(1.dp, colors.gold.copy(alpha = 0.14f), RoundedCornerShape(12.dp))
-            .padding(12.dp),
-        content = content
-    )
+    CompositionLocalProvider(LocalContentColor provides colors.ink) {
+        Column(
+            modifier = modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(12.dp))
+                .background(colors.surface.copy(alpha = 0.72f))
+                .border(1.dp, colors.gold.copy(alpha = 0.14f), RoundedCornerShape(12.dp))
+                .padding(12.dp),
+            content = content
+        )
+    }
 }
 
 @Composable
@@ -203,13 +209,21 @@ fun DuetTextField(
         colors = OutlinedTextFieldDefaults.colors(
             focusedTextColor = colors.ink,
             unfocusedTextColor = colors.ink,
+            disabledTextColor = colors.inkSoft,
+            errorTextColor = colors.negative,
             focusedContainerColor = colors.surface.copy(alpha = 0.86f),
             unfocusedContainerColor = colors.surface.copy(alpha = 0.72f),
+            disabledContainerColor = colors.surface.copy(alpha = 0.56f),
+            errorContainerColor = colors.surface.copy(alpha = 0.86f),
             cursorColor = colors.gold,
             focusedBorderColor = colors.gold,
             unfocusedBorderColor = colors.gold.copy(alpha = 0.18f),
+            disabledBorderColor = colors.gold.copy(alpha = 0.10f),
+            errorBorderColor = colors.negative.copy(alpha = 0.72f),
             focusedLabelColor = colors.gold,
-            unfocusedLabelColor = colors.inkSoft
+            unfocusedLabelColor = colors.inkSoft,
+            disabledLabelColor = colors.inkSoft.copy(alpha = 0.55f),
+            errorLabelColor = colors.negative
         )
     )
 }

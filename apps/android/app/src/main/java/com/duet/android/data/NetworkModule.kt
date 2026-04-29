@@ -13,6 +13,9 @@ import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.HttpException
 import retrofit2.Retrofit
 import retrofit2.converter.moshi.MoshiConverterFactory
+import java.io.InterruptedIOException
+import java.net.SocketTimeoutException
+import java.util.concurrent.TimeUnit
 
 class AuthHeaderInterceptor(private val tokenProvider: () -> String?) : Interceptor {
     override fun intercept(chain: Interceptor.Chain): Response {
@@ -39,6 +42,10 @@ object NetworkModule {
             level = HttpLoggingInterceptor.Level.BASIC
         }
         val client = OkHttpClient.Builder()
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .writeTimeout(120, TimeUnit.SECONDS)
+            .readTimeout(120, TimeUnit.SECONDS)
+            .callTimeout(180, TimeUnit.SECONDS)
             .addInterceptor(AuthHeaderInterceptor(tokenProvider))
             .addInterceptor(logging)
             .build()
@@ -80,6 +87,9 @@ class LenientDoubleJsonAdapter {
 }
 
 fun Throwable.toUserMessage(moshi: Moshi = NetworkModule.createMoshi()): String {
+    if (this is SocketTimeoutException || (this is InterruptedIOException && message == "timeout")) {
+        return "AI request timed out. Try a smaller image or a shorter voice note."
+    }
     if (this is HttpException) {
         val rawBody = response()?.errorBody()?.string()
         if (!rawBody.isNullOrBlank()) {

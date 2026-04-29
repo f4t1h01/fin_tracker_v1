@@ -9,10 +9,7 @@ import android.Manifest
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -55,6 +52,8 @@ import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -76,6 +75,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
@@ -236,7 +236,7 @@ private fun AiFeaturesSheet(
                         Text(if (mode == "VOICE") "Voice note" else if (mode == "IMAGE") "Receipt image" else "Choose a tool", style = MaterialTheme.typography.headlineSmall, color = duetColors().ink)
                         Text("Voice and receipt drafting fill this transaction form after review.", color = duetColors().inkSoft, style = MaterialTheme.typography.bodySmall)
                     }
-                    IconButton(enabled = !locked, onClick = onDismiss) { Icon(Icons.Default.Close, contentDescription = "Close AI tools") }
+                    IconButton(enabled = !locked, onClick = onDismiss) { Icon(Icons.Default.Close, contentDescription = "Close AI tools", tint = duetColors().ink) }
                 }
                 if (state.aiError != null) DuetStatusBanner(state.aiError, isError = true)
                 if (mode == "MENU") {
@@ -244,20 +244,22 @@ private fun AiFeaturesSheet(
                     AiToolCard("Image draft", "Upload one receipt and fill the form from image.", Icons.Default.Image) { mode = "IMAGE" }
                 } else if (mode == "VOICE") {
                     DuetButton("Back", variant = DuetButtonVariant.Ghost, onClick = { mode = "MENU" })
-                    VoiceStatusPanel(state.aiStage)
-                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+                    VoiceRecorderButton(
+                        isRecording = state.aiStage == "RECORDING",
+                        isBusy = locked,
+                        recordingSeconds = state.voiceRecordingSeconds,
+                        stageLabel = state.aiStage,
+                        visualizerLevels = state.voiceVisualizerLevels,
+                        onStartRecording = { permissionLauncher.launch(Manifest.permission.RECORD_AUDIO) },
+                        onStopRecording = actions::stopVoiceRecordingAndDraft
+                    )
+                    if (state.aiStage == "RECORDING") {
                         DuetButton(
-                            if (state.aiStage == "RECORDING") "Stop recording" else "Start recording",
-                            modifier = Modifier.weight(1f),
-                            onClick = {
-                                if (state.aiStage == "RECORDING") {
-                                    actions.stopVoiceRecordingAndDraft()
-                                } else {
-                                    permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
-                                }
-                            }
+                            "Cancel recording",
+                            modifier = Modifier.fillMaxWidth(),
+                            variant = DuetButtonVariant.Outline,
+                            onClick = actions::cancelVoiceRecording
                         )
-                        DuetButton("Cancel", modifier = Modifier.weight(1f), variant = DuetButtonVariant.Outline, onClick = actions::cancelVoiceRecording)
                     }
                 } else {
                     DuetButton("Back", variant = DuetButtonVariant.Ghost, onClick = { mode = "MENU" })
@@ -271,6 +273,128 @@ private fun AiFeaturesSheet(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun VoiceRecorderButton(
+    isRecording: Boolean,
+    isBusy: Boolean,
+    recordingSeconds: Int,
+    stageLabel: String,
+    visualizerLevels: List<Float>,
+    onStartRecording: () -> Unit,
+    onStopRecording: () -> Unit
+) {
+    val colors = duetColors()
+    val tone = if (isRecording) colors.blush else colors.gold
+    val barLevels = resampleVisualizerLevels(visualizerLevels, VOICE_RECORDER_BAR_COUNT)
+    androidx.compose.material3.OutlinedButton(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(92.dp),
+        enabled = !isBusy || isRecording,
+        onClick = if (isRecording) onStopRecording else onStartRecording,
+        shape = RoundedCornerShape(28.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, tone.copy(alpha = if (isRecording) 0.50f else 0.24f)),
+        colors = ButtonDefaults.outlinedButtonColors(
+            containerColor = if (isRecording) tone.copy(alpha = 0.15f) else colors.surface.copy(alpha = 0.84f),
+            contentColor = if (isRecording) tone else colors.ink,
+            disabledContainerColor = colors.surface.copy(alpha = 0.74f),
+            disabledContentColor = colors.inkSoft
+        )
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(
+                modifier = Modifier.weight(1.1f),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(RoundedCornerShape(999.dp))
+                        .background(tone.copy(alpha = 0.10f))
+                        .border(1.dp, tone.copy(alpha = 0.20f), RoundedCornerShape(999.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(if (isRecording) Icons.Default.Stop else Icons.Default.Mic, contentDescription = null, tint = tone, modifier = Modifier.size(18.dp))
+                }
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(
+                        if (isRecording) "STOP" else if (isBusy) "WORKING" else "RECORD",
+                        color = if (isRecording) tone else colors.ink,
+                        fontWeight = FontWeight.SemiBold,
+                        style = MaterialTheme.typography.labelMedium,
+                        letterSpacing = 1.5.sp
+                    )
+                    Text(
+                        if (isRecording) formatRecordingTime(recordingSeconds) else if (isBusy) stageLabel else "3s min",
+                        color = if (isRecording) tone.copy(alpha = 0.88f) else colors.inkSoft,
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Medium,
+                        letterSpacing = 0.8.sp
+                    )
+                }
+            }
+            Row(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(48.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.End),
+                verticalAlignment = Alignment.Bottom
+            ) {
+                barLevels.forEachIndexed { index, level ->
+                    val animated by animateFloatAsState(targetValue = level.coerceIn(0f, 1f), animationSpec = tween(220), label = "voice-bar-$index")
+                    Box(
+                        modifier = Modifier
+                            .width(7.dp)
+                            .height(48.dp),
+                        contentAlignment = Alignment.BottomCenter
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(48.dp)
+                                .graphicsLayer {
+                                    scaleY = animated
+                                    transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0.5f, 1f)
+                                    alpha = if (isRecording) 1f else 0.64f
+                                }
+                                .clip(RoundedCornerShape(999.dp))
+                                .background(tone.copy(alpha = if (isRecording) 0.90f else 0.42f))
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+private const val VOICE_RECORDER_BAR_COUNT = 15
+
+private fun formatRecordingTime(seconds: Int): String {
+    return "${(seconds / 60).toString().padStart(2, '0')}:${(seconds % 60).toString().padStart(2, '0')}"
+}
+
+private fun resampleVisualizerLevels(levels: List<Float>, targetCount: Int): List<Float> {
+    if (targetCount <= 0) return emptyList()
+    if (levels.isEmpty()) return List(targetCount) { 0f }
+    if (targetCount == 1) return listOf(levels.first())
+    if (levels.size == 1) return List(targetCount) { levels.first() }
+
+    return List(targetCount) { index ->
+        val position = (index.toFloat() / (targetCount - 1)) * (levels.size - 1)
+        val leftIndex = position.toInt()
+        val rightIndex = (leftIndex + 1).coerceAtMost(levels.lastIndex)
+        val blend = position - leftIndex
+        val left = levels[leftIndex]
+        val right = levels[rightIndex]
+        left + (right - left) * blend
     }
 }
 
@@ -295,32 +419,6 @@ private fun AiToolCard(title: String, body: String, icon: androidx.compose.ui.gr
                 Text(body, color = duetColors().inkSoft, style = MaterialTheme.typography.bodySmall)
             }
         }
-    }
-}
-
-@Composable
-private fun VoiceStatusPanel(stage: String) {
-    val transition = rememberInfiniteTransition(label = "voice-bars")
-    val pulse by transition.animateFloat(
-        initialValue = 0.18f,
-        targetValue = if (stage == "RECORDING") 1f else 0.18f,
-        animationSpec = infiniteRepeatable(tween(520), RepeatMode.Reverse),
-        label = "voice-pulse"
-    )
-    DuetDetailBox {
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.Bottom, modifier = Modifier.height(64.dp)) {
-            List(14) { index -> index }.forEach { index ->
-                val height = if (stage == "RECORDING") (12 + ((index % 5) * 8)) * pulse else 4f
-                Box(
-                    modifier = Modifier
-                        .width(8.dp)
-                        .height(height.dp)
-                        .clip(RoundedCornerShape(999.dp))
-                        .background(if (stage == "RECORDING") duetColors().gold else duetColors().inkSoft.copy(alpha = 0.28f))
-                )
-            }
-        }
-        Text(if (stage == "RECORDING") "Recording" else stage, color = duetColors().inkSoft, style = MaterialTheme.typography.bodySmall)
     }
 }
 
@@ -472,9 +570,9 @@ private fun GoodsEditSheet(item: GoodsItem, snapshot: GoodsSnapshotResponse, act
     var categoryId by rememberSaveable(item.id) { mutableStateOf(item.category?.id.orEmpty()) }
     var low by rememberSaveable(item.id) { mutableStateOf(item.lowStockThreshold.toString()) }
     var target by rememberSaveable(item.id) { mutableStateOf(item.targetQuantity.toString()) }
-    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = duetColors().surface) {
+    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = duetColors().surface, contentColor = duetColors().ink) {
         Column(modifier = Modifier.navigationBarsPadding().imePadding().padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text("Edit goods item", style = MaterialTheme.typography.titleLarge)
+            Text("Edit goods item", style = MaterialTheme.typography.titleLarge, color = duetColors().ink)
             DuetTextField(name, { name = it }, "Name")
             DuetTextField(note, { note = it }, "Note", singleLine = false)
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
@@ -558,8 +656,8 @@ private fun SetupRow(title: String, subtitle: String, visible: Boolean, canDelet
                 Text(title, fontWeight = FontWeight.SemiBold)
                 Text(subtitle, color = duetColors().inkSoft, style = MaterialTheme.typography.bodySmall)
             }
-            TextButton(onClick = onToggle) { Text(if (visible) "Hide" else "Show") }
-            IconButton(enabled = canDelete, onClick = onDelete) { Icon(Icons.Default.Delete, contentDescription = "Delete") }
+            TextButton(onClick = onToggle, colors = ButtonDefaults.textButtonColors(contentColor = duetColors().gold)) { Text(if (visible) "Hide" else "Show") }
+            IconButton(enabled = canDelete, onClick = onDelete) { Icon(Icons.Default.Delete, contentDescription = "Delete", tint = if (canDelete) duetColors().negative else duetColors().inkSoft.copy(alpha = 0.35f)) }
         }
     }
 }
@@ -578,7 +676,7 @@ fun GoodsAdvisorScreen(state: DuetUiState, actions: DuetViewModel, current: Duet
             DuetCard {
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                     Text(active?.thread?.title ?: "New conversation", style = MaterialTheme.typography.titleLarge, color = duetColors().ink)
-                    IconButton(onClick = actions::startNewAdvisorChat) { Icon(Icons.Default.Edit, contentDescription = "New chat") }
+                    IconButton(onClick = actions::startNewAdvisorChat) { Icon(Icons.Default.Edit, contentDescription = "New chat", tint = duetColors().inkSoft) }
                 }
                 DuetSegmentedControl(if (state.goodsSnapshot?.workspace?.hasPartnerConnection == true) listOf("AUTO" to "Auto", "PERSONAL" to "Mine", "SHARED" to "Shared") else listOf("AUTO" to "Auto"), state.advisorScope, actions::setAdvisorScope)
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
