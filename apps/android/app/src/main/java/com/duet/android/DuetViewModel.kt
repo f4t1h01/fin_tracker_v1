@@ -6,7 +6,7 @@ import android.net.Uri
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.duet.android.data.AiTransactionDraft
+import com.duet.android.data.AiTransactionDraftResponse
 import com.duet.android.data.CategoryOption
 import com.duet.android.data.CurrencyUtils
 import com.duet.android.data.DashboardQuery
@@ -76,7 +76,7 @@ data class DuetUiState(
     val pendingMutations: List<PendingMutationPreview> = emptyList(),
     val dashboardQuery: DashboardQuery = DashboardQuery(),
     val editingTransaction: EditableTransaction? = null,
-    val aiDraft: AiTransactionDraft? = null,
+    val aiDraft: AiTransactionDraftResponse? = null,
     val aiStage: String = "READY",
     val aiError: String? = null,
     val voiceRecordingSeconds: Int = 0,
@@ -257,7 +257,7 @@ class DuetViewModel(application: Application) : AndroidViewModel(application) {
     fun createImageDraft(uri: Uri) {
         launchAi("Reading receipt image") {
             val response = repository.createImageDraft(uri)
-            _uiState.update { it.copy(aiDraft = response.draft, aiStage = "READY", aiError = null, message = "Image draft ready") }
+            _uiState.update { it.copy(aiDraft = response, aiStage = "READY", aiError = null, message = "Image draft ready") }
         }
     }
 
@@ -352,7 +352,7 @@ class DuetViewModel(application: Application) : AndroidViewModel(application) {
         launchAi("Transcribing voice note") {
             try {
                 val response = repository.createVoiceDraft(Uri.fromFile(file))
-                _uiState.update { it.copy(aiDraft = response.draft, aiStage = "READY", aiError = null, message = "Voice draft ready") }
+                _uiState.update { it.copy(aiDraft = response, aiStage = "READY", aiError = null, message = "Voice draft ready") }
             } finally {
                 file.delete()
             }

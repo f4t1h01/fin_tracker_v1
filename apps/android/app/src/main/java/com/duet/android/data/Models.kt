@@ -200,7 +200,16 @@ data class UpdateTransactionRequest(
     val currency: String = "UZS"
 )
 
-data class AiTransactionDraftResponse(val draft: AiTransactionDraft)
+data class AiTransactionDraftResponse(
+    val draft: AiTransactionDraft,
+    val transcript: String? = null,
+    val extractedText: String? = null,
+    val receiptMode: String? = null,
+    val productNames: List<String> = emptyList(),
+    val qualityRating: String? = null,
+    val qualityIssues: List<String> = emptyList(),
+    val documentType: String? = null
+)
 
 data class AiTransactionDraft(
     val kind: String? = null,

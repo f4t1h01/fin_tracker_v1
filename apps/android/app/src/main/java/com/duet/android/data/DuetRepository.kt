@@ -12,6 +12,7 @@ import com.duet.android.data.local.OutboxMutationEntity
 import com.squareup.moshi.Moshi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.withTimeout
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -115,7 +116,9 @@ class DuetRepository(
     }
 
     suspend fun createVoiceDraft(uri: Uri): AiTransactionDraftResponse {
-        return api.createVoiceDraft(uriPart(uri, "audio", "android-voice.m4a", "audio/mp4"))
+        return withTimeout(VOICE_DRAFT_TIMEOUT_MS) {
+            api.createVoiceDraft(uriPart(uri, "audio", "android-voice.m4a", "audio/mp4"))
+        }
     }
 
     suspend fun createImageDraft(uri: Uri): AiTransactionDraftResponse {
@@ -344,6 +347,7 @@ class DuetRepository(
     }
 
     private companion object {
+        const val VOICE_DRAFT_TIMEOUT_MS = 90_000L
         const val CACHE_PROFILE = "profile"
         const val CACHE_DASHBOARD = "dashboard"
         const val CACHE_RATES = "rates"

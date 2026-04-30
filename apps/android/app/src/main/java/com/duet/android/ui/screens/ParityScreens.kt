@@ -6,6 +6,10 @@
 package com.duet.android.ui.screens
 
 import android.Manifest
+import android.content.Context
+import android.graphics.BitmapFactory
+import android.net.Uri
+import android.provider.OpenableColumns
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
@@ -17,6 +21,7 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -75,16 +80,20 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.FileProvider
 import com.duet.android.DuetUiState
 import com.duet.android.DuetViewModel
 import com.duet.android.categoryOptions
-import com.duet.android.data.AiTransactionDraft
+import com.duet.android.data.AiTransactionDraftResponse
 import com.duet.android.data.BreakdownPoint
 import com.duet.android.data.CreateGoodsItemRequest
 import com.duet.android.data.CurrencyUtils
@@ -110,6 +119,7 @@ import com.duet.android.ui.components.DuetSegmentedControl
 import com.duet.android.ui.components.DuetStatusBanner
 import com.duet.android.ui.components.DuetTextField
 import com.duet.android.ui.theme.duetColors
+import java.io.File
 
 @Composable
 fun TransactionAddScreen(
@@ -140,13 +150,12 @@ fun TransactionAddScreen(
     var note by rememberSaveable { mutableStateOf("") }
 
     LaunchedEffect(state.aiDraft) {
-        state.aiDraft?.let { draft ->
+        state.aiDraft?.draft?.let { draft ->
             draft.kind?.let { kind = it }
             draft.amount?.let { amount = it.toString() }
             draft.currency?.let { currency = CurrencyUtils.clampCurrency(it, preferred) }
             draft.categoryId?.let { categoryId = it }
             draft.note?.let { note = it }
-            actions.clearAiDraft()
         }
     }
 
@@ -202,15 +211,38 @@ private fun AiFeaturesSheet(
     snapshot: ProfileSnapshotResponse,
     onDismiss: () -> Unit
 ) {
+    val context = LocalContext.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var mode by rememberSaveable { mutableStateOf("MENU") }
+    var imagePreviewUri by rememberSaveable { mutableStateOf<String?>(null) }
+    var imagePreviewName by rememberSaveable { mutableStateOf<String?>(null) }
+    var pendingCaptureUri by rememberSaveable { mutableStateOf<String?>(null) }
     val imagePicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-        uri?.let { actions.createImageDraft(it) }
+        uri?.let {
+            imagePreviewUri = it.toString()
+            imagePreviewName = resolveDisplayName(context, it, "Selected receipt")
+            actions.createImageDraft(it)
+        }
+    }
+    val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { captured ->
+        val uri = pendingCaptureUri?.let(Uri::parse)
+        pendingCaptureUri = null
+        if (captured && uri != null) {
+            imagePreviewUri = uri.toString()
+            imagePreviewName = "Captured receipt"
+            actions.createImageDraft(uri)
+        }
     }
     val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         if (granted) actions.startVoiceRecording()
     }
     val locked = state.aiStage != "READY" && state.aiStage != "RECORDING"
+    val resetAiDraft = {
+        actions.clearAiDraft()
+        imagePreviewUri = null
+        imagePreviewName = null
+        pendingCaptureUri = null
+    }
 
     ModalBottomSheet(
         onDismissRequest = { if (!locked) onDismiss() },
@@ -263,15 +295,70 @@ private fun AiFeaturesSheet(
                     }
                 } else {
                     DuetButton("Back", variant = DuetButtonVariant.Ghost, onClick = { mode = "MENU" })
-                    AiToolCard("Upload receipt", "Choose a receipt image from this device.", Icons.Default.CameraAlt) {
-                        imagePicker.launch("image/*")
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+                        DuetButton(
+                            "Capture image",
+                            modifier = Modifier.weight(1f),
+                            variant = DuetButtonVariant.Outline,
+                            enabled = !locked,
+                            onClick = {
+                                val uri = createReceiptCaptureUri(context)
+                                pendingCaptureUri = uri.toString()
+                                cameraLauncher.launch(uri)
+                            }
+                        )
+                        DuetButton(
+                            "Upload image",
+                            modifier = Modifier.weight(1f),
+                            enabled = !locked,
+                            onClick = { imagePicker.launch("image/*") }
+                        )
                     }
+                    ImageSelectionPreview(imagePreviewUri, imagePreviewName)
                 }
                 state.aiDraft?.let { draft ->
                     AiDraftPreview(draft, snapshot)
-                    DuetButton("Continue", modifier = Modifier.fillMaxWidth(), variant = DuetButtonVariant.Outline, onClick = onDismiss)
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+                        DuetButton("Reset draft", modifier = Modifier.weight(1f), variant = DuetButtonVariant.Ghost, onClick = resetAiDraft)
+                        DuetButton("Continue", modifier = Modifier.weight(1f), variant = DuetButtonVariant.Outline, onClick = onDismiss)
+                    }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun ImageSelectionPreview(previewUri: String?, previewName: String?) {
+    if (previewUri == null && previewName == null) return
+
+    val context = LocalContext.current
+    val bitmap = remember(previewUri) {
+        previewUri?.let { loadPreviewBitmap(context, Uri.parse(it)) }
+    }
+
+    if (bitmap != null) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(180.dp)
+                .clip(RoundedCornerShape(24.dp))
+                .background(duetColors().surface.copy(alpha = 0.82f))
+                .border(1.dp, duetColors().gold.copy(alpha = 0.18f), RoundedCornerShape(24.dp)),
+            contentAlignment = Alignment.Center
+        ) {
+            Image(
+                bitmap = bitmap.asImageBitmap(),
+                contentDescription = "Receipt preview",
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Fit
+            )
+        }
+    } else if (previewName != null) {
+        DuetDetailBox {
+            Text("Selected image", color = duetColors().inkSoft, style = MaterialTheme.typography.labelSmall, letterSpacing = 1.6.sp)
+            Text(previewName, color = duetColors().ink, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+            Text("Preview is unavailable for this format, but the file will still be processed.", color = duetColors().inkSoft, style = MaterialTheme.typography.bodySmall)
         }
     }
 }
@@ -423,11 +510,81 @@ private fun AiToolCard(title: String, body: String, icon: androidx.compose.ui.gr
 }
 
 @Composable
-private fun AiDraftPreview(draft: AiTransactionDraft, snapshot: ProfileSnapshotResponse) {
+private fun AiDraftPreview(response: AiTransactionDraftResponse, snapshot: ProfileSnapshotResponse) {
+    val draft = response.draft
+    val transcript = response.transcript?.trim().orEmpty()
+    val extractedText = response.extractedText?.trim().orEmpty()
+    val isReceiptDraft = response.receiptMode != null ||
+        response.qualityRating != null ||
+        response.documentType != null ||
+        response.productNames.isNotEmpty() ||
+        response.qualityIssues.isNotEmpty() ||
+        extractedText.isNotBlank()
+    val categoryLabel = draft.categoryId?.let { id ->
+        snapshot.categoryOptions(draft.kind ?: "EXPENSE").firstOrNull { it.id == id }?.label
+    }
+    val categoryStatus = categoryLabel?.let { "Matched: $it" }
+        ?: draft.categoryNameCandidate?.let { "Suggested: $it" }
+        ?: "Not resolved"
+    val fieldSummary = listOfNotNull(
+        draft.kind,
+        draft.amount?.toString(),
+        draft.currency,
+        categoryLabel ?: draft.categoryNameCandidate?.let { "Suggested: $it" },
+        draft.note
+    ).joinToString(" / ")
+
     DuetDetailBox {
         Text("Draft ready", style = MaterialTheme.typography.titleMedium, color = duetColors().ink)
+        if (isReceiptDraft) {
+            Spacer(modifier = Modifier.height(10.dp))
+            Text("RECEIPT STATUS", color = duetColors().inkSoft, style = MaterialTheme.typography.labelSmall, letterSpacing = 1.6.sp)
+            Text("Mode: ${formatReceiptValue(response.receiptMode ?: "UNKNOWN")}", color = duetColors().inkSoft, style = MaterialTheme.typography.bodySmall)
+            Text("Quality: ${response.qualityRating ?: "Not detected"}", color = duetColors().inkSoft, style = MaterialTheme.typography.bodySmall)
+            Text("Document: ${formatReceiptValue(response.documentType ?: "UNKNOWN")}", color = duetColors().inkSoft, style = MaterialTheme.typography.bodySmall)
+            Text("Category: $categoryStatus", color = duetColors().inkSoft, style = MaterialTheme.typography.bodySmall)
+            Text("Note: ${draft.note?.takeIf { it.isNotBlank() } ?: "Not detected"}", color = duetColors().inkSoft, style = MaterialTheme.typography.bodySmall)
+
+            if (response.productNames.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(10.dp))
+                Text("ITEMS", color = duetColors().inkSoft, style = MaterialTheme.typography.labelSmall, letterSpacing = 1.6.sp)
+                Text(response.productNames.joinToString(", "), color = duetColors().ink, style = MaterialTheme.typography.bodySmall)
+            }
+
+            if (response.qualityIssues.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(10.dp))
+                Text("QUALITY ISSUES", color = duetColors().inkSoft, style = MaterialTheme.typography.labelSmall, letterSpacing = 1.6.sp)
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    response.qualityIssues.forEach { issue ->
+                        Text(
+                            formatReceiptValue(issue),
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(999.dp))
+                                .background(duetColors().gold.copy(alpha = 0.10f))
+                                .border(1.dp, duetColors().gold.copy(alpha = 0.16f), RoundedCornerShape(999.dp))
+                                .padding(horizontal = 10.dp, vertical = 6.dp),
+                            color = duetColors().inkSoft,
+                            style = MaterialTheme.typography.labelSmall,
+                            letterSpacing = 0.8.sp
+                        )
+                    }
+                }
+            }
+
+            if (extractedText.isNotBlank()) {
+                Spacer(modifier = Modifier.height(10.dp))
+                Text("EXTRACTED TEXT", color = duetColors().inkSoft, style = MaterialTheme.typography.labelSmall, letterSpacing = 1.6.sp)
+                Text(extractedText, color = duetColors().inkSoft, style = MaterialTheme.typography.bodySmall)
+            }
+        } else if (transcript.isNotBlank()) {
+            Spacer(modifier = Modifier.height(10.dp))
+            Text("TRANSCRIPT", color = duetColors().inkSoft, style = MaterialTheme.typography.labelSmall, letterSpacing = 1.6.sp)
+            Text(transcript, color = duetColors().ink, style = MaterialTheme.typography.bodySmall)
+        }
+        Spacer(modifier = Modifier.height(10.dp))
+        Text("FIELDS", color = duetColors().inkSoft, style = MaterialTheme.typography.labelSmall, letterSpacing = 1.6.sp)
         Text(
-            listOfNotNull(draft.kind, draft.amount?.toString(), draft.currency, draft.categoryId?.let { id -> snapshot.categoryOptions(draft.kind ?: "EXPENSE").firstOrNull { it.id == id }?.label }, draft.note).joinToString(" / "),
+            fieldSummary.ifBlank { "Not detected" },
             color = duetColors().inkSoft,
             style = MaterialTheme.typography.bodySmall
         )
@@ -435,6 +592,34 @@ private fun AiDraftPreview(draft: AiTransactionDraft, snapshot: ProfileSnapshotR
         if (draft.missingFields.isNotEmpty()) Text("Missing: ${draft.missingFields.joinToString(", ")}", color = duetColors().gold, style = MaterialTheme.typography.bodySmall)
     }
 }
+
+private fun formatReceiptValue(value: String): String {
+    return value.replace("_", " ").lowercase().replaceFirstChar { it.uppercase() }
+}
+
+private fun createReceiptCaptureUri(context: Context): Uri {
+    val file = File.createTempFile("duet-receipt-", ".jpg", context.cacheDir)
+    return FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+}
+
+private fun resolveDisplayName(context: Context, uri: Uri, fallback: String): String {
+    return runCatching {
+        context.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
+            val index = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+            if (index >= 0 && cursor.moveToFirst()) {
+                cursor.getString(index)?.takeIf { it.isNotBlank() }
+            } else {
+                null
+            }
+        }
+    }.getOrNull() ?: uri.lastPathSegment?.takeIf { it.isNotBlank() } ?: fallback
+}
+
+private fun loadPreviewBitmap(context: Context, uri: Uri) = runCatching {
+    context.contentResolver.openInputStream(uri)?.use { stream ->
+        BitmapFactory.decodeStream(stream)
+    }
+}.getOrNull()
 
 @Composable
 fun DashboardTrendsScreen(state: DuetUiState, actions: DuetViewModel, current: DuetDestination, onNavigate: (DuetDestination) -> Unit) {

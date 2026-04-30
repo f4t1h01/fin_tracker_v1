@@ -6,6 +6,7 @@ import com.squareup.moshi.JsonReader
 import com.squareup.moshi.JsonWriter
 import com.squareup.moshi.ToJson
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
+import kotlinx.coroutines.TimeoutCancellationException
 import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import okhttp3.Response
@@ -87,7 +88,7 @@ class LenientDoubleJsonAdapter {
 }
 
 fun Throwable.toUserMessage(moshi: Moshi = NetworkModule.createMoshi()): String {
-    if (this is SocketTimeoutException || (this is InterruptedIOException && message == "timeout")) {
+    if (this is TimeoutCancellationException || this is SocketTimeoutException || (this is InterruptedIOException && message == "timeout")) {
         return "AI request timed out. Try a smaller image or a shorter voice note."
     }
     if (this is HttpException) {
