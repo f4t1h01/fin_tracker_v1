@@ -162,7 +162,7 @@ fun TransactionAddScreen(
     ParityScreenList {
         item {
             TopLine("Add transaction", snapshot.profile.activeCouple?.name ?: "Personal workspace", actions, current, onNavigate)
-            StatusBlock(state)
+            StatusBlock(state, actions)
         }
         item {
             DuetCard {
@@ -270,7 +270,14 @@ private fun AiFeaturesSheet(
                     }
                     IconButton(enabled = !locked, onClick = onDismiss) { Icon(Icons.Default.Close, contentDescription = "Close AI tools", tint = duetColors().ink) }
                 }
-                if (state.aiError != null) DuetStatusBanner(state.aiError, isError = true)
+                if (state.aiError != null) {
+                    DuetStatusBanner(
+                        message = state.aiError,
+                        isError = true,
+                        eventKey = state.aiErrorEventId,
+                        onAutoDismiss = actions::clearAiError
+                    )
+                }
                 if (mode == "MENU") {
                     AiToolCard("Voice note", "Record one transaction and fill the form from voice.", Icons.Default.Mic) { mode = "VOICE" }
                     AiToolCard("Image draft", "Upload one receipt and fill the form from image.", Icons.Default.Image) { mode = "IMAGE" }
@@ -627,7 +634,7 @@ fun DashboardTrendsScreen(state: DuetUiState, actions: DuetViewModel, current: D
     ParityScreenList {
         item {
             TopLine("Trends", dashboard?.filter?.label ?: "Transactions breakdown", actions, current, onNavigate)
-            StatusBlock(state)
+            StatusBlock(state, actions)
         }
         if (dashboard == null) {
             item { DuetCard { Text("Loading dashboard trends", color = duetColors().inkSoft) } }
@@ -679,7 +686,7 @@ fun GoodsStockScreen(state: DuetUiState, actions: DuetViewModel, current: DuetDe
     ParityScreenList {
         item {
             TopLine("Stock", snapshot?.workspace?.name ?: "Goods inventory", actions, current, onNavigate)
-            StatusBlock(state)
+            StatusBlock(state, actions)
         }
         if (snapshot == null) {
             item { DuetCard { Text("Loading goods stock", color = duetColors().inkSoft) } }
@@ -788,7 +795,7 @@ fun GoodsSetupScreen(state: DuetUiState, actions: DuetViewModel, current: DuetDe
     ParityScreenList {
         item {
             TopLine("Setup", snapshot?.workspace?.name ?: "Goods structure", actions, current, onNavigate)
-            StatusBlock(state)
+            StatusBlock(state, actions)
         }
         if (snapshot == null) {
             item { DuetCard { Text("Loading setup", color = duetColors().inkSoft) } }
@@ -855,7 +862,7 @@ fun GoodsAdvisorScreen(state: DuetUiState, actions: DuetViewModel, current: Duet
     ParityScreenList {
         item {
             TopLine("Advisor", state.goodsSnapshot?.workspace?.name ?: "Pantry assistant", actions, current, onNavigate)
-            StatusBlock(state)
+            StatusBlock(state, actions)
         }
         item {
             DuetCard {
@@ -947,9 +954,16 @@ private fun goodsMetricPairs(snapshot: GoodsSnapshotResponse): List<Pair<String,
 }
 
 @Composable
-private fun StatusBlock(state: DuetUiState) {
+private fun StatusBlock(state: DuetUiState, actions: DuetViewModel) {
     val message = state.error ?: state.message
-    if (message != null) DuetStatusBanner(message, state.error != null)
+    if (message != null) {
+        DuetStatusBanner(
+            message = message,
+            isError = state.error != null,
+            eventKey = state.statusEventId,
+            onAutoDismiss = actions::clearMessage
+        )
+    }
 }
 
 @Composable

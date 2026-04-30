@@ -6,7 +6,10 @@
 package com.duet.android.ui.components
 
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -52,8 +55,10 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -452,22 +457,49 @@ fun DuetSelectSheetOptions(
 }
 
 @Composable
-fun DuetStatusBanner(message: String?, isError: Boolean, modifier: Modifier = Modifier) {
+fun DuetStatusBanner(
+    message: String?,
+    isError: Boolean,
+    modifier: Modifier = Modifier,
+    eventKey: Any? = message,
+    autoDismissMillis: Int = 3000,
+    onAutoDismiss: (() -> Unit)? = null
+) {
     if (message == null) return
     val colors = duetColors()
     val tone = if (isError) colors.negative else colors.positive
+    val progress = remember(message, eventKey) { Animatable(0f) }
+    LaunchedEffect(message, eventKey, autoDismissMillis) {
+        progress.snapTo(0f)
+        if (onAutoDismiss != null && autoDismissMillis > 0) {
+            progress.animateTo(
+                targetValue = 1f,
+                animationSpec = tween(durationMillis = autoDismissMillis, easing = LinearEasing)
+            )
+            onAutoDismiss()
+        }
+    }
     Card(
         modifier = modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = tone.copy(alpha = 0.12f)),
         border = BorderStroke(1.dp, tone.copy(alpha = 0.22f)),
         shape = RoundedCornerShape(12.dp)
     ) {
-        Text(
-            text = message,
-            modifier = Modifier.padding(12.dp),
-            color = tone,
-            style = MaterialTheme.typography.bodyMedium
-        )
+        Box(modifier = Modifier.fillMaxWidth()) {
+            Text(
+                text = message,
+                modifier = Modifier.padding(start = 12.dp, top = 12.dp, end = 12.dp, bottom = 14.dp),
+                color = tone,
+                style = MaterialTheme.typography.bodyMedium
+            )
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .fillMaxWidth(progress.value)
+                    .height(3.dp)
+                    .background(tone.copy(alpha = 0.72f))
+            )
+        }
     }
 }
 

@@ -9,6 +9,7 @@ import com.duet.android.data.local.OUTBOX_STATUS_PENDING
 import com.duet.android.data.local.OUTBOX_TYPE_GOODS_ITEM_CREATE
 import com.duet.android.data.local.OUTBOX_TYPE_TRANSACTION_CREATE
 import com.duet.android.data.local.OutboxMutationEntity
+import com.duet.android.voice.voiceUploadMetadata
 import com.squareup.moshi.Moshi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -115,9 +116,10 @@ class DuetRepository(
         return false
     }
 
-    suspend fun createVoiceDraft(uri: Uri): AiTransactionDraftResponse {
+    suspend fun createVoiceDraft(uri: Uri, filename: String? = null, mimeType: String? = null): AiTransactionDraftResponse {
+        val metadata = voiceUploadMetadata(filename, mimeType)
         return withTimeout(VOICE_DRAFT_TIMEOUT_MS) {
-            api.createVoiceDraft(uriPart(uri, "audio", "android-voice.m4a", "audio/mp4"))
+            api.createVoiceDraft(uriPart(uri, "audio", metadata.filename, metadata.mimeType))
         }
     }
 

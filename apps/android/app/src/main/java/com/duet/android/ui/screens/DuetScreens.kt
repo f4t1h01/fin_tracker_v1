@@ -123,7 +123,7 @@ fun AuthScreen(state: DuetUiState, actions: DuetViewModel) {
     ScreenList {
         item {
             BrandBlock("Profile access", if (mode == "SIGN_IN") "Sign in to your finance workspace." else "Create your Duet account.")
-            StatusBanner(state)
+            StatusBanner(state, actions)
             CardPanel {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     SegmentRow(
@@ -197,7 +197,7 @@ fun ProfileScreen(
     ScreenList {
         item {
             TopLine(title = greeting(snapshot), subtitle = snapshot?.profile?.activeCouple?.name ?: "Personal workspace", actions = actions, current = current, onNavigate = onNavigate)
-            StatusBanner(state)
+            StatusBanner(state, actions)
         }
         if (snapshot == null) {
             item { LoadingPanel("Loading profile snapshot") }
@@ -260,7 +260,7 @@ fun GoodsOverviewScreen(
     ScreenList {
         item {
             TopLine("My Goods", snapshot?.workspace?.name ?: "Inventory and groceries", actions, current, onNavigate)
-            StatusBanner(state)
+            StatusBanner(state, actions)
         }
         if (snapshot == null) {
             item { LoadingPanel("Loading My Goods") }
@@ -329,7 +329,7 @@ fun DashboardScreen(
     ScreenList {
         item {
             TopLine("Dashboard", dashboard?.filter?.label ?: "Transactions at a glance", actions, current, onNavigate)
-            StatusBanner(state)
+            StatusBanner(state, actions)
         }
         if (dashboard == null) {
             item { LoadingPanel("Loading dashboard") }
@@ -455,7 +455,7 @@ fun RatesScreen(
     ScreenList {
         item {
             TopLine("Rates", rates?.lastUpdatedAt ?: "Exchange rates", actions, current, onNavigate)
-            StatusBanner(state)
+            StatusBanner(state, actions)
         }
         if (rates == null) {
             item { LoadingPanel("Loading exchange rates") }
@@ -537,7 +537,7 @@ fun SettingsScreen(
     ScreenList {
         item {
             TopLine("Settings", snapshot?.auth?.email ?: "Profile and categories", actions, current, onNavigate)
-            StatusBanner(state)
+            StatusBanner(state, actions)
         }
         item {
             CardPanel {
@@ -783,10 +783,15 @@ private fun CardPanel(content: @Composable ColumnScope.() -> Unit) {
 }
 
 @Composable
-private fun StatusBanner(state: DuetUiState) {
+private fun StatusBanner(state: DuetUiState, actions: DuetViewModel) {
     val message = state.error ?: state.message
     if (message != null) {
-        DuetStatusBanner(message = message, isError = state.error != null)
+        DuetStatusBanner(
+            message = message,
+            isError = state.error != null,
+            eventKey = state.statusEventId,
+            onAutoDismiss = actions::clearMessage
+        )
     }
 }
 

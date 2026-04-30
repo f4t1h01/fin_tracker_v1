@@ -39,6 +39,11 @@ import com.duet.android.data.NetworkMonitor
 import com.duet.android.data.PendingMutationPreview
 import com.duet.android.data.local.DuetLocalDatabase
 import com.duet.android.data.toUserMessage
+import com.duet.android.voice.AndroidPcmVoiceRecorder
+import com.duet.android.voice.VOICE_M4A_FILENAME
+import com.duet.android.voice.VOICE_M4A_MIME_TYPE
+import com.duet.android.voice.defaultVoiceLevels
+import com.duet.android.voice.smoothPcmVoiceLevels
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -59,6 +64,7 @@ data class DuetUiState(
     val isBusy: Boolean = false,
     val message: String? = null,
     val error: String? = null,
+    val statusEventId: Long = 0,
     val snapshot: ProfileSnapshotResponse? = null,
     val dashboard: DashboardResponse? = null,
     val rates: DashboardRatesResponse? = null,
@@ -79,6 +85,7 @@ data class DuetUiState(
     val aiDraft: AiTransactionDraftResponse? = null,
     val aiStage: String = "READY",
     val aiError: String? = null,
+    val aiErrorEventId: Long = 0,
     val voiceRecordingSeconds: Int = 0,
     val voiceVisualizerLevels: List<Float> = DEFAULT_VISUALIZER_LEVELS
 )
@@ -88,10 +95,15 @@ class DuetViewModel(application: Application) : AndroidViewModel(application) {
     private val moshi = NetworkModule.createMoshi()
     private lateinit var repository: DuetRepository
     private var mediaRecorder: MediaRecorder? = null
+    private var pcmVoiceRecorder: AndroidPcmVoiceRecorder? = null
     private var recordingFile: File? = null
+    private var recordingFilename: String = VOICE_M4A_FILENAME
+    private var recordingMimeType: String = VOICE_M4A_MIME_TYPE
     private var recordingStartedAtMs: Long? = null
     private var isFinishingVoiceRecording = false
     private var voiceVisualizerJob: Job? = null
+    private var readMediaRecorderAmplitude = false
+    private var liveVoiceLevels: List<Float> = DEFAULT_VISUALIZER_LEVELS
 
     private val _uiState = MutableStateFlow(DuetUiState())
     val uiState: StateFlow<DuetUiState> = _uiState.asStateFlow()
@@ -120,6 +132,18 @@ class DuetViewModel(application: Application) : AndroidViewModel(application) {
     private val repositoryOrNull: DuetRepository?
         get() = if (::repository.isInitialized) repository else null
 
+    private fun DuetUiState.withStatusMessage(message: String): DuetUiState {
+        return copy(message = message, error = null, statusEventId = statusEventId + 1)
+    }
+
+    private fun DuetUiState.withStatusError(message: String): DuetUiState {
+        return copy(message = null, error = message, statusEventId = statusEventId + 1)
+    }
+
+    private fun DuetUiState.withAiError(message: String): DuetUiState {
+        return copy(aiError = message, aiErrorEventId = aiErrorEventId + 1)
+    }
+
     private fun boot() {
         viewModelScope.launch {
             val cache = repository.bootCache()
@@ -144,7 +168,7 @@ class DuetViewModel(application: Application) : AndroidViewModel(application) {
     fun signIn(email: String, password: String) {
         launchBusy {
             val response = repository.login(email, password)
-            _uiState.update { it.copy(token = response.accessToken, isDark = response.user.isDark, message = "Signed in") }
+            _uiState.update { it.copy(token = response.accessToken, isDark = response.user.isDark).withStatusMessage("Signed in") }
             refreshAll(silent = true)
         }
     }
@@ -152,7 +176,7 @@ class DuetViewModel(application: Application) : AndroidViewModel(application) {
     fun register(email: String, password: String, firstName: String?) {
         launchBusy {
             val response = repository.register(email, password, firstName)
-            _uiState.update { it.copy(token = response.accessToken, isDark = response.user.isDark, message = "Account created") }
+            _uiState.update { it.copy(token = response.accessToken, isDark = response.user.isDark).withStatusMessage("Account created") }
             refreshAll(silent = true)
         }
     }
@@ -160,7 +184,7 @@ class DuetViewModel(application: Application) : AndroidViewModel(application) {
     fun logout() {
         viewModelScope.launch {
             repository.clearSession()
-            _uiState.value = DuetUiState(isBootstrapping = false, message = "Signed out")
+            _uiState.value = DuetUiState(isBootstrapping = false).withStatusMessage("Signed out")
         }
     }
 
@@ -227,7 +251,7 @@ class DuetViewModel(application: Application) : AndroidViewModel(application) {
     fun saveRatesSelection(selectedCurrencies: List<String>) {
         launchBusy {
             val rates = repository.saveRatesSelection(selectedCurrencies)
-            _uiState.update { it.copy(rates = rates, message = "Rate selection saved") }
+            _uiState.update { it.copy(rates = rates).withStatusMessage("Rate selection saved") }
             refreshAll(silent = true)
         }
     }
@@ -243,7 +267,7 @@ class DuetViewModel(application: Application) : AndroidViewModel(application) {
                     currency = currency
                 )
             )
-            _uiState.update { it.copy(message = if (synced) "Transaction saved" else "Saved offline. It will sync when internet returns.") }
+            _uiState.update { it.withStatusMessage(if (synced) "Transaction saved" else "Saved offline. It will sync when internet returns.") }
             if (synced) {
                 refreshAll(silent = true)
             }
@@ -254,10 +278,14 @@ class DuetViewModel(application: Application) : AndroidViewModel(application) {
         _uiState.update { it.copy(aiDraft = null, aiError = null, aiStage = "READY") }
     }
 
+    fun clearAiError() {
+        _uiState.update { it.copy(aiError = null) }
+    }
+
     fun createImageDraft(uri: Uri) {
         launchAi("Reading receipt image") {
             val response = repository.createImageDraft(uri)
-            _uiState.update { it.copy(aiDraft = response, aiStage = "READY", aiError = null, message = "Image draft ready") }
+            _uiState.update { it.copy(aiDraft = response, aiStage = "READY", aiError = null).withStatusMessage("Image draft ready") }
         }
     }
 
@@ -266,37 +294,69 @@ class DuetViewModel(application: Application) : AndroidViewModel(application) {
             return false
         }
         return runCatching {
-            val file = File.createTempFile("duet-voice-", ".m4a", getApplication<Application>().cacheDir)
-            val recorder = MediaRecorder().apply {
-                setAudioSource(MediaRecorder.AudioSource.MIC)
-                setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
-                setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
-                setAudioEncodingBitRate(96000)
-                setAudioSamplingRate(44100)
-                setOutputFile(file.absolutePath)
-                prepare()
-                start()
-            }
-            recordingStartedAtMs = System.currentTimeMillis()
-            isFinishingVoiceRecording = false
-            recordingFile = file
-            mediaRecorder = recorder
-            _uiState.update {
-                it.copy(
-                    aiStage = "RECORDING",
-                    aiError = null,
-                    aiDraft = null,
-                    voiceRecordingSeconds = 0,
-                    voiceVisualizerLevels = DEFAULT_VISUALIZER_LEVELS
-                )
-            }
-            startVoiceVisualizer()
+            startPcmVoiceRecording()
+            true
+        }.recoverCatching { error ->
+            Log.w(LOG_TAG, "PCM voice recording failed; falling back to M4A", error)
+            startM4aVoiceRecording()
             true
         }.getOrElse {
             stopVoiceVisualizer()
-            _uiState.update { state -> state.copy(aiStage = "READY", aiError = it.toUserMessage(moshi)) }
+            releaseVoiceRecorders()
+            _uiState.update { state -> state.copy(aiStage = "READY").withAiError(it.toUserMessage(moshi)) }
             false
         }
+    }
+
+    private fun startPcmVoiceRecording() {
+        val file = File.createTempFile("duet-voice-", ".wav", getApplication<Application>().cacheDir)
+        var levels = DEFAULT_VISUALIZER_LEVELS
+        val recorder = AndroidPcmVoiceRecorder(file) { next ->
+            if (_uiState.value.aiStage == "RECORDING") {
+                levels = smoothVoiceLevels(levels, next)
+                liveVoiceLevels = levels
+                _uiState.update { it.copy(voiceVisualizerLevels = levels) }
+            }
+        }
+        recorder.start()
+        beginVoiceRecording(file, recorder.filename, recorder.mimeType, useMediaRecorderAmplitude = false)
+        pcmVoiceRecorder = recorder
+    }
+
+    private fun startM4aVoiceRecording() {
+        val file = File.createTempFile("duet-voice-", ".m4a", getApplication<Application>().cacheDir)
+        val recorder = MediaRecorder().apply {
+            setAudioSource(MediaRecorder.AudioSource.VOICE_RECOGNITION)
+            setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
+            setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
+            setAudioEncodingBitRate(128000)
+            setAudioSamplingRate(44100)
+            setOutputFile(file.absolutePath)
+            prepare()
+            start()
+        }
+        mediaRecorder = recorder
+        beginVoiceRecording(file, VOICE_M4A_FILENAME, VOICE_M4A_MIME_TYPE, useMediaRecorderAmplitude = true)
+    }
+
+    private fun beginVoiceRecording(file: File, filename: String, mimeType: String, useMediaRecorderAmplitude: Boolean) {
+        recordingStartedAtMs = System.currentTimeMillis()
+        isFinishingVoiceRecording = false
+        recordingFile = file
+        recordingFilename = filename
+        recordingMimeType = mimeType
+        readMediaRecorderAmplitude = useMediaRecorderAmplitude
+        liveVoiceLevels = DEFAULT_VISUALIZER_LEVELS
+        _uiState.update {
+            it.copy(
+                aiStage = "RECORDING",
+                aiError = null,
+                aiDraft = null,
+                voiceRecordingSeconds = 0,
+                voiceVisualizerLevels = DEFAULT_VISUALIZER_LEVELS
+            )
+        }
+        startVoiceVisualizer()
     }
 
     fun stopVoiceRecordingAndDraft() {
@@ -313,15 +373,22 @@ class DuetViewModel(application: Application) : AndroidViewModel(application) {
         }
         isFinishingVoiceRecording = true
         val file = recordingFile
+        val filename = recordingFilename
+        val mimeType = recordingMimeType
         val startedAt = recordingStartedAtMs
         val elapsedSeconds = startedAt?.let { ((System.currentTimeMillis() - it) / 1000).toInt() }
             ?: _uiState.value.voiceRecordingSeconds
 
         stopVoiceVisualizer()
-        runCatching { mediaRecorder?.stop() }
-        mediaRecorder?.release()
-        mediaRecorder = null
+        runCatching { pcmVoiceRecorder?.stop() }
+            .onFailure { Log.e(LOG_TAG, "PCM voice recorder failed to stop cleanly", it) }
+        if (pcmVoiceRecorder == null) {
+            runCatching { mediaRecorder?.stop() }
+        }
+        releaseVoiceRecorders()
         recordingFile = null
+        recordingFilename = VOICE_M4A_FILENAME
+        recordingMimeType = VOICE_M4A_MIME_TYPE
         recordingStartedAtMs = null
         isFinishingVoiceRecording = false
 
@@ -341,22 +408,28 @@ class DuetViewModel(application: Application) : AndroidViewModel(application) {
             _uiState.update {
                 it.copy(
                     aiStage = "READY",
-                    aiError = "Too short. Speak for at least $VOICE_RECORDING_MIN_SECONDS seconds.",
                     voiceRecordingSeconds = 0,
                     voiceVisualizerLevels = DEFAULT_VISUALIZER_LEVELS
-                )
+                ).withAiError("Too short. Speak for at least $VOICE_RECORDING_MIN_SECONDS seconds.")
             }
             return
         }
 
         launchAi("Transcribing voice note") {
             try {
-                val response = repository.createVoiceDraft(Uri.fromFile(file))
-                _uiState.update { it.copy(aiDraft = response, aiStage = "READY", aiError = null, message = "Voice draft ready") }
+                val response = repository.createVoiceDraft(Uri.fromFile(file), filename, mimeType)
+                _uiState.update { it.copy(aiDraft = response, aiStage = "READY", aiError = null).withStatusMessage("Voice draft ready") }
             } finally {
                 file.delete()
             }
         }
+    }
+
+    private fun releaseVoiceRecorders() {
+        pcmVoiceRecorder?.release()
+        pcmVoiceRecorder = null
+        mediaRecorder?.release()
+        mediaRecorder = null
     }
 
     private fun launchAi(stage: String, block: suspend () -> Unit) {
@@ -366,7 +439,7 @@ class DuetViewModel(application: Application) : AndroidViewModel(application) {
                 block()
             } catch (error: Throwable) {
                 Log.e(LOG_TAG, "AI request failed during $stage", error)
-                _uiState.update { it.copy(aiStage = "READY", aiError = error.toUserMessage(moshi)) }
+                _uiState.update { it.copy(aiStage = "READY").withAiError(error.toUserMessage(moshi)) }
             }
         }
     }
@@ -377,8 +450,13 @@ class DuetViewModel(application: Application) : AndroidViewModel(application) {
             val startedAt = System.currentTimeMillis()
             var levels = DEFAULT_VISUALIZER_LEVELS
             while (isActive && _uiState.value.aiStage == "RECORDING") {
-                val amplitude = runCatching { mediaRecorder?.maxAmplitude ?: 0 }.getOrDefault(0)
-                levels = smoothVoiceLevels(levels, buildVoiceLevels(amplitude))
+                if (readMediaRecorderAmplitude) {
+                    val amplitude = runCatching { mediaRecorder?.maxAmplitude ?: 0 }.getOrDefault(0)
+                    levels = smoothVoiceLevels(levels, buildFallbackVoiceLevels(amplitude))
+                    liveVoiceLevels = levels
+                } else {
+                    levels = liveVoiceLevels
+                }
                 val seconds = min(VOICE_RECORDING_LIMIT_SECONDS, ((System.currentTimeMillis() - startedAt) / 1000).toInt())
                 _uiState.update { it.copy(voiceRecordingSeconds = seconds, voiceVisualizerLevels = levels) }
                 if (seconds >= VOICE_RECORDING_LIMIT_SECONDS) {
@@ -395,6 +473,7 @@ class DuetViewModel(application: Application) : AndroidViewModel(application) {
     private fun stopVoiceVisualizer() {
         voiceVisualizerJob?.cancel()
         voiceVisualizerJob = null
+        liveVoiceLevels = DEFAULT_VISUALIZER_LEVELS
         _uiState.update { it.copy(voiceRecordingSeconds = 0, voiceVisualizerLevels = DEFAULT_VISUALIZER_LEVELS) }
     }
 
@@ -423,7 +502,7 @@ class DuetViewModel(application: Application) : AndroidViewModel(application) {
 
     fun updateTransaction(edit: EditableTransaction) {
         val amount = edit.amount.toDoubleOrNull() ?: run {
-            _uiState.update { it.copy(error = "Enter a valid amount") }
+            _uiState.update { it.withStatusError("Enter a valid amount") }
             return
         }
         launchBusy {
@@ -438,7 +517,7 @@ class DuetViewModel(application: Application) : AndroidViewModel(application) {
                     currency = edit.currency
                 )
             )
-            _uiState.update { it.copy(editingTransaction = null, message = "Transaction updated") }
+            _uiState.update { it.copy(editingTransaction = null).withStatusMessage("Transaction updated") }
             refreshAll(silent = true)
         }
     }
@@ -446,7 +525,7 @@ class DuetViewModel(application: Application) : AndroidViewModel(application) {
     fun deleteTransaction(id: String) {
         launchBusy {
             repository.deleteTransaction(id)
-            _uiState.update { it.copy(message = "Transaction deleted") }
+            _uiState.update { it.withStatusMessage("Transaction deleted") }
             refreshAll(silent = true)
         }
     }
@@ -455,14 +534,14 @@ class DuetViewModel(application: Application) : AndroidViewModel(application) {
         _uiState.update { it.copy(isDark = isDark) }
         viewModelScope.launch {
             runCatching { repository.setThemePreference(isDark) }
-                .onFailure { _uiState.update { state -> state.copy(error = it.toUserMessage(moshi)) } }
+                .onFailure { _uiState.update { state -> state.withStatusError(it.toUserMessage(moshi)) } }
         }
     }
 
     fun updateDetails(firstName: String, lastName: String, birthday: String) {
         launchBusy {
             repository.updateDetails(firstName, lastName, birthday)
-            _uiState.update { it.copy(message = "Profile details saved") }
+            _uiState.update { it.withStatusMessage("Profile details saved") }
             refreshAll(silent = true)
         }
     }
@@ -470,7 +549,7 @@ class DuetViewModel(application: Application) : AndroidViewModel(application) {
     fun bindCouple(code: String) {
         launchBusy {
             repository.bindCouple(code)
-            _uiState.update { it.copy(message = "Partner code connected") }
+            _uiState.update { it.withStatusMessage("Partner code connected") }
             refreshAll(silent = true)
         }
     }
@@ -478,7 +557,7 @@ class DuetViewModel(application: Application) : AndroidViewModel(application) {
     fun unbindCouple() {
         launchBusy {
             repository.unbindCouple()
-            _uiState.update { it.copy(message = "Partner connection removed") }
+            _uiState.update { it.withStatusMessage("Partner connection removed") }
             refreshAll(silent = true)
         }
     }
@@ -486,7 +565,7 @@ class DuetViewModel(application: Application) : AndroidViewModel(application) {
     fun createCategory(kind: String, scope: String, name: String, parentCategoryId: String?) {
         launchBusy {
             repository.createCategory(kind, scope, name, parentCategoryId)
-            _uiState.update { it.copy(message = "Category created") }
+            _uiState.update { it.withStatusMessage("Category created") }
             refreshAll(silent = true)
         }
     }
@@ -494,7 +573,7 @@ class DuetViewModel(application: Application) : AndroidViewModel(application) {
     fun saveProfilePreferences(weekStartsOn: String) {
         launchBusy {
             repository.updateProfilePreferences(weekStartsOn)
-            _uiState.update { it.copy(message = "Preferences saved") }
+            _uiState.update { it.withStatusMessage("Preferences saved") }
             refreshAll(silent = true)
         }
     }
@@ -502,7 +581,7 @@ class DuetViewModel(application: Application) : AndroidViewModel(application) {
     fun setupPassword(email: String, password: String) {
         launchBusy {
             repository.setupPassword(email, password)
-            _uiState.update { it.copy(message = "Email login is ready") }
+            _uiState.update { it.withStatusMessage("Email login is ready") }
             refreshAll(silent = true)
         }
     }
@@ -510,7 +589,7 @@ class DuetViewModel(application: Application) : AndroidViewModel(application) {
     fun saveCategoryPreferences(showShared: Boolean, defaultIncomeId: String?, defaultExpenseId: String?) {
         launchBusy {
             repository.updateCategoryPreferences(showShared, defaultIncomeId, defaultExpenseId)
-            _uiState.update { it.copy(message = "Category preferences saved") }
+            _uiState.update { it.withStatusMessage("Category preferences saved") }
             refreshAll(silent = true)
         }
     }
@@ -518,7 +597,7 @@ class DuetViewModel(application: Application) : AndroidViewModel(application) {
     fun updateCategoryVisibility(id: String, isVisible: Boolean) {
         launchBusy {
             repository.updateCategoryVisibility(id, isVisible)
-            _uiState.update { it.copy(message = if (isVisible) "Category shown" else "Category hidden") }
+            _uiState.update { it.withStatusMessage(if (isVisible) "Category shown" else "Category hidden") }
             refreshAll(silent = true)
         }
     }
@@ -526,7 +605,7 @@ class DuetViewModel(application: Application) : AndroidViewModel(application) {
     fun deleteCategory(id: String) {
         launchBusy {
             repository.deleteCategory(id)
-            _uiState.update { it.copy(message = "Category deleted") }
+            _uiState.update { it.withStatusMessage("Category deleted") }
             refreshAll(silent = true)
         }
     }
@@ -557,7 +636,7 @@ class DuetViewModel(application: Application) : AndroidViewModel(application) {
     fun createGoodsItem(request: CreateGoodsItemRequest) {
         launchBusy {
             val synced = repository.createGoodsItem(request)
-            _uiState.update { it.copy(message = if (synced) "Goods item saved" else "Goods item saved offline. It will sync when internet returns.") }
+            _uiState.update { it.withStatusMessage(if (synced) "Goods item saved" else "Goods item saved offline. It will sync when internet returns.") }
             if (synced) {
                 val snapshot = repository.loadGoodsSnapshot()
                 val list = repository.loadGoodsList(_uiState.value.goodsQuery)
@@ -622,12 +701,11 @@ class DuetViewModel(application: Application) : AndroidViewModel(application) {
             val categories = repository.loadGoodsCategories()
             _uiState.update {
                 it.copy(
-                    message = message,
                     goodsSnapshot = snapshot,
                     goodsList = list,
                     goodsPlaces = places,
                     goodsCategories = categories
-                )
+                ).withStatusMessage(message)
             }
         }
     }
@@ -661,7 +739,7 @@ class DuetViewModel(application: Application) : AndroidViewModel(application) {
     fun sendAdvisorMessage(override: String? = null) {
         val prompt = (override ?: _uiState.value.advisorDraft).trim()
         if (prompt.isBlank()) {
-            _uiState.update { it.copy(error = "Enter a message first") }
+            _uiState.update { it.withStatusError("Enter a message first") }
             return
         }
         viewModelScope.launch {
@@ -726,38 +804,33 @@ class DuetViewModel(application: Application) : AndroidViewModel(application) {
         val message = error.toUserMessage(moshi)
         if (message == TOKEN_INVALID_MESSAGE || message == TOKEN_MISSING_MESSAGE) {
             repository.clearSession()
-            _uiState.value = DuetUiState(isBootstrapping = false, error = message)
+            _uiState.value = DuetUiState(isBootstrapping = false).withStatusError(message)
             return
         }
-        _uiState.update { it.copy(isBusy = false, error = message) }
+        _uiState.update { it.copy(isBusy = false).withStatusError(message) }
     }
 }
 
 private const val LOG_TAG = "DuetAndroid"
 private const val VOICE_RECORDING_LIMIT_SECONDS = 60
 private const val VOICE_RECORDING_MIN_SECONDS = 3
-private const val VOICE_VISUALIZER_LEVEL_COUNT = 24
 private const val VOICE_VISUALIZER_UPDATE_MS = 48L
-private const val VOICE_VISUALIZER_SMOOTHING = 0.32f
-private const val VOICE_VISUALIZER_NOISE_FLOOR = 0.018f
-private val DEFAULT_VISUALIZER_LEVELS = List(VOICE_VISUALIZER_LEVEL_COUNT) { 0f }
-private val VOICE_LEVEL_SHAPE = listOf(0.38f, 0.52f, 0.78f, 0.62f, 0.94f, 0.58f, 0.86f, 0.48f)
+private val DEFAULT_VISUALIZER_LEVELS = defaultVoiceLevels()
+private const val FALLBACK_VISUALIZER_NOISE_FLOOR = 0.018f
+private val FALLBACK_LEVEL_SHAPE = listOf(0.38f, 0.52f, 0.78f, 0.62f, 0.94f, 0.58f, 0.86f, 0.48f)
 
 private fun smoothVoiceLevels(previous: List<Float>, next: List<Float>): List<Float> {
-    return next.mapIndexed { index, level ->
-        val before = previous.getOrNull(index) ?: level
-        before + (level - before) * VOICE_VISUALIZER_SMOOTHING
-    }
+    return smoothPcmVoiceLevels(previous, next)
 }
 
-private fun buildVoiceLevels(amplitude: Int): List<Float> {
+private fun buildFallbackVoiceLevels(amplitude: Int): List<Float> {
     val normalized = min(1f, max(0f, amplitude / 32767f))
-    val gated = max(0f, (normalized - VOICE_VISUALIZER_NOISE_FLOOR) / (1f - VOICE_VISUALIZER_NOISE_FLOOR))
+    val gated = max(0f, (normalized - FALLBACK_VISUALIZER_NOISE_FLOOR) / (1f - FALLBACK_VISUALIZER_NOISE_FLOOR))
     val boosted = min(1f, gated.toDouble().pow(0.58).toFloat() * 1.35f)
     if (boosted <= 0f) return DEFAULT_VISUALIZER_LEVELS
 
-    return List(VOICE_VISUALIZER_LEVEL_COUNT) { index ->
-        val shape = VOICE_LEVEL_SHAPE[index % VOICE_LEVEL_SHAPE.size]
+    return List(DEFAULT_VISUALIZER_LEVELS.size) { index ->
+        val shape = FALLBACK_LEVEL_SHAPE[index % FALLBACK_LEVEL_SHAPE.size]
         min(1f, boosted * shape + boosted * 0.18f)
     }
 }
