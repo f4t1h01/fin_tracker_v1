@@ -65,10 +65,11 @@ export function useGoodsAdvisorWorkspace() {
         throw new Error("Missing bearer token");
       }
 
+      const hasJsonBody = init?.body !== undefined && init.body !== null;
       const response = await fetch(`${webEnv.apiUrl}${path}`, {
         ...init,
         headers: {
-          "Content-Type": "application/json",
+          ...(hasJsonBody ? { "Content-Type": "application/json" } : {}),
           Authorization: `Bearer ${token}`,
           ...(init?.headers ?? {})
         }

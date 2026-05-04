@@ -3,11 +3,12 @@
 import { webEnv } from "@/lib/env";
 
 export async function adminFetch<T>(path: string, init?: RequestInit): Promise<T> {
+  const hasJsonBody = init?.body !== undefined && init.body !== null;
   const response = await fetch(`${webEnv.apiUrl}${path}`, {
     credentials: "include",
     ...init,
     headers: {
-      "Content-Type": "application/json",
+      ...(hasJsonBody ? { "Content-Type": "application/json" } : {}),
       ...(init?.headers ?? {})
     }
   });

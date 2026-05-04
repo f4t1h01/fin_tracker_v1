@@ -32,6 +32,23 @@ type TransactionEntryProps = {
 
 export function TransactionEntry(props: TransactionEntryProps) {
   const options = buildCategoryOptions(props.categoryCatalog, props.kind);
+  const isSubmittableControl = (
+    element: Element
+  ): element is HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement =>
+    element instanceof HTMLInputElement ||
+    element instanceof HTMLSelectElement ||
+    element instanceof HTMLTextAreaElement;
+  const reportInvalid = (event: React.FormEvent<HTMLFormElement>) => {
+    const form = event.currentTarget;
+    const invalid = Array.from(form.elements)
+      .filter((element): element is HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement => isSubmittableControl(element) && !element.validity.valid)
+      .map((element) => ({
+        name: element.getAttribute("name") ?? element.getAttribute("aria-label") ?? element.id ?? element.tagName,
+        validationMessage: element.validationMessage
+      }));
+
+    console.warn("[transaction:create] native validation blocked submit", { invalid });
+  };
 
   return (
     <Card className="panel-soft">
@@ -43,7 +60,7 @@ export function TransactionEntry(props: TransactionEntryProps) {
         <CardDescription>Workspace: {props.workspaceName}</CardDescription>
       </CardHeader>
       <CardContent>
-        <form className="space-y-4" onSubmit={props.onSubmit}>
+        <form className="space-y-4" onSubmit={props.onSubmit} onInvalid={reportInvalid}>
           <div className="grid grid-cols-1 gap-3 md:grid-cols-6">
             <div className="space-y-1 text-sm md:col-span-6">
               <span className="field-label">Type</span>
@@ -69,7 +86,7 @@ export function TransactionEntry(props: TransactionEntryProps) {
 
             <label className="space-y-1 text-sm md:col-span-2">
               <span className="field-label">Amount</span>
-              <TextField required inputMode="decimal" min="0.01" step="0.01" value={props.amount} onChange={(event) => props.setAmount(event.target.value)} placeholder="45000" />
+              <TextField name="amount" required inputMode="decimal" min="0.01" step="0.01" value={props.amount} onChange={(event) => props.setAmount(event.target.value)} placeholder="45000" />
             </label>
 
             <label className="space-y-1 text-sm md:col-span-2">
@@ -87,6 +104,7 @@ export function TransactionEntry(props: TransactionEntryProps) {
               <span className="field-label">Category</span>
               <SelectField
                 required
+                name="category"
                 value={props.selectedCategoryId}
                 onChange={(event) => {
                   props.setSelectedCategoryId(event.target.value);

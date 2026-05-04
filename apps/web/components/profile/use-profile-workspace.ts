@@ -839,26 +839,57 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
 
   const onCreateTransaction = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!token) return;
+    if (!token) {
+      console.warn("[transaction:create] blocked: missing auth token");
+      setTxError("Your session is not ready. Refresh the page and try again.");
+      return;
+    }
+
+    const parsedAmount = Number(amount);
+    const missingFields = [
+      Number.isFinite(parsedAmount) && parsedAmount > 0 ? null : "amount",
+      selectedCategoryId ? null : "category"
+    ].filter((item): item is string => Boolean(item));
+    if (missingFields.length > 0) {
+      console.warn("[transaction:create] blocked: invalid form", {
+        missingFields,
+        amount,
+        kind,
+        currency,
+        selectedCategoryId
+      });
+      setTxError(`Check ${missingFields.join(" and ")} before saving.`);
+      return;
+    }
+
     setTxError(null);
     setTxMessage(null);
     setIsSubmittingTx(true);
 
     try {
+      const payload = {
+        amount: parsedAmount,
+        kind,
+        currency,
+        categoryId: selectedCategoryId,
+        note: note || undefined
+      };
+      console.info("[transaction:create] sending", {
+        amount: payload.amount,
+        kind: payload.kind,
+        currency: payload.currency,
+        hasCategoryId: Boolean(payload.categoryId),
+        hasNote: Boolean(payload.note)
+      });
       const response = await fetch(`${webEnv.apiUrl}/profile/me/transactions`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`
         },
-        body: JSON.stringify({
-          amount: Number(amount),
-          kind,
-          currency,
-          categoryId: selectedCategoryId || undefined,
-          note: note || undefined
-        })
+        body: JSON.stringify(payload)
       });
+      console.info("[transaction:create] response", { status: response.status, ok: response.ok });
 
       await parseApiResponse<unknown>(response);
       setAmount("");

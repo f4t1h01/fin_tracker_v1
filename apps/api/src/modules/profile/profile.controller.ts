@@ -97,6 +97,16 @@ export class ProfileController {
 
   @Post("me/transactions")
   createMyTransaction(@CurrentUser() user: { id: string }, @Body() dto: CreateProfileTransactionDto) {
+    console.info("[transaction:create] request", {
+      userId: user.id,
+      amount: dto.amount,
+      kind: dto.kind,
+      currency: dto.currency,
+      hasCategoryId: Boolean(dto.categoryId),
+      hasCategoryName: Boolean(dto.categoryName),
+      hasNote: Boolean(dto.note),
+      hasClientMutationId: Boolean(dto.clientMutationId)
+    });
     return this.profileService.createTransaction(user.id, dto);
   }
 

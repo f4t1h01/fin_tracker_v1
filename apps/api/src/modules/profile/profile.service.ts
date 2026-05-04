@@ -1860,6 +1860,15 @@ export class ProfileService {
   }
 
   async createTransaction(userId: string, dto: CreateProfileTransactionDto) {
+    console.info("[transaction:create] service start", {
+      userId,
+      amount: dto.amount,
+      kind: dto.kind,
+      currency: dto.currency,
+      hasCategoryId: Boolean(dto.categoryId),
+      hasCategoryName: Boolean(dto.categoryName),
+      hasClientMutationId: Boolean(dto.clientMutationId)
+    });
     const clientMutationId = dto.clientMutationId?.trim() || null;
     if (clientMutationId) {
       const existing = await this.prisma.client.transaction.findUnique({
@@ -1919,10 +1928,24 @@ export class ProfileService {
     }
 
     if (!categoryId) {
+      console.warn("[transaction:create] blocked: missing category", {
+        userId,
+        kind: dto.kind,
+        hasDefaultCategory: false
+      });
       throw new BadRequestException("Choose a category before saving the transaction");
     }
 
     const category = await this.resolveSelectedCategory(userId, coupleId, dto.kind, categoryId);
+    console.info("[transaction:create] writing transaction", {
+      userId,
+      coupleId,
+      categoryId: category.id,
+      kind: dto.kind,
+      currency,
+      amount: dto.amount,
+      amountInUzs
+    });
 
     return this.prisma.client.transaction.create({
       data: {
