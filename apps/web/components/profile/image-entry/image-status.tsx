@@ -17,7 +17,8 @@ type ImageStatusProps = {
 
 export function ImageStatus(props: ImageStatusProps) {
   const hasDraft = Boolean(props.draft);
-  const hasWarnings = Boolean(props.draft?.draft.warnings.length);
+  const warnings = props.draft ? Array.from(new Set([...props.draft.draft.warnings, ...props.draft.qrWarnings])) : [];
+  const hasWarnings = warnings.length > 0;
   const hasMissingFields = Boolean(props.draft?.draft.missingFields.length);
   const isBusy = props.stage === "uploading" || props.stage === "preprocessing" || props.stage === "analyzing";
 
@@ -69,6 +70,10 @@ export function ImageStatus(props: ImageStatusProps) {
 
           <div className="grid gap-3 md:grid-cols-2">
             <div className="detail-box space-y-1 px-3 py-3 text-sm">
+              <p className="body-muted text-xs uppercase tracking-[0.16em]">Source</p>
+              <p className="font-medium">{props.draft.extractionSource.replaceAll("_", " ")}</p>
+            </div>
+            <div className="detail-box space-y-1 px-3 py-3 text-sm">
               <p className="body-muted text-xs uppercase tracking-[0.16em]">Mode</p>
               <p className="font-medium">{props.draft.receiptMode.replaceAll("_", " ")}</p>
             </div>
@@ -108,6 +113,15 @@ export function ImageStatus(props: ImageStatusProps) {
             </div>
           ) : null}
 
+          {props.draft.qrUrl ? (
+            <div className="detail-box space-y-2 px-3 py-3 text-sm">
+              <p className="body-muted text-xs uppercase tracking-[0.16em]">QR receipt</p>
+              <a href={props.draft.qrUrl} target="_blank" rel="noreferrer" className="break-all font-medium text-[var(--ink)] underline-offset-4 hover:underline">
+                {props.draft.qrProvider ?? "Receipt link"}
+              </a>
+            </div>
+          ) : null}
+
           {props.draft.extractedText ? (
             <div className="detail-box space-y-2 px-3 py-3 text-sm">
               <p className="body-muted text-xs uppercase tracking-[0.16em]">Extracted text</p>
@@ -119,7 +133,7 @@ export function ImageStatus(props: ImageStatusProps) {
 
           {hasWarnings ? (
             <div className="space-y-1">
-              {props.draft.draft.warnings.map((warning) => (
+              {warnings.map((warning) => (
                 <p key={warning} className="flex items-start gap-2 text-sm text-[var(--ink-soft)]">
                   <TriangleAlert className="mt-0.5 size-4 shrink-0 text-amber-600" />
                   <span>{warning}</span>

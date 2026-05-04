@@ -9,6 +9,7 @@ import { extname, join } from "node:path";
 import { pipeline } from "node:stream/promises";
 
 import type { ImageQualityIssue } from "./image-transaction-draft.schema";
+import type { QrProvider } from "./image-transaction-draft.schema";
 
 type PreprocessedReceiptImage = {
   buffer: Buffer;
@@ -32,6 +33,11 @@ export type ReceiptPreprocessPayload = {
   preprocessingApplied: string[];
   localQualityIssues: ImageQualityIssue[];
   previewStages: ReceiptPreprocessPreviewStage[];
+  qrDetected: boolean;
+  qrText: string | null;
+  qrUrl: string | null;
+  qrProvider: QrProvider | null;
+  qrQualityIssues: string[];
 };
 
 type ReceiptPreprocessPreviewAsset = {
@@ -46,6 +52,11 @@ type ReceiptPreprocessScriptOutput = {
   secondaryImageMimeType: string | null;
   preprocessingApplied: string[];
   localQualityIssues: ImageQualityIssue[];
+  qrDetected?: boolean;
+  qrText?: string | null;
+  qrUrl?: string | null;
+  qrProvider?: QrProvider | null;
+  qrQualityIssues?: string[];
   previewImages?: Partial<Record<ReceiptPreviewStageKey, ReceiptPreprocessPreviewAsset>>;
 };
 
@@ -253,7 +264,12 @@ export async function preprocessReceiptImage(file: MultipartFile): Promise<Recei
         : null,
       preprocessingApplied: Array.isArray(payload.preprocessingApplied) ? payload.preprocessingApplied.filter((item): item is string => typeof item === "string" && item.trim().length > 0) : [],
       localQualityIssues: Array.isArray(payload.localQualityIssues) ? payload.localQualityIssues.filter((item): item is ImageQualityIssue => typeof item === "string") : [],
-      previewStages
+      previewStages,
+      qrDetected: Boolean(payload.qrDetected),
+      qrText: typeof payload.qrText === "string" && payload.qrText.trim() ? payload.qrText.trim() : null,
+      qrUrl: typeof payload.qrUrl === "string" && payload.qrUrl.trim() ? payload.qrUrl.trim() : null,
+      qrProvider: payload.qrProvider === "SOLIQ_OFD" || payload.qrProvider === "UNKNOWN" ? payload.qrProvider : null,
+      qrQualityIssues: Array.isArray(payload.qrQualityIssues) ? payload.qrQualityIssues.filter((item): item is string => typeof item === "string" && item.trim().length > 0) : []
     };
   } catch (error) {
     if (error instanceof BadRequestException || error instanceof InternalServerErrorException) {

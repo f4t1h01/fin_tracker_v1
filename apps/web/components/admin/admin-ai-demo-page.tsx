@@ -79,6 +79,11 @@ type AdminAiDemoPreprocessOutput = {
     primary: string | null;
     secondary: string | null;
   };
+  qrDetected: boolean;
+  qrText: string | null;
+  qrUrl: string | null;
+  qrProvider: string | null;
+  qrQualityIssues: string[];
 };
 
 async function parseApiResponse<T>(response: Response): Promise<T> {
@@ -133,7 +138,12 @@ function isPreprocessOutput(value: unknown): value is AdminAiDemoPreprocessOutpu
     typeof value.includesSecondaryImage === "boolean" &&
     isRecord(value.modelInputStages) &&
     (typeof value.modelInputStages.primary === "string" || value.modelInputStages.primary === null) &&
-    (typeof value.modelInputStages.secondary === "string" || value.modelInputStages.secondary === null)
+    (typeof value.modelInputStages.secondary === "string" || value.modelInputStages.secondary === null) &&
+    typeof value.qrDetected === "boolean" &&
+    (typeof value.qrText === "string" || value.qrText === null) &&
+    (typeof value.qrUrl === "string" || value.qrUrl === null) &&
+    (typeof value.qrProvider === "string" || value.qrProvider === null) &&
+    isStringArray(value.qrQualityIssues)
   );
 }
 
@@ -214,6 +224,11 @@ function PreprocessStepOutput({ output }: { output: AdminAiDemoPreprocessOutput 
     })),
     preprocessingApplied: output.preprocessingApplied,
     localQualityIssues: output.localQualityIssues,
+    qrDetected: output.qrDetected,
+    qrText: output.qrText,
+    qrUrl: output.qrUrl,
+    qrProvider: output.qrProvider,
+    qrQualityIssues: output.qrQualityIssues,
     primaryImageMimeType: output.primaryImageMimeType,
     secondaryImageMimeType: output.secondaryImageMimeType,
     includesSecondaryImage: output.includesSecondaryImage,
@@ -264,6 +279,28 @@ function PreprocessStepOutput({ output }: { output: AdminAiDemoPreprocessOutput 
           <TokenList
             items={output.localQualityIssues}
             emptyLabel="No local image-quality issues were detected."
+          />
+        </div>
+
+        <div className="space-y-2">
+          <p className="field-label">QR detection</p>
+          <div className="space-y-1 text-sm leading-6 text-[var(--ink-soft)]">
+            <p>
+              <span className="font-medium text-[var(--ink)]">Detected:</span>{" "}
+              {output.qrDetected ? "Yes" : "No"}
+            </p>
+            <p>
+              <span className="font-medium text-[var(--ink)]">Provider:</span>{" "}
+              {output.qrProvider ?? "None"}
+            </p>
+            <p className="break-all">
+              <span className="font-medium text-[var(--ink)]">URL:</span>{" "}
+              {output.qrUrl ?? "None"}
+            </p>
+          </div>
+          <TokenList
+            items={output.qrQualityIssues}
+            emptyLabel="No QR decode issues were recorded."
           />
         </div>
 

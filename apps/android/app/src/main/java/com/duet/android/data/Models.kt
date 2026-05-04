@@ -208,7 +208,11 @@ data class AiTransactionDraftResponse(
     val productNames: List<String> = emptyList(),
     val qualityRating: String? = null,
     val qualityIssues: List<String> = emptyList(),
-    val documentType: String? = null
+    val documentType: String? = null,
+    val extractionSource: String? = null,
+    val qrUrl: String? = null,
+    val qrProvider: String? = null,
+    val qrWarnings: List<String> = emptyList()
 )
 
 data class AiTransactionDraft(

@@ -5,6 +5,8 @@ export const receiptModes = ["SINGLE_ITEM", "MULTI_ITEM", "UNKNOWN"] as const;
 export const qualityRatings = ["GOOD", "REVIEW", "POOR"] as const;
 export const qualityIssues = ["BLUR", "GLARE", "LOW_CONTRAST", "CROPPED", "NON_DOCUMENT", "INCOMPLETE_TOTAL", "MULTIPLE_RECORDS"] as const;
 export const documentTypes = ["RECEIPT", "INVOICE", "BILL", "SCREENSHOT", "UNKNOWN"] as const;
+export const extractionSources = ["QR", "IMAGE_AI", "QR_WITH_IMAGE_FALLBACK"] as const;
+export const qrProviders = ["SOLIQ_OFD", "UNKNOWN"] as const;
 
 export type ImageTransactionKind = (typeof imageTransactionKinds)[number];
 export type ImageTransactionCurrency = (typeof SUPPORTED_CURRENCIES)[number];
@@ -12,6 +14,8 @@ export type ReceiptMode = (typeof receiptModes)[number];
 export type QualityRating = (typeof qualityRatings)[number];
 export type ImageQualityIssue = (typeof qualityIssues)[number];
 export type DocumentType = (typeof documentTypes)[number];
+export type ImageExtractionSource = (typeof extractionSources)[number];
+export type QrProvider = (typeof qrProviders)[number];
 
 export type ImageTransactionExtraction = {
   kind: ImageTransactionKind | null;
@@ -50,6 +54,10 @@ export type ImageTransactionDraftResponse = {
   qualityRating: QualityRating;
   qualityIssues: ImageQualityIssue[];
   documentType: DocumentType;
+  extractionSource: ImageExtractionSource;
+  qrUrl: string | null;
+  qrProvider: QrProvider | null;
+  qrWarnings: string[];
 };
 
 export const imageTransactionExtractionJsonSchema = {

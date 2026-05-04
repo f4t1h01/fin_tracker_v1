@@ -5,6 +5,8 @@ export type ReceiptMode = "SINGLE_ITEM" | "MULTI_ITEM" | "UNKNOWN";
 export type QualityRating = "GOOD" | "REVIEW" | "POOR";
 export type ImageQualityIssue = "BLUR" | "GLARE" | "LOW_CONTRAST" | "CROPPED" | "NON_DOCUMENT" | "INCOMPLETE_TOTAL" | "MULTIPLE_RECORDS";
 export type DocumentType = "RECEIPT" | "INVOICE" | "BILL" | "SCREENSHOT" | "UNKNOWN";
+export type ImageExtractionSource = "QR" | "IMAGE_AI" | "QR_WITH_IMAGE_FALLBACK";
+export type QrProvider = "SOLIQ_OFD" | "UNKNOWN";
 
 export type ImageTransactionDraftResponse = AiTransactionDraftLike & {
   extractedText: string | null;
@@ -13,4 +15,8 @@ export type ImageTransactionDraftResponse = AiTransactionDraftLike & {
   qualityRating: QualityRating;
   qualityIssues: ImageQualityIssue[];
   documentType: DocumentType;
+  extractionSource: ImageExtractionSource;
+  qrUrl: string | null;
+  qrProvider: QrProvider | null;
+  qrWarnings: string[];
 };

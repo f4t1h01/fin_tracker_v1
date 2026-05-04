@@ -325,14 +325,21 @@ export class AdminAiDemoService {
           primaryImageMimeType: execution.preprocessing.primaryImageMimeType,
           secondaryImageMimeType: execution.preprocessing.secondaryImageMimeType,
           includesSecondaryImage: execution.preprocessing.includesSecondaryImage,
-          modelInputStages: execution.preprocessing.modelInputStages
+          modelInputStages: execution.preprocessing.modelInputStages,
+          qrDetected: execution.preprocessing.qrDetected,
+          qrText: execution.preprocessing.qrText,
+          qrUrl: execution.preprocessing.qrUrl,
+          qrProvider: execution.preprocessing.qrProvider,
+          qrQualityIssues: execution.preprocessing.qrQualityIssues
         }
       },
       {
         key: "extraction",
-        title: "Model extraction executed",
+        title: execution.finalDraft.extractionSource === "QR" ? "QR extraction executed" : "Model extraction executed",
         explanation:
-          "The cleaned image is sent through the existing strict JSON extraction pipeline. The explanation is fixed, but the extracted output is live from the current model response.",
+          execution.finalDraft.extractionSource === "QR"
+            ? "A trusted fiscal QR link was decoded and parsed before the image model was needed."
+            : "The cleaned image is sent through the existing strict JSON extraction pipeline. The explanation is fixed, but the extracted output is live from the current model response.",
         status: execution.extraction.rawDraft.amount === null ? "REVIEW" : "DONE",
         output: {
           model: execution.model.model,

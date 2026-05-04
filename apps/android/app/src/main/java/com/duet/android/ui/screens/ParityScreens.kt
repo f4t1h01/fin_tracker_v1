@@ -524,6 +524,8 @@ private fun AiDraftPreview(response: AiTransactionDraftResponse, snapshot: Profi
     val isReceiptDraft = response.receiptMode != null ||
         response.qualityRating != null ||
         response.documentType != null ||
+        response.extractionSource != null ||
+        response.qrUrl != null ||
         response.productNames.isNotEmpty() ||
         response.qualityIssues.isNotEmpty() ||
         extractedText.isNotBlank()
@@ -546,11 +548,15 @@ private fun AiDraftPreview(response: AiTransactionDraftResponse, snapshot: Profi
         if (isReceiptDraft) {
             Spacer(modifier = Modifier.height(10.dp))
             Text("RECEIPT STATUS", color = duetColors().inkSoft, style = MaterialTheme.typography.labelSmall, letterSpacing = 1.6.sp)
+            Text("Source: ${formatReceiptValue(response.extractionSource ?: "IMAGE_AI")}", color = duetColors().inkSoft, style = MaterialTheme.typography.bodySmall)
             Text("Mode: ${formatReceiptValue(response.receiptMode ?: "UNKNOWN")}", color = duetColors().inkSoft, style = MaterialTheme.typography.bodySmall)
             Text("Quality: ${response.qualityRating ?: "Not detected"}", color = duetColors().inkSoft, style = MaterialTheme.typography.bodySmall)
             Text("Document: ${formatReceiptValue(response.documentType ?: "UNKNOWN")}", color = duetColors().inkSoft, style = MaterialTheme.typography.bodySmall)
             Text("Category: $categoryStatus", color = duetColors().inkSoft, style = MaterialTheme.typography.bodySmall)
             Text("Note: ${draft.note?.takeIf { it.isNotBlank() } ?: "Not detected"}", color = duetColors().inkSoft, style = MaterialTheme.typography.bodySmall)
+            response.qrUrl?.takeIf { it.isNotBlank() }?.let {
+                Text("QR: ${response.qrProvider ?: it}", color = duetColors().inkSoft, style = MaterialTheme.typography.bodySmall)
+            }
 
             if (response.productNames.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(10.dp))
@@ -595,7 +601,8 @@ private fun AiDraftPreview(response: AiTransactionDraftResponse, snapshot: Profi
             color = duetColors().inkSoft,
             style = MaterialTheme.typography.bodySmall
         )
-        if (draft.warnings.isNotEmpty()) Text("Warnings: ${draft.warnings.joinToString(", ")}", color = duetColors().negative, style = MaterialTheme.typography.bodySmall)
+        val warnings = (draft.warnings + response.qrWarnings).distinct()
+        if (warnings.isNotEmpty()) Text("Warnings: ${warnings.joinToString(", ")}", color = duetColors().negative, style = MaterialTheme.typography.bodySmall)
         if (draft.missingFields.isNotEmpty()) Text("Missing: ${draft.missingFields.joinToString(", ")}", color = duetColors().gold, style = MaterialTheme.typography.bodySmall)
     }
 }

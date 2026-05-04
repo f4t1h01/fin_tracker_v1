@@ -152,6 +152,52 @@ def save_bgr_image(path: str, image: np.ndarray, mime_type: str) -> None:
     pil_image.save(path, format="JPEG", quality=90, optimize=True)
 
 
+def classify_qr_text(value: str) -> tuple[str | None, str | None]:
+    text = value.strip()
+    if not text:
+        return None, None
+
+    lowered = text.lower()
+    if lowered.startswith("https://ofd.soliq.uz/check?") or lowered.startswith("https://ofd.soliq.uz/epi?"):
+        return text, "SOLIQ_OFD"
+
+    if lowered.startswith("http://") or lowered.startswith("https://"):
+        return text, "UNKNOWN"
+
+    return None, "UNKNOWN"
+
+
+def detect_qr_codes(stages: list[tuple[str, np.ndarray]]) -> tuple[bool, str | None, str | None, str | None, list[str]]:
+    detector = cv2.QRCodeDetector()
+    issues: list[str] = []
+
+    for stage_name, image in stages:
+        candidates: list[str] = []
+        try:
+            decoded, _points, _straight = detector.detectAndDecode(image)
+            if decoded:
+                candidates.append(decoded)
+        except Exception:
+            issues.append(f"QR_DECODE_FAILED_{stage_name.upper()}")
+
+        try:
+            success, decoded_values, _points, _straight = detector.detectAndDecodeMulti(image)
+            if success:
+                candidates.extend([item for item in decoded_values if item])
+        except Exception:
+            pass
+
+        for candidate in candidates:
+            normalized = candidate.strip()
+            if not normalized:
+                continue
+
+            qr_url, qr_provider = classify_qr_text(normalized)
+            return True, normalized, qr_url, qr_provider, issues
+
+    return False, None, None, None, issues
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--input", required=True)
@@ -204,6 +250,15 @@ def main() -> int:
     text_path = os.path.join(args.output_dir, "text_enhanced.png")
     Image.fromarray(text_enhanced).save(text_path, format="PNG", optimize=True)
 
+    text_enhanced_bgr = cv2.cvtColor(text_enhanced, cv2.COLOR_GRAY2BGR)
+    qr_detected, qr_text, qr_url, qr_provider, qr_quality_issues = detect_qr_codes(
+        [
+            ("original", original_bgr),
+            ("cleaned", cleaned_color),
+            ("text_enhanced", text_enhanced_bgr),
+        ]
+    )
+
     should_include_secondary = (not document_detected) or bool(local_quality_issues)
     primary_path = cleaned_path if document_detected else original_path
 
@@ -214,6 +269,11 @@ def main() -> int:
         "secondaryImageMimeType": "image/png" if should_include_secondary else None,
         "preprocessingApplied": preprocessing_applied,
         "localQualityIssues": local_quality_issues,
+        "qrDetected": qr_detected,
+        "qrText": qr_text,
+        "qrUrl": qr_url,
+        "qrProvider": qr_provider,
+        "qrQualityIssues": qr_quality_issues,
         "previewImages": {
             "original": {
                 "path": original_path,
