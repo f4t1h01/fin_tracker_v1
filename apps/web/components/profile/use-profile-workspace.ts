@@ -6,6 +6,7 @@ import { webEnv } from "@/lib/env";
 import { persistTheme, type ThemeMode, themeStorageKey } from "@/lib/theme";
 import { syncAuthenticatedThemePreference } from "@/lib/theme-preference";
 
+import { parseTransactionAmount } from "./amount-format";
 import { findCategoryOptionById } from "./category-options";
 import { parseApiResponse } from "./api";
 import {
@@ -845,7 +846,7 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
       return;
     }
 
-    const parsedAmount = Number(amount);
+    const parsedAmount = parseTransactionAmount(amount);
     const missingFields = [
       Number.isFinite(parsedAmount) && parsedAmount > 0 ? null : "amount",
       selectedCategoryId ? null : "category"

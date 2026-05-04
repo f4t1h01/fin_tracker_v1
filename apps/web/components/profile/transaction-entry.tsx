@@ -7,6 +7,7 @@ import { SelectField } from "@/components/ui/select-field";
 import { TextField } from "@/components/ui/text-field";
 import { cn } from "@/lib/cn";
 
+import { formatAmountInputValue, normalizeAmountInput } from "./amount-format";
 import { buildCategoryOptions } from "./category-options";
 import type { CategoryCatalogResponse, SupportedCurrency } from "./types";
 
@@ -32,6 +33,10 @@ type TransactionEntryProps = {
 
 export function TransactionEntry(props: TransactionEntryProps) {
   const options = buildCategoryOptions(props.categoryCatalog, props.kind);
+  const allCategoryOptions = [...options.personal, ...options.shared];
+  const selectedCategoryIsVisible = Boolean(
+    props.selectedCategoryId && allCategoryOptions.some((item) => item.id === props.selectedCategoryId)
+  );
   const isSubmittableControl = (
     element: Element
   ): element is HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement =>
@@ -86,7 +91,14 @@ export function TransactionEntry(props: TransactionEntryProps) {
 
             <label className="space-y-1 text-sm md:col-span-2">
               <span className="field-label">Amount</span>
-              <TextField name="amount" required inputMode="decimal" min="0.01" step="0.01" value={props.amount} onChange={(event) => props.setAmount(event.target.value)} placeholder="45000" />
+              <TextField
+                name="amount"
+                required
+                inputMode="decimal"
+                value={formatAmountInputValue(props.amount)}
+                onChange={(event) => props.setAmount(normalizeAmountInput(event.target.value))}
+                placeholder="45,000"
+              />
             </label>
 
             <label className="space-y-1 text-sm md:col-span-2">
@@ -111,6 +123,9 @@ export function TransactionEntry(props: TransactionEntryProps) {
                 }}
               >
                 <option value="">Choose a category</option>
+                {props.selectedCategoryId && !selectedCategoryIsVisible ? (
+                  <option value={props.selectedCategoryId}>Selected by AI</option>
+                ) : null}
                 {options.personal.length > 0 ? (
                   <optgroup label="My categories">
                     {options.personal.map((item) => (
