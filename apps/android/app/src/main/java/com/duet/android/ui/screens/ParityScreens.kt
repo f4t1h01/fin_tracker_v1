@@ -526,6 +526,8 @@ private fun AiDraftPreview(response: AiTransactionDraftResponse, snapshot: Profi
         response.documentType != null ||
         response.extractionSource != null ||
         response.qrUrl != null ||
+        response.qrSummary != null ||
+        response.qrCodes.isNotEmpty() ||
         response.productNames.isNotEmpty() ||
         response.qualityIssues.isNotEmpty() ||
         extractedText.isNotBlank()
@@ -556,6 +558,23 @@ private fun AiDraftPreview(response: AiTransactionDraftResponse, snapshot: Profi
             Text("Note: ${draft.note?.takeIf { it.isNotBlank() } ?: "Not detected"}", color = duetColors().inkSoft, style = MaterialTheme.typography.bodySmall)
             response.qrUrl?.takeIf { it.isNotBlank() }?.let {
                 Text("QR: ${response.qrProvider ?: it}", color = duetColors().inkSoft, style = MaterialTheme.typography.bodySmall)
+            }
+            if (!response.qrSummary.isNullOrBlank() || response.qrCodes.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(10.dp))
+                Text("QR CHECK", color = duetColors().inkSoft, style = MaterialTheme.typography.labelSmall, letterSpacing = 1.6.sp)
+                response.qrSummary?.takeIf { it.isNotBlank() }?.let {
+                    Text(it, color = duetColors().ink, style = MaterialTheme.typography.bodySmall)
+                }
+                response.qrCodes.forEachIndexed { index, qr ->
+                    val status = if (qr.status == "FETCHED") "data fetched from QR" else "QR found but no data fetched"
+                    val parts = listOfNotNull(
+                        "QR ${index + 1}: $status",
+                        if (qr.usedForDraft) "used for draft" else null,
+                        qr.provider,
+                        qr.warning?.takeIf { it.isNotBlank() }
+                    )
+                    Text(parts.joinToString(" / "), color = duetColors().inkSoft, style = MaterialTheme.typography.bodySmall)
+                }
             }
 
             if (response.productNames.isNotEmpty()) {

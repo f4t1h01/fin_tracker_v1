@@ -7,6 +7,7 @@ export const qualityIssues = ["BLUR", "GLARE", "LOW_CONTRAST", "CROPPED", "NON_D
 export const documentTypes = ["RECEIPT", "INVOICE", "BILL", "SCREENSHOT", "UNKNOWN"] as const;
 export const extractionSources = ["QR", "IMAGE_AI", "QR_WITH_IMAGE_FALLBACK"] as const;
 export const qrProviders = ["SOLIQ_OFD", "UNKNOWN"] as const;
+export const qrCodeStatuses = ["FETCHED", "FOUND_NO_DATA"] as const;
 
 export type ImageTransactionKind = (typeof imageTransactionKinds)[number];
 export type ImageTransactionCurrency = (typeof SUPPORTED_CURRENCIES)[number];
@@ -16,6 +17,7 @@ export type ImageQualityIssue = (typeof qualityIssues)[number];
 export type DocumentType = (typeof documentTypes)[number];
 export type ImageExtractionSource = (typeof extractionSources)[number];
 export type QrProvider = (typeof qrProviders)[number];
+export type QrCodeStatus = (typeof qrCodeStatuses)[number];
 
 export type ImageTransactionExtraction = {
   kind: ImageTransactionKind | null;
@@ -46,6 +48,15 @@ export type ImageTransactionDraft = {
   warnings: string[];
 };
 
+export type ImageQrCodeResult = {
+  value: string;
+  url: string | null;
+  provider: QrProvider | null;
+  status: QrCodeStatus;
+  warning: string | null;
+  usedForDraft: boolean;
+};
+
 export type ImageTransactionDraftResponse = {
   extractedText: string | null;
   draft: ImageTransactionDraft;
@@ -58,6 +69,8 @@ export type ImageTransactionDraftResponse = {
   qrUrl: string | null;
   qrProvider: QrProvider | null;
   qrWarnings: string[];
+  qrSummary: string | null;
+  qrCodes: ImageQrCodeResult[];
 };
 
 export const imageTransactionExtractionJsonSchema = {

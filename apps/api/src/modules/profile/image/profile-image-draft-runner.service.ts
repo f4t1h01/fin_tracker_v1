@@ -13,7 +13,7 @@ import {
 import { extractImageTransactionDraft } from "./openai-image-extraction.client";
 import { OPENAI_IMAGE_EXTRACTION_MODEL } from "./image.constants";
 import { finalizeImageDraft } from "./image-draft-finalizer";
-import { resolveQrReceiptDraft } from "./qr-receipt-resolver";
+import { resolveQrReceiptCandidates } from "./qr-receipt-resolver";
 import {
   type ImageQualityIssue,
   type ImageTransactionDraftResponse,
@@ -79,6 +79,12 @@ type ImageDraftExecutionResult = {
     qrText: string | null;
     qrUrl: string | null;
     qrProvider: string | null;
+    qrCodes: Array<{
+      text: string;
+      url: string | null;
+      provider: string | null;
+      stage: string | null;
+    }>;
     qrQualityIssues: string[];
   };
   model: {
@@ -316,15 +322,30 @@ export class ProfileImageDraftRunnerService {
       preprocessing.previewStages.find((stage) => stage.usedForExtraction === "PRIMARY")?.key ?? null;
     const secondaryPreviewStage =
       preprocessing.previewStages.find((stage) => stage.usedForExtraction === "SECONDARY")?.key ?? null;
-    const qrResult = await resolveQrReceiptDraft(preprocessing.qrUrl);
-    if (qrResult.ok) {
+    const qrCandidates = preprocessing.qrCodes.length
+      ? preprocessing.qrCodes
+      : preprocessing.qrText
+        ? [{
+            text: preprocessing.qrText,
+            url: preprocessing.qrUrl,
+            provider: preprocessing.qrProvider
+          }]
+        : [];
+    const qrResolution = await resolveQrReceiptCandidates({
+      candidates: qrCandidates,
+      qualityIssues: preprocessing.qrQualityIssues
+    });
+    const qrResult = qrResolution.successful;
+    if (qrResult?.ok) {
       const finalized = finalizeImageDraft({
         catalog,
         extracted: qrResult.extracted,
         source: "QR",
         qrUrl: qrResult.url,
         qrProvider: qrResult.provider,
-        qrWarnings: qrResult.warnings
+        qrWarnings: qrResolution.qrWarnings,
+        qrSummary: qrResolution.qrSummary,
+        qrCodes: qrResolution.qrCodes
       });
 
       return {
@@ -350,6 +371,7 @@ export class ProfileImageDraftRunnerService {
           qrText: preprocessing.qrText,
           qrUrl: preprocessing.qrUrl,
           qrProvider: preprocessing.qrProvider,
+          qrCodes: preprocessing.qrCodes,
           qrQualityIssues: preprocessing.qrQualityIssues
         },
         model: {
@@ -424,10 +446,12 @@ export class ProfileImageDraftRunnerService {
       catalog,
       extracted: extracted.draft,
       localQualityIssues: preprocessing.localQualityIssues,
-      source: qrResult.url ? "QR_WITH_IMAGE_FALLBACK" : "IMAGE_AI",
-      qrUrl: qrResult.url,
-      qrProvider: qrResult.provider,
-      qrWarnings: qrResult.warnings
+      source: qrResolution.qrCodes.length ? "QR_WITH_IMAGE_FALLBACK" : "IMAGE_AI",
+      qrUrl: qrResolution.qrCodes[0]?.url ?? null,
+      qrProvider: qrResolution.qrCodes[0]?.provider ?? null,
+      qrWarnings: qrResolution.qrWarnings,
+      qrSummary: qrResolution.qrSummary,
+      qrCodes: qrResolution.qrCodes
     });
 
     return {
@@ -453,6 +477,7 @@ export class ProfileImageDraftRunnerService {
         qrText: preprocessing.qrText,
         qrUrl: preprocessing.qrUrl,
         qrProvider: preprocessing.qrProvider,
+        qrCodes: preprocessing.qrCodes,
         qrQualityIssues: preprocessing.qrQualityIssues
       },
       model: {

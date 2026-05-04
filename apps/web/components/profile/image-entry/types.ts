@@ -7,6 +7,16 @@ export type ImageQualityIssue = "BLUR" | "GLARE" | "LOW_CONTRAST" | "CROPPED" | 
 export type DocumentType = "RECEIPT" | "INVOICE" | "BILL" | "SCREENSHOT" | "UNKNOWN";
 export type ImageExtractionSource = "QR" | "IMAGE_AI" | "QR_WITH_IMAGE_FALLBACK";
 export type QrProvider = "SOLIQ_OFD" | "UNKNOWN";
+export type QrCodeStatus = "FETCHED" | "FOUND_NO_DATA";
+
+export type ImageQrCodeResult = {
+  value: string;
+  url: string | null;
+  provider: QrProvider | null;
+  status: QrCodeStatus;
+  warning: string | null;
+  usedForDraft: boolean;
+};
 
 export type ImageTransactionDraftResponse = AiTransactionDraftLike & {
   extractedText: string | null;
@@ -19,4 +29,6 @@ export type ImageTransactionDraftResponse = AiTransactionDraftLike & {
   qrUrl: string | null;
   qrProvider: QrProvider | null;
   qrWarnings: string[];
+  qrSummary: string | null;
+  qrCodes: ImageQrCodeResult[];
 };

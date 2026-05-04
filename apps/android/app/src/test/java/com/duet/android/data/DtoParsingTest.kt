@@ -53,6 +53,29 @@ class DtoParsingTest {
                   "qualityRating": "REVIEW",
                   "qualityIssues": ["LOW_CONTRAST", "INCOMPLETE_TOTAL"],
                   "documentType": "RECEIPT",
+                  "extractionSource": "QR_WITH_IMAGE_FALLBACK",
+                  "qrUrl": "https://ofd.soliq.uz/check?t=1",
+                  "qrProvider": "SOLIQ_OFD",
+                  "qrWarnings": ["QR receipt link was reachable, but structured receipt totals could not be parsed."],
+                  "qrSummary": "2 QR codes found, but no usable data was fetched; image extraction was used.",
+                  "qrCodes": [
+                    {
+                      "value": "https://ofd.soliq.uz/check?t=1",
+                      "url": "https://ofd.soliq.uz/check?t=1",
+                      "provider": "SOLIQ_OFD",
+                      "status": "FOUND_NO_DATA",
+                      "warning": "QR receipt link was reachable, but structured receipt totals could not be parsed.",
+                      "usedForDraft": false
+                    },
+                    {
+                      "value": "plain loyalty qr",
+                      "url": null,
+                      "provider": "UNKNOWN",
+                      "status": "FOUND_NO_DATA",
+                      "warning": "QR code link is not from a trusted fiscal receipt domain.",
+                      "usedForDraft": false
+                    }
+                  ],
                   "draft": {
                     "kind": "EXPENSE",
                     "amount": 125000,
@@ -75,6 +98,9 @@ class DtoParsingTest {
         assertEquals(listOf("Milk", "Bread"), parsed.productNames)
         assertEquals(listOf("LOW_CONTRAST", "INCOMPLETE_TOTAL"), parsed.qualityIssues)
         assertEquals("Food", parsed.draft.categoryNameCandidate)
+        assertEquals("2 QR codes found, but no usable data was fetched; image extraction was used.", parsed.qrSummary)
+        assertEquals(2, parsed.qrCodes.size)
+        assertEquals("FOUND_NO_DATA", parsed.qrCodes.first().status)
     }
 
     @Test

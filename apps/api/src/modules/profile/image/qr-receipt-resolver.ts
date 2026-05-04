@@ -2,13 +2,14 @@ import { lookup } from "node:dns/promises";
 import { isIP } from "node:net";
 
 import type { SupportedCurrency } from "../../common/currency";
-import type { ImageTransactionExtraction, QrProvider } from "./image-transaction-draft.schema";
+import type { ImageQrCodeResult, ImageTransactionExtraction, QrProvider } from "./image-transaction-draft.schema";
 
 const TRUSTED_QR_HOST = "ofd.soliq.uz";
 const TRUSTED_QR_PATHS = new Set(["/check", "/epi"]);
 const QR_FETCH_TIMEOUT_MS = 5000;
 const QR_FETCH_MAX_BYTES = 512 * 1024;
 const QR_FETCH_MAX_REDIRECTS = 2;
+const QR_RESOLUTION_LIMIT = 3;
 
 export type TrustedQrUrl = {
   url: string;
@@ -29,6 +30,19 @@ export type QrReceiptResolveResult =
       provider: QrProvider | null;
       warnings: string[];
     };
+
+export type QrReceiptCandidate = {
+  text: string;
+  url: string | null;
+  provider: QrProvider | null;
+};
+
+export type QrReceiptResolutionSummary = {
+  successful: Extract<QrReceiptResolveResult, { ok: true }> | null;
+  qrCodes: ImageQrCodeResult[];
+  qrWarnings: string[];
+  qrSummary: string | null;
+};
 
 type ParsedReceipt = {
   amount: number | null;
@@ -390,4 +404,73 @@ export async function resolveQrReceiptDraft(qrUrl: string | null | undefined): P
       warnings: [error instanceof Error ? error.message : "QR receipt link could not be resolved."]
     };
   }
+}
+
+function buildQrSummary(params: {
+  detectedCount: number;
+  testedCount: number;
+  fetchedCount: number;
+}) {
+  if (params.detectedCount === 0) {
+    return null;
+  }
+
+  const suffix = params.detectedCount > params.testedCount
+    ? ` Tested first ${params.testedCount} to keep processing bounded.`
+    : "";
+
+  if (params.fetchedCount > 0) {
+    return params.detectedCount === 1
+      ? `QR found; data fetched from QR.${suffix}`
+      : `${params.detectedCount} QR codes found; data fetched from ${params.fetchedCount} QR code${params.fetchedCount === 1 ? "" : "s"}.${suffix}`;
+  }
+
+  return params.detectedCount === 1
+    ? `QR found, but no data was fetched; image extraction was used.${suffix}`
+    : `${params.detectedCount} QR codes found, but no usable data was fetched; image extraction was used.${suffix}`;
+}
+
+export async function resolveQrReceiptCandidates(params: {
+  candidates: QrReceiptCandidate[];
+  qualityIssues?: string[];
+}): Promise<QrReceiptResolutionSummary> {
+  const testedCandidates = params.candidates.slice(0, QR_RESOLUTION_LIMIT);
+  const qrCodes: ImageQrCodeResult[] = [];
+  const qrWarnings: string[] = [...(params.qualityIssues ?? [])];
+  let successful: Extract<QrReceiptResolveResult, { ok: true }> | null = null;
+
+  for (const candidate of testedCandidates) {
+    const result = await resolveQrReceiptDraft(candidate.url ?? candidate.text);
+    const warning = result.warnings[0] ?? null;
+    const usedForDraft = Boolean(result.ok && !successful);
+
+    if (warning) {
+      qrWarnings.push(warning);
+    }
+
+    qrCodes.push({
+      value: candidate.text,
+      url: result.url ?? candidate.url,
+      provider: result.provider ?? candidate.provider,
+      status: result.ok ? "FETCHED" : "FOUND_NO_DATA",
+      warning,
+      usedForDraft
+    });
+
+    if (result.ok && !successful) {
+      successful = result;
+    }
+  }
+
+  const fetchedCount = qrCodes.filter((item) => item.status === "FETCHED").length;
+  return {
+    successful,
+    qrCodes,
+    qrWarnings,
+    qrSummary: buildQrSummary({
+      detectedCount: params.candidates.length,
+      testedCount: testedCandidates.length,
+      fetchedCount
+    })
+  };
 }

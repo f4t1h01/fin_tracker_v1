@@ -17,6 +17,7 @@ type ImageStatusProps = {
 
 export function ImageStatus(props: ImageStatusProps) {
   const hasDraft = Boolean(props.draft);
+  const qrCodes = props.draft?.qrCodes ?? [];
   const warnings = props.draft ? Array.from(new Set([...props.draft.draft.warnings, ...props.draft.qrWarnings])) : [];
   const hasWarnings = warnings.length > 0;
   const hasMissingFields = Boolean(props.draft?.draft.missingFields.length);
@@ -119,6 +120,25 @@ export function ImageStatus(props: ImageStatusProps) {
               <a href={props.draft.qrUrl} target="_blank" rel="noreferrer" className="break-all font-medium text-[var(--ink)] underline-offset-4 hover:underline">
                 {props.draft.qrProvider ?? "Receipt link"}
               </a>
+            </div>
+          ) : null}
+
+          {props.draft.qrSummary || qrCodes.length > 0 ? (
+            <div className="detail-box space-y-2 px-3 py-3 text-sm">
+              <p className="body-muted text-xs uppercase tracking-[0.16em]">QR check</p>
+              {props.draft.qrSummary ? <p className="font-medium">{props.draft.qrSummary}</p> : null}
+              {qrCodes.length > 0 ? (
+                <div className="space-y-1">
+                  {qrCodes.map((qr, index) => (
+                    <p key={`${qr.value}-${index}`} className="body-muted break-words text-xs">
+                      QR {index + 1}: {qr.status === "FETCHED" ? "data fetched from QR" : "QR found but no data fetched"}
+                      {qr.usedForDraft ? " / used for draft" : ""}
+                      {qr.provider ? ` / ${qr.provider}` : ""}
+                      {qr.warning ? ` / ${qr.warning}` : ""}
+                    </p>
+                  ))}
+                </div>
+              ) : null}
             </div>
           ) : null}
 

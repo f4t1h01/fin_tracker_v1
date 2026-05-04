@@ -2,6 +2,7 @@ import { matchVoiceCategory, type VoiceCategoryCatalog } from "../voice/voice-ca
 import type {
   DocumentType,
   ImageExtractionSource,
+  ImageQrCodeResult,
   ImageQualityIssue,
   ImageTransactionDraftResponse,
   ImageTransactionExtraction,
@@ -177,6 +178,8 @@ export function finalizeImageDraft(params: {
   qrUrl?: string | null;
   qrProvider?: QrProvider | null;
   qrWarnings?: string[];
+  qrSummary?: string | null;
+  qrCodes?: ImageQrCodeResult[];
 }) {
   const matching = matchVoiceCategory({
     catalog: params.catalog,
@@ -252,7 +255,9 @@ export function finalizeImageDraft(params: {
     extractionSource: params.source,
     qrUrl: params.qrUrl ?? null,
     qrProvider: params.qrProvider ?? null,
-    qrWarnings: params.qrWarnings ?? []
+    qrWarnings: params.qrWarnings ?? [],
+    qrSummary: params.qrSummary ?? null,
+    qrCodes: params.qrCodes ?? []
   };
 
   return {

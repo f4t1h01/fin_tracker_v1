@@ -212,7 +212,18 @@ data class AiTransactionDraftResponse(
     val extractionSource: String? = null,
     val qrUrl: String? = null,
     val qrProvider: String? = null,
-    val qrWarnings: List<String> = emptyList()
+    val qrWarnings: List<String> = emptyList(),
+    val qrSummary: String? = null,
+    val qrCodes: List<ImageQrCodeResult> = emptyList()
+)
+
+data class ImageQrCodeResult(
+    val value: String = "",
+    val url: String? = null,
+    val provider: String? = null,
+    val status: String = "FOUND_NO_DATA",
+    val warning: String? = null,
+    val usedForDraft: Boolean = false
 )
 
 data class AiTransactionDraft(

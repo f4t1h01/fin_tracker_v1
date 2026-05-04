@@ -10,7 +10,7 @@ import type { VoiceCategoryCatalog } from "../voice/voice-category-matcher";
 import { extractImageTransactionDraft } from "./openai-image-extraction.client";
 import { preprocessReceiptImage } from "./receipt-preprocess.client";
 import { finalizeImageDraft } from "./image-draft-finalizer";
-import { resolveQrReceiptDraft } from "./qr-receipt-resolver";
+import { resolveQrReceiptCandidates } from "./qr-receipt-resolver";
 import type { ImageTransactionDraftResponse } from "./image-transaction-draft.schema";
 import { OPENAI_IMAGE_EXTRACTION_MODEL } from "./image.constants";
 
@@ -43,15 +43,30 @@ export class ProfileImageService {
     const preprocessing = await preprocessReceiptImage(file);
     const catalog = (await this.profileService.getManagedCategories(userId)) as VoiceCategoryCatalog;
 
-    const qrResult = await resolveQrReceiptDraft(preprocessing.qrUrl);
-    if (qrResult.ok) {
+    const qrCandidates = preprocessing.qrCodes.length
+      ? preprocessing.qrCodes
+      : preprocessing.qrText
+        ? [{
+            text: preprocessing.qrText,
+            url: preprocessing.qrUrl,
+            provider: preprocessing.qrProvider
+          }]
+        : [];
+    const qrResolution = await resolveQrReceiptCandidates({
+      candidates: qrCandidates,
+      qualityIssues: preprocessing.qrQualityIssues
+    });
+    const qrResult = qrResolution.successful;
+    if (qrResult?.ok) {
       return finalizeImageDraft({
         catalog,
         extracted: qrResult.extracted,
         source: "QR",
         qrUrl: qrResult.url,
         qrProvider: qrResult.provider,
-        qrWarnings: qrResult.warnings
+        qrWarnings: qrResolution.qrWarnings,
+        qrSummary: qrResolution.qrSummary,
+        qrCodes: qrResolution.qrCodes
       }).finalDraft;
     }
 
@@ -103,10 +118,12 @@ export class ProfileImageService {
       catalog,
       extracted: extracted.draft,
       localQualityIssues: preprocessing.localQualityIssues,
-      source: qrResult.url ? "QR_WITH_IMAGE_FALLBACK" : "IMAGE_AI",
-      qrUrl: qrResult.url,
-      qrProvider: qrResult.provider,
-      qrWarnings: qrResult.warnings
+      source: qrResolution.qrCodes.length ? "QR_WITH_IMAGE_FALLBACK" : "IMAGE_AI",
+      qrUrl: qrResolution.qrCodes[0]?.url ?? null,
+      qrProvider: qrResolution.qrCodes[0]?.provider ?? null,
+      qrWarnings: qrResolution.qrWarnings,
+      qrSummary: qrResolution.qrSummary,
+      qrCodes: qrResolution.qrCodes
     }).finalDraft;
   }
 }

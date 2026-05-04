@@ -37,7 +37,15 @@ export type ReceiptPreprocessPayload = {
   qrText: string | null;
   qrUrl: string | null;
   qrProvider: QrProvider | null;
+  qrCodes: ReceiptQrCandidate[];
   qrQualityIssues: string[];
+};
+
+export type ReceiptQrCandidate = {
+  text: string;
+  url: string | null;
+  provider: QrProvider | null;
+  stage: string | null;
 };
 
 type ReceiptPreprocessPreviewAsset = {
@@ -56,6 +64,12 @@ type ReceiptPreprocessScriptOutput = {
   qrText?: string | null;
   qrUrl?: string | null;
   qrProvider?: QrProvider | null;
+  qrCodes?: Array<{
+    text?: unknown;
+    url?: unknown;
+    provider?: unknown;
+    stage?: unknown;
+  }>;
   qrQualityIssues?: string[];
   previewImages?: Partial<Record<ReceiptPreviewStageKey, ReceiptPreprocessPreviewAsset>>;
 };
@@ -126,6 +140,46 @@ function resolveImageExtension(filename: string, mimetype: string) {
 
 function toDataUrl(buffer: Buffer, mimeType: string) {
   return `data:${mimeType};base64,${buffer.toString("base64")}`;
+}
+
+function normalizeQrCandidates(payload: ReceiptPreprocessScriptOutput): ReceiptQrCandidate[] {
+  const candidates: ReceiptQrCandidate[] = [];
+  const seen = new Set<string>();
+  const addCandidate = (candidate: ReceiptQrCandidate) => {
+    const text = candidate.text.trim();
+    if (!text || seen.has(text)) {
+      return;
+    }
+
+    seen.add(text);
+    candidates.push({ ...candidate, text });
+  };
+
+  if (Array.isArray(payload.qrCodes)) {
+    for (const item of payload.qrCodes) {
+      if (!item || typeof item.text !== "string" || !item.text.trim()) {
+        continue;
+      }
+
+      addCandidate({
+        text: item.text,
+        url: typeof item.url === "string" && item.url.trim() ? item.url.trim() : null,
+        provider: item.provider === "SOLIQ_OFD" || item.provider === "UNKNOWN" ? item.provider : null,
+        stage: typeof item.stage === "string" && item.stage.trim() ? item.stage.trim() : null
+      });
+    }
+  }
+
+  if (typeof payload.qrText === "string" && payload.qrText.trim()) {
+    addCandidate({
+      text: payload.qrText,
+      url: typeof payload.qrUrl === "string" && payload.qrUrl.trim() ? payload.qrUrl.trim() : null,
+      provider: payload.qrProvider === "SOLIQ_OFD" || payload.qrProvider === "UNKNOWN" ? payload.qrProvider : null,
+      stage: null
+    });
+  }
+
+  return candidates;
 }
 
 async function readPreviewStage(params: {
@@ -223,6 +277,7 @@ export async function preprocessReceiptImage(file: MultipartFile): Promise<Recei
     });
 
     const payload = JSON.parse(await readFile(resultPath, "utf8")) as ReceiptPreprocessScriptOutput;
+    const qrCodes = normalizeQrCandidates(payload);
     const primaryBuffer = await readFile(payload.primaryImagePath);
     const secondaryBuffer = payload.secondaryImagePath ? await readFile(payload.secondaryImagePath) : null;
     const previewStages = (
@@ -269,6 +324,7 @@ export async function preprocessReceiptImage(file: MultipartFile): Promise<Recei
       qrText: typeof payload.qrText === "string" && payload.qrText.trim() ? payload.qrText.trim() : null,
       qrUrl: typeof payload.qrUrl === "string" && payload.qrUrl.trim() ? payload.qrUrl.trim() : null,
       qrProvider: payload.qrProvider === "SOLIQ_OFD" || payload.qrProvider === "UNKNOWN" ? payload.qrProvider : null,
+      qrCodes,
       qrQualityIssues: Array.isArray(payload.qrQualityIssues) ? payload.qrQualityIssues.filter((item): item is string => typeof item === "string" && item.trim().length > 0) : []
     };
   } catch (error) {

@@ -167,9 +167,11 @@ def classify_qr_text(value: str) -> tuple[str | None, str | None]:
     return None, "UNKNOWN"
 
 
-def detect_qr_codes(stages: list[tuple[str, np.ndarray]]) -> tuple[bool, str | None, str | None, str | None, list[str]]:
+def detect_qr_codes(stages: list[tuple[str, np.ndarray]]) -> tuple[bool, str | None, str | None, str | None, list[dict[str, str | None]], list[str]]:
     detector = cv2.QRCodeDetector()
     issues: list[str] = []
+    seen: set[str] = set()
+    codes: list[dict[str, str | None]] = []
 
     for stage_name, image in stages:
         candidates: list[str] = []
@@ -189,13 +191,22 @@ def detect_qr_codes(stages: list[tuple[str, np.ndarray]]) -> tuple[bool, str | N
 
         for candidate in candidates:
             normalized = candidate.strip()
-            if not normalized:
+            if not normalized or normalized in seen:
                 continue
 
+            seen.add(normalized)
             qr_url, qr_provider = classify_qr_text(normalized)
-            return True, normalized, qr_url, qr_provider, issues
+            codes.append(
+                {
+                    "text": normalized,
+                    "url": qr_url,
+                    "provider": qr_provider,
+                    "stage": stage_name,
+                }
+            )
 
-    return False, None, None, None, issues
+    first = codes[0] if codes else None
+    return bool(codes), first.get("text") if first else None, first.get("url") if first else None, first.get("provider") if first else None, codes, issues
 
 
 def main() -> int:
@@ -251,7 +262,7 @@ def main() -> int:
     Image.fromarray(text_enhanced).save(text_path, format="PNG", optimize=True)
 
     text_enhanced_bgr = cv2.cvtColor(text_enhanced, cv2.COLOR_GRAY2BGR)
-    qr_detected, qr_text, qr_url, qr_provider, qr_quality_issues = detect_qr_codes(
+    qr_detected, qr_text, qr_url, qr_provider, qr_codes, qr_quality_issues = detect_qr_codes(
         [
             ("original", original_bgr),
             ("cleaned", cleaned_color),
@@ -273,6 +284,7 @@ def main() -> int:
         "qrText": qr_text,
         "qrUrl": qr_url,
         "qrProvider": qr_provider,
+        "qrCodes": qr_codes,
         "qrQualityIssues": qr_quality_issues,
         "previewImages": {
             "original": {

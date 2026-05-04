@@ -2,7 +2,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
 import { finalizeImageDraft } from "./image-draft-finalizer";
-import { parseTrustedReceiptQrUrlSyntax } from "./qr-receipt-resolver";
+import { parseTrustedReceiptQrUrlSyntax, resolveQrReceiptCandidates } from "./qr-receipt-resolver";
 import type { VoiceCategoryCatalog } from "../voice/voice-category-matcher";
 import type { ImageTransactionExtraction } from "./image-transaction-draft.schema";
 
@@ -31,6 +31,21 @@ describe("receipt QR validation", () => {
     assert.equal(parseTrustedReceiptQrUrlSyntax("https://example.com/check?t=1"), null);
     assert.equal(parseTrustedReceiptQrUrlSyntax("not a url"), null);
   });
+
+  it("summarizes multiple unusable QR codes without calling vision", async () => {
+    const result = await resolveQrReceiptCandidates({
+      candidates: [
+        { text: "plain loyalty qr", url: null, provider: "UNKNOWN" },
+        { text: "https://example.com/not-a-receipt", url: "https://example.com/not-a-receipt", provider: "UNKNOWN" }
+      ]
+    });
+
+    assert.equal(result.successful, null);
+    assert.equal(result.qrCodes.length, 2);
+    assert.equal(result.qrCodes[0].status, "FOUND_NO_DATA");
+    assert.equal(result.qrCodes[1].status, "FOUND_NO_DATA");
+    assert.equal(result.qrSummary, "2 QR codes found, but no usable data was fetched; image extraction was used.");
+  });
 });
 
 describe("QR receipt finalization", () => {
@@ -58,7 +73,18 @@ describe("QR receipt finalization", () => {
       source: "QR",
       qrUrl: "https://ofd.soliq.uz/check?t=1",
       qrProvider: "SOLIQ_OFD",
-      qrWarnings: []
+      qrWarnings: [],
+      qrSummary: "QR found; data fetched from QR.",
+      qrCodes: [
+        {
+          value: "https://ofd.soliq.uz/check?t=1",
+          url: "https://ofd.soliq.uz/check?t=1",
+          provider: "SOLIQ_OFD",
+          status: "FETCHED",
+          warning: null,
+          usedForDraft: true
+        }
+      ]
     }).finalDraft;
 
     assert.equal(result.extractionSource, "QR");
@@ -67,5 +93,8 @@ describe("QR receipt finalization", () => {
     assert.equal(result.draft.currency, "UZS");
     assert.equal(result.qualityRating, "REVIEW");
     assert.ok(result.draft.missingFields.includes("category"));
+    assert.equal(result.qrSummary, "QR found; data fetched from QR.");
+    assert.equal(result.qrCodes[0]?.status, "FETCHED");
+    assert.equal(result.qrCodes[0]?.usedForDraft, true);
   });
 });
