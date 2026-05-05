@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
-import { parseApiResponse } from "@/components/profile/api";
+import { ApiResponseError, parseApiResponse } from "@/components/profile/api";
 import { authSourceKey, tokenKey } from "@/components/profile/types";
 import { webEnv } from "@/lib/env";
 
@@ -31,12 +31,31 @@ function upsertThread(items: GoodsAdvisorThreadSummary[], nextItem: GoodsAdvisor
   return sortThreads(next);
 }
 
+function isAbortError(reason: unknown) {
+  return reason instanceof DOMException && reason.name === "AbortError";
+}
+
+function isUnavailableThreadError(reason: unknown) {
+  if (!(reason instanceof Error)) {
+    return false;
+  }
+
+  const message = reason.message.toLowerCase();
+  if (reason instanceof ApiResponseError) {
+    return reason.status === 404 || reason.status === 410 || (reason.status === 400 && message.includes("conversation not found"));
+  }
+
+  return message.includes("conversation not found");
+}
+
 export function useGoodsAdvisorWorkspace() {
   const [token, setToken] = useState<string | null>(null);
   const [isReady, setIsReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [snapshot, setSnapshot] = useState<GoodsSnapshotResponse | null>(null);
   const [threads, setThreads] = useState<GoodsAdvisorThreadSummary[]>([]);
+  const [isChatOpen, setIsChatOpen] = useState(false);
   const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
   const [activeThread, setActiveThread] = useState<GoodsAdvisorThreadDetailResponse | null>(null);
   const [draftMessage, setDraftMessage] = useState("");
@@ -45,7 +64,17 @@ export function useGoodsAdvisorWorkspace() {
   const [isLoadingThread, setIsLoadingThread] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [isMutatingThread, setIsMutatingThread] = useState(false);
+  const [deletingThreadIds, setDeletingThreadIds] = useState<Set<string>>(() => new Set());
   const [pendingUserText, setPendingUserText] = useState<string | null>(null);
+
+  const detailAbortRef = useRef<AbortController | null>(null);
+  const detailRequestSeqRef = useRef(0);
+  const actionSeqRef = useRef(0);
+  const selectedThreadIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    selectedThreadIdRef.current = activeThreadId;
+  }, [activeThreadId]);
 
   useEffect(() => {
     const storedToken = window.localStorage.getItem(tokenKey);
@@ -57,6 +86,13 @@ export function useGoodsAdvisorWorkspace() {
     window.localStorage.removeItem(tokenKey);
     window.localStorage.removeItem(authSourceKey);
     setToken(null);
+  }, []);
+
+  const abortThreadLoad = useCallback(() => {
+    detailAbortRef.current?.abort();
+    detailAbortRef.current = null;
+    detailRequestSeqRef.current += 1;
+    setIsLoadingThread(false);
   }, []);
 
   const apiFetch = useCallback(
@@ -80,66 +116,112 @@ export function useGoodsAdvisorWorkspace() {
     [token]
   );
 
-  const refreshThreads = useCallback(
-    async (options?: { preserveSelection?: boolean }) => {
-      if (!token) {
-        return;
+  const refreshThreads = useCallback(async () => {
+    if (!token) {
+      return;
+    }
+
+    setIsLoadingThreads(true);
+    setError(null);
+
+    try {
+      const [nextThreads, nextSnapshot] = await Promise.all([
+        apiFetch<GoodsAdvisorThreadsResponse>("/profile/me/goods/advisor/threads"),
+        apiFetch<GoodsSnapshotResponse>("/profile/me/goods/snapshot")
+      ]);
+      setThreads(sortThreads(nextThreads.items));
+      setSnapshot(nextSnapshot);
+      setNewThreadScope((current) => (nextSnapshot.workspace.hasPartnerConnection ? current : "AUTO"));
+    } catch (reason) {
+      const message = reason instanceof Error ? reason.message : "Could not load advisor conversations";
+      setError(message);
+      if (message === "Invalid token" || message === "Missing bearer token") {
+        clearSession();
       }
+    } finally {
+      setIsLoadingThreads(false);
+    }
+  }, [apiFetch, clearSession, token]);
 
-      setIsLoadingThreads(true);
-      setError(null);
+  const closeChat = useCallback(() => {
+    actionSeqRef.current += 1;
+    abortThreadLoad();
+    setIsChatOpen(false);
+    setActiveThreadId(null);
+    selectedThreadIdRef.current = null;
+    setActiveThread(null);
+    setDraftMessage("");
+    setPendingUserText(null);
+    setError(null);
+  }, [abortThreadLoad]);
 
-      try {
-        const [nextThreads, nextSnapshot] = await Promise.all([
-          apiFetch<GoodsAdvisorThreadsResponse>("/profile/me/goods/advisor/threads"),
-          apiFetch<GoodsSnapshotResponse>("/profile/me/goods/snapshot")
-        ]);
-        const sorted = sortThreads(nextThreads.items);
-        setThreads(sorted);
-        setSnapshot(nextSnapshot);
-        setNewThreadScope((current) => (nextSnapshot.workspace.hasPartnerConnection ? current : "AUTO"));
-
-        setActiveThreadId((current) => {
-          if (options?.preserveSelection && current && sorted.some((item) => item.id === current)) {
-            return current;
-          }
-
-          return sorted[0]?.id ?? null;
-        });
-      } catch (reason) {
-        const message = reason instanceof Error ? reason.message : "Could not load advisor conversations";
-        setError(message);
-        if (message === "Invalid token" || message === "Missing bearer token") {
-          clearSession();
-        }
-      } finally {
-        setIsLoadingThreads(false);
-      }
+  const handleUnavailableThread = useCallback(
+    (threadId: string) => {
+      setThreads((current) => current.filter((item) => item.id !== threadId));
+      setStatusMessage("That conversation is no longer available.");
+      setIsChatOpen(false);
+      setActiveThreadId(null);
+      selectedThreadIdRef.current = null;
+      setActiveThread(null);
+      setPendingUserText(null);
+      void refreshThreads();
     },
-    [apiFetch, clearSession, token]
+    [refreshThreads]
   );
 
-  const loadThread = useCallback(
+  const openThread = useCallback(
     async (threadId: string) => {
-      if (!token) {
+      if (!token || deletingThreadIds.has(threadId)) {
         return;
       }
 
+      actionSeqRef.current += 1;
+      const requestId = detailRequestSeqRef.current + 1;
+      detailRequestSeqRef.current = requestId;
+      detailAbortRef.current?.abort();
+
+      const controller = new AbortController();
+      detailAbortRef.current = controller;
+
+      setIsChatOpen(true);
+      setActiveThreadId(threadId);
+      selectedThreadIdRef.current = threadId;
+      setActiveThread(null);
+      setDraftMessage("");
+      setPendingUserText(null);
       setIsLoadingThread(true);
       setError(null);
+      setStatusMessage(null);
 
       try {
-        const detail = await apiFetch<GoodsAdvisorThreadDetailResponse>(`/profile/me/goods/advisor/threads/${threadId}`);
+        const detail = await apiFetch<GoodsAdvisorThreadDetailResponse>(`/profile/me/goods/advisor/threads/${threadId}`, {
+          signal: controller.signal
+        });
+
+        if (requestId !== detailRequestSeqRef.current || selectedThreadIdRef.current !== threadId) {
+          return;
+        }
+
         setActiveThread(detail);
-        setActiveThreadId(threadId);
         setThreads((current) => upsertThread(current, detail.thread));
       } catch (reason) {
-        setError(reason instanceof Error ? reason.message : "Could not load conversation");
+        if (isAbortError(reason) || requestId !== detailRequestSeqRef.current) {
+          return;
+        }
+
+        if (isUnavailableThreadError(reason)) {
+          handleUnavailableThread(threadId);
+        } else {
+          setError(reason instanceof Error ? reason.message : "Could not load conversation");
+        }
       } finally {
-        setIsLoadingThread(false);
+        if (requestId === detailRequestSeqRef.current) {
+          setIsLoadingThread(false);
+          detailAbortRef.current = null;
+        }
       }
     },
-    [apiFetch, token]
+    [apiFetch, deletingThreadIds, handleUnavailableThread, token]
   );
 
   useEffect(() => {
@@ -151,21 +233,23 @@ export function useGoodsAdvisorWorkspace() {
   }, [refreshThreads, token]);
 
   useEffect(() => {
-    if (!token || !activeThreadId) {
-      setActiveThread(null);
-      return;
-    }
-
-    void loadThread(activeThreadId);
-  }, [activeThreadId, loadThread, token]);
+    return () => {
+      detailAbortRef.current?.abort();
+    };
+  }, []);
 
   const startNewChat = useCallback(() => {
+    actionSeqRef.current += 1;
+    abortThreadLoad();
+    setIsChatOpen(true);
     setActiveThreadId(null);
+    selectedThreadIdRef.current = null;
     setActiveThread(null);
     setDraftMessage("");
     setPendingUserText(null);
     setError(null);
-  }, []);
+    setStatusMessage(null);
+  }, [abortThreadLoad]);
 
   const createThread = useCallback(
     async (scope: GoodsAdvisorScope) => {
@@ -175,6 +259,8 @@ export function useGoodsAdvisorWorkspace() {
       });
       setThreads((current) => upsertThread(current, thread));
       setActiveThreadId(thread.id);
+      selectedThreadIdRef.current = thread.id;
+      setIsChatOpen(true);
       setActiveThread({
         thread,
         summaryText: null,
@@ -193,14 +279,20 @@ export function useGoodsAdvisorWorkspace() {
         return;
       }
 
+      const actionId = actionSeqRef.current;
+      setIsChatOpen(true);
       setIsSending(true);
       setPendingUserText(prompt);
       setError(null);
+      setStatusMessage(null);
 
       try {
         let threadId = activeThreadId;
         if (!threadId) {
           const created = await createThread(newThreadScope);
+          if (actionId !== actionSeqRef.current) {
+            return;
+          }
           threadId = created.id;
         }
 
@@ -208,6 +300,10 @@ export function useGoodsAdvisorWorkspace() {
           method: "POST",
           body: JSON.stringify({ message: prompt })
         });
+
+        if (actionId !== actionSeqRef.current || selectedThreadIdRef.current !== payload.thread.id) {
+          return;
+        }
 
         setThreads((current) => upsertThread(current, payload.thread));
         setActiveThread((current) => ({
@@ -219,23 +315,29 @@ export function useGoodsAdvisorWorkspace() {
               : [payload.userMessage, payload.assistantMessage]
         }));
         setActiveThreadId(payload.thread.id);
+        selectedThreadIdRef.current = payload.thread.id;
         if (overrideText === undefined) {
           setDraftMessage("");
         }
       } catch (reason) {
-        setError(reason instanceof Error ? reason.message : "Could not send message");
+        if (isUnavailableThreadError(reason) && activeThreadId) {
+          handleUnavailableThread(activeThreadId);
+        } else {
+          setError(reason instanceof Error ? reason.message : "Could not send message");
+        }
       } finally {
         setPendingUserText(null);
         setIsSending(false);
       }
     },
-    [activeThreadId, apiFetch, createThread, draftMessage, newThreadScope]
+    [activeThreadId, apiFetch, createThread, draftMessage, handleUnavailableThread, newThreadScope]
   );
 
   const updateThread = useCallback(
     async (threadId: string, payload: { title?: string | null; isPinned?: boolean; scope?: GoodsAdvisorScope }) => {
       setIsMutatingThread(true);
       setError(null);
+      setStatusMessage(null);
       try {
         const thread = await apiFetch<GoodsAdvisorThreadSummary>(`/profile/me/goods/advisor/threads/${threadId}`, {
           method: "PATCH",
@@ -244,43 +346,71 @@ export function useGoodsAdvisorWorkspace() {
         setThreads((current) => upsertThread(current, thread));
         setActiveThread((current) => (current?.thread.id === threadId ? { ...current, thread } : current));
       } catch (reason) {
-        setError(reason instanceof Error ? reason.message : "Could not update conversation");
+        if (isUnavailableThreadError(reason)) {
+          handleUnavailableThread(threadId);
+        } else {
+          setError(reason instanceof Error ? reason.message : "Could not update conversation");
+        }
       } finally {
         setIsMutatingThread(false);
       }
     },
-    [apiFetch]
+    [apiFetch, handleUnavailableThread]
   );
 
   const deleteThread = useCallback(
     async (threadId: string) => {
-      setIsMutatingThread(true);
+      const wasOpenThread = selectedThreadIdRef.current === threadId;
+      actionSeqRef.current += 1;
+      setDeletingThreadIds((current) => new Set(current).add(threadId));
+      setThreads((current) => current.filter((item) => item.id !== threadId));
       setError(null);
+      setStatusMessage(null);
+
+      if (wasOpenThread) {
+        abortThreadLoad();
+        setIsChatOpen(false);
+        setActiveThreadId(null);
+        selectedThreadIdRef.current = null;
+        setActiveThread(null);
+        setDraftMessage("");
+        setPendingUserText(null);
+      }
 
       try {
-        await apiFetch<{ success: true }>(`/profile/me/goods/advisor/threads/${threadId}`, {
+        await apiFetch<void>(`/profile/me/goods/advisor/threads/${threadId}`, {
           method: "DELETE"
         });
-        setThreads((current) => current.filter((item) => item.id !== threadId));
-        setActiveThread((current) => (current?.thread.id === threadId ? null : current));
-        setActiveThreadId((current) => (current === threadId ? null : current));
+        setStatusMessage("Conversation deleted.");
+        void refreshThreads();
       } catch (reason) {
-        setError(reason instanceof Error ? reason.message : "Could not delete conversation");
+        if (isUnavailableThreadError(reason)) {
+          setStatusMessage("Conversation deleted.");
+          void refreshThreads();
+        } else {
+          setError(reason instanceof Error ? reason.message : "Could not delete conversation");
+          void refreshThreads();
+        }
       } finally {
-        setIsMutatingThread(false);
+        setDeletingThreadIds((current) => {
+          const next = new Set(current);
+          next.delete(threadId);
+          return next;
+        });
       }
     },
-    [apiFetch]
+    [abortThreadLoad, apiFetch, refreshThreads]
   );
 
   return {
     token,
     isReady,
     error,
+    statusMessage,
     snapshot,
     threads,
+    isChatOpen,
     activeThreadId,
-    setActiveThreadId,
     activeThread,
     draftMessage,
     setDraftMessage,
@@ -290,9 +420,11 @@ export function useGoodsAdvisorWorkspace() {
     isLoadingThread,
     isSending,
     isMutatingThread,
+    deletingThreadIds,
     pendingUserText,
     refreshThreads,
-    loadThread,
+    openThread,
+    closeChat,
     startNewChat,
     createThread,
     sendMessage,
