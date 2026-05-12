@@ -1,9 +1,78 @@
-# Duet
+# Duet Finance Tracker
 
-Node.js monorepo for Duet, a web-based shared finance application for couples with Telegram companion integration.
+Duet is a mobile-first shared finance and household goods tracker for couples. The project includes a native Android app, a NestJS API, a PostgreSQL database, a Next.js web app, and a Telegram companion bot. The Android app is the main mobile application for the Mobile App Development final project.
+
+## Project Purpose
+
+Many couples and small households track spending in separate notes, spreadsheets, or banking apps. Duet provides one shared workspace where users can record transactions, review balances, check exchange rates, manage household goods, and use AI-assisted voice or receipt entry to reduce manual typing.
+
+Target users:
+
+- Couples who want shared visibility over income and expenses.
+- Households that want a simple inventory and stock tracker.
+- Users who need quick mobile entry, offline create support, and currency-aware summaries.
+
+## Core Features
+
+- Email/password authentication and profile management.
+- Personal and shared couple finance workspace.
+- Transaction create, edit, delete, filtering, and recent activity.
+- Dashboard summaries, trends, category breakdowns, and range filters.
+- Currency rates and quick conversion support.
+- AI voice-note transaction drafting.
+- AI receipt/image transaction drafting with quality and QR-status review.
+- Household goods overview, stock, setup, item history, and advisor chat.
+- Offline transaction and goods-item create queue with WorkManager sync.
+- Local cache using Room and DataStore.
+- Light/dark theme support.
+- Telegram bot entry point for opening the companion web app.
+
+## Mobile App Architecture
+
+The Android app uses an MVVM-style structure:
+
+```mermaid
+flowchart TD
+    UI["Jetpack Compose Screens"] --> VM["DuetViewModel"]
+    VM --> Repo["DuetRepository"]
+    Repo --> API["Retrofit + OkHttp API client"]
+    Repo --> Local["Room + DataStore local storage"]
+    API --> Server["NestJS API"]
+    Server --> DB["PostgreSQL through Prisma"]
+    Server --> AI["OpenAI voice and image extraction"]
+```
+
+Main Android components:
+
+- `MainActivity`: Android entry point.
+- `DuetApp`: Compose app shell and bottom navigation.
+- `DuetViewModel`: UI state, loading, mutations, AI draft flows, and voice recording coordination.
+- `DuetRepository`: API calls, cache writes, and offline queue handling.
+- `DuetApi`: Retrofit API contract.
+- `DuetLocalDatabase`: Room database for cached JSON and outbox mutations.
+- `OutboxSyncWorker`: WorkManager background sync for queued offline creates.
+
+## Android Navigation Flow
+
+```mermaid
+flowchart LR
+    Splash["Splash"] --> Auth["Login/Register"]
+    Auth --> Profile["Profile"]
+    Profile --> Dashboard["Dashboard"]
+    Dashboard --> Add["Add Transaction"]
+    Add --> Voice["Voice AI Draft"]
+    Add --> Image["Receipt Image AI Draft"]
+    Profile --> Rates["Rates"]
+    Profile --> Goods["Goods Overview"]
+    Goods --> Stock["Goods Stock"]
+    Goods --> Setup["Goods Setup"]
+    Goods --> Advisor["Goods Advisor"]
+    Profile --> Settings["Settings"]
+```
 
 ## Stack
 
+- `apps/android`: Kotlin + Jetpack Compose Android app
 - `apps/web`: Next.js + TypeScript + shadcn-style UI
 - `apps/api`: NestJS + Prisma + PostgreSQL
 - `apps/bot`: grammY Telegram bot
@@ -17,6 +86,7 @@ Node.js monorepo for Duet, a web-based shared finance application for couples wi
 - pnpm 9+
 - Docker + Docker Compose
 - PostgreSQL running on your host machine
+- Android Studio with Android SDK for running the native Android app
 
 ## Environment setup
 
@@ -57,6 +127,27 @@ pnpm db:generate
 pnpm dev
 ```
 
+This starts the web, API, and bot workspaces in development mode.
+
+## Run the Android app
+
+1. Open `apps/android` in Android Studio.
+2. Let Android Studio sync Gradle and install any required SDK components.
+3. Make sure the API base URL in the Android configuration points to the running backend.
+4. Run the `app` configuration on an emulator or physical Android device.
+
+Recommended demo flow:
+
+1. Register or log in.
+2. Open Profile and confirm user/workspace data loads.
+3. Add a transaction manually.
+4. Add a transaction using voice draft.
+5. Add a transaction using receipt/image draft.
+6. Open Dashboard and review balances/recent activity.
+7. Open Rates and test currency conversion.
+8. Open Goods, add a goods item, then review Stock and Advisor.
+9. Test offline create by disabling network, creating a supported item, then reconnecting.
+
 ## Run in Docker (without postgres container)
 
 ```bash
@@ -79,6 +170,10 @@ pnpm db:migrate
 ## Telegram commands
 
 - `/start` (shows Open app button)
+
+Telegram bot link:
+
+- `https://t.me/coup_fin_trackerbot`
 
 ## Authentication flow
 
@@ -162,6 +257,41 @@ Official OpenAI pricing for the models currently used by this app:
 Official pricing reference:
 
 - [OpenAI API Pricing](https://openai.com/api/pricing/)
+
+## Database Usage
+
+The project uses PostgreSQL through Prisma. Important data areas include:
+
+- Users, profiles, and preferences.
+- Couple workspaces, memberships, and invites.
+- Transactions, categories, currencies, and dashboard data.
+- Goods places, categories, units of measurement, items, and event history.
+- AI usage logs, model pricing snapshots, AI threads, and AI messages.
+
+The Prisma schema and migrations are stored in `packages/db/prisma`.
+
+## Testing
+
+Root scripts:
+
+```bash
+pnpm lint
+pnpm typecheck
+pnpm test
+pnpm build
+```
+
+Android tests are under `apps/android/app/src/test`. They cover focused data and utility behavior such as currency normalization, query building, DTO parsing, and voice audio helpers.
+
+Run Android unit tests from Android Studio or from `apps/android` with the Gradle test task.
+
+## Assignment 2 Submission Notes
+
+The folder `assignemnt 2 submission form` contains the technical report draft for the Mobile App Development final project:
+
+- `report.md`: 5-8 page technical report content with architecture and navigation diagrams.
+
+Presentation slides are intentionally not included here because they will be prepared separately.
 
 ## MVP deployment preflight
 
