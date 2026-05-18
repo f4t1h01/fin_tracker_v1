@@ -63,7 +63,7 @@
 - The server runtime `.env` may keep `DATABASE_URL` pointed at `host.docker.internal` for containers, but host-run Prisma migration commands must override `DATABASE_URL` inline to the exact host DB path:
   `DATABASE_URL=postgresql://postgres:1536@127.0.0.1:5432/fin_tracker?schema=public`
 - Use that exact override for `pnpm --filter @repo/db exec prisma migrate deploy` unless the user explicitly changes production Postgres credentials/host/port later.
-- Production deploys should use `ops/docker/deploy.sh`, which pulls the active branch, checks host-run Prisma migration status, runs pending migrations against `127.0.0.1:5432`, and then builds/starts Docker services while preserving Docker build cache.
+- Production deploys should use `bash scripts/server/redeploy-server.sh`, which pulls the active branch, checks host-run Prisma migration status, runs pending migrations against `127.0.0.1:5432`, and then builds/starts Docker services while preserving Docker build cache.
 - Do not prune Docker images or builder cache as part of routine deploys; cache preservation keeps package and Python requirement layers fast unless dependency files change.
 
 ## Working rhythm

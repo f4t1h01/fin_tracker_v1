@@ -304,26 +304,26 @@ Presentation slides are intentionally not included here because they will be pre
 
 - CI workflow runs install, Prisma generate, typecheck, and build on PR/push.
 - Deployment is manual on the server (no automatic SSH deploy workflow).
-- Routine production deploys use cached runtime image builds via `./ops/docker/deploy.sh`.
+- Routine production deploys use cached runtime image builds via `bash scripts/server/redeploy-server.sh`.
 - The deploy script pulls the active branch, checks Prisma migration status on the server host, runs pending migrations when needed, then builds and starts containers without pruning Docker cache.
 
 Manual deploy commands:
 
 ```bash
 cd ~/telegram_bots/fin_tracker
-sh ./ops/docker/deploy.sh
+bash scripts/server/redeploy-server.sh
 ```
 
 Routine production recovery and verification:
 
 ```bash
 cd ~/telegram_bots/fin_tracker
-sh ./ops/docker/deploy.sh
+bash scripts/server/redeploy-server.sh
 docker compose logs web nginx --since=10m
 curl http://127.0.0.1:71/api/health
 ```
 
-`deploy.sh` runs pending Prisma migrations on the server host before rebuilding containers. By default it overrides Prisma's migration connection to `127.0.0.1:5432` so host-run migrations do not use the container-only `host.docker.internal` address from the runtime `.env`.
+`redeploy-server.sh` runs pending Prisma migrations on the server host before rebuilding containers. By default it overrides Prisma's migration connection to `127.0.0.1:5432` so host-run migrations do not use the container-only `host.docker.internal` address from the runtime `.env`.
 
 Reverse proxy target:
 
