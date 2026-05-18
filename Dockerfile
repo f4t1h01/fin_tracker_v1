@@ -54,16 +54,18 @@ COPY packages/types/package.json packages/types/package.json
 
 RUN pnpm install --prod --frozen-lockfile
 
+COPY apps/api/scripts/receipt_preprocess_requirements.txt apps/api/scripts/receipt_preprocess_requirements.txt
+
+RUN python3 -m pip install --no-cache-dir --break-system-packages -r /app/apps/api/scripts/receipt_preprocess_requirements.txt
+
 COPY --from=build /app/packages/config/dist packages/config/dist
 COPY --from=build /app/packages/types/dist packages/types/dist
 COPY --from=build /app/packages/db/dist packages/db/dist
 COPY --from=build /app/packages/db/prisma packages/db/prisma
 COPY --from=build /app/apps/api/dist apps/api/dist
 COPY --from=build /app/apps/api/scripts/receipt_preprocess.py apps/api/scripts/receipt_preprocess.py
-COPY --from=build /app/apps/api/scripts/receipt_preprocess_requirements.txt apps/api/scripts/receipt_preprocess_requirements.txt
 
-RUN python3 -m pip install --no-cache-dir --break-system-packages -r /app/apps/api/scripts/receipt_preprocess_requirements.txt \
-  && pnpm --filter @repo/db prisma:generate
+RUN pnpm --filter @repo/db prisma:generate
 
 ENV NODE_ENV=production
 

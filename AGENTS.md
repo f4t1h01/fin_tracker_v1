@@ -63,19 +63,18 @@
 - The server runtime `.env` may keep `DATABASE_URL` pointed at `host.docker.internal` for containers, but host-run Prisma migration commands must override `DATABASE_URL` inline to the exact host DB path:
   `DATABASE_URL=postgresql://postgres:1536@127.0.0.1:5432/fin_tracker?schema=public`
 - Use that exact override for `pnpm --filter @repo/db exec prisma migrate deploy` unless the user explicitly changes production Postgres credentials/host/port later.
-- Production deploys should use `ops/docker/deploy-prod.sh`, which builds the lean runtime images and prunes dangling copies of the project images after a successful deploy.
-- Use `ops/docker/cleanup-host.sh` when Docker storage grows again on the shared host; it inventories the host first, then prunes build cache, unused images, and the obsolete fin_tracker dependency volumes.
-- Do not use `docker-compose.server.yml` for routine production deploys; keep it only as a fallback if the image-based path is unavailable.
+- Production deploys should use `ops/docker/deploy.sh`, which pulls the active branch, checks host-run Prisma migration status, runs pending migrations against `127.0.0.1:5432`, and then builds/starts Docker services while preserving Docker build cache.
+- Do not prune Docker images or builder cache as part of routine deploys; cache preservation keeps package and Python requirement layers fast unless dependency files change.
 
 ## Working rhythm
 
 - For each code batch:
   - implement locally
   - run checks
-  - tell user when to push
+  - commit and push completed code changes directly unless the user explicitly asks not to
   - tell user when to pull on server
-  - include explicit git commands with branch name based on the current repo state
-  - prefer `git add .` in user-facing command examples
+  - include explicit server pull/deploy commands based on the current branch and deployment setup
+  - when user-facing local git commands are still needed, prefer `git add .` because the repo `.gitignore` is already configured for the user's workflow
   - when a Prisma schema change is part of the batch, explicitly tell the user to run the matching production migration step on the server host against the `.env` `DATABASE_URL` before or during rebuild
   - when runtime `.env` uses `host.docker.internal` for container access, tell the user to override `DATABASE_URL` inline to `127.0.0.1` for host-run Prisma migration commands
   - include docker restart and verification commands
