@@ -1,3 +1,5 @@
+# syntax=docker/dockerfile:1.7
+
 ARG APP_NAME
 
 FROM node:22-bookworm-slim AS base
@@ -11,8 +13,6 @@ WORKDIR /app
 
 FROM base AS deps
 
-ARG APP_NAME
-
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/api/package.json apps/api/package.json
 COPY apps/web/package.json apps/web/package.json
@@ -21,7 +21,7 @@ COPY packages/config/package.json packages/config/package.json
 COPY packages/db/package.json packages/db/package.json
 COPY packages/types/package.json packages/types/package.json
 
-RUN pnpm install --frozen-lockfile
+RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store pnpm install --frozen-lockfile
 
 FROM deps AS build
 
@@ -38,11 +38,7 @@ RUN pnpm --filter @repo/db prisma:generate
 RUN pnpm --filter @repo/types build && pnpm --filter @repo/config build && pnpm --filter @repo/db build
 RUN pnpm --filter "@app/${APP_NAME}" build
 
-FROM base AS api-runtime
-
-RUN apt-get update -y \
-  && apt-get install -y openssl python3 python3-pip \
-  && rm -rf /var/lib/apt/lists/*
+FROM base AS prod-deps
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/api/package.json apps/api/package.json
@@ -52,11 +48,17 @@ COPY packages/config/package.json packages/config/package.json
 COPY packages/db/package.json packages/db/package.json
 COPY packages/types/package.json packages/types/package.json
 
-RUN pnpm install --prod --frozen-lockfile
+RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store pnpm install --prod --frozen-lockfile
+
+FROM prod-deps AS api-runtime
+
+RUN apt-get update -y \
+  && apt-get install -y openssl python3 python3-pip \
+  && rm -rf /var/lib/apt/lists/*
 
 COPY apps/api/scripts/receipt_preprocess_requirements.txt apps/api/scripts/receipt_preprocess_requirements.txt
 
-RUN python3 -m pip install --no-cache-dir --break-system-packages -r /app/apps/api/scripts/receipt_preprocess_requirements.txt
+RUN --mount=type=cache,id=pip-cache,target=/root/.cache/pip python3 -m pip install --break-system-packages -r /app/apps/api/scripts/receipt_preprocess_requirements.txt
 
 COPY --from=build /app/packages/config/dist packages/config/dist
 COPY --from=build /app/packages/types/dist packages/types/dist
@@ -71,18 +73,7 @@ ENV NODE_ENV=production
 
 CMD ["node", "apps/api/dist/main.js"]
 
-FROM base AS bot-runtime
-
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-COPY apps/api/package.json apps/api/package.json
-COPY apps/web/package.json apps/web/package.json
-COPY apps/bot/package.json apps/bot/package.json
-COPY packages/config/package.json packages/config/package.json
-COPY packages/db/package.json packages/db/package.json
-COPY packages/types/package.json packages/types/package.json
-
-RUN pnpm install --prod --frozen-lockfile
-
+FROM prod-deps AS bot-runtime
 COPY --from=build /app/packages/config/dist packages/config/dist
 COPY --from=build /app/apps/bot/dist apps/bot/dist
 
