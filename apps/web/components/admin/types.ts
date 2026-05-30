@@ -295,6 +295,29 @@ export type AdminSecurityResponse = {
   }>;
 };
 
+export type AdminAuthSettingsResponse = {
+  email: {
+    isEnabled: boolean;
+    provider: "SMTP";
+    fromEmail: string;
+    fromName: string;
+    smtpHost: string;
+    smtpPort: number;
+    smtpSecure: boolean;
+    smtpUser: string;
+    hasSmtpPassword: boolean;
+    updatedAt: string | null;
+  };
+  google: {
+    isEnabled: boolean;
+    clientId: string;
+    hostedDomain: string;
+    autoCreateUsers: boolean;
+    linkByVerifiedEmail: boolean;
+    updatedAt: string | null;
+  };
+};
+
 export type AdminAiUsageSummaryResponse = {
   totals: {
     requests: number;

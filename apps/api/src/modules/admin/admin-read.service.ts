@@ -989,6 +989,40 @@ export class AdminReadService {
     };
   }
 
+  async authSettings() {
+    const [emailConfig, googleConfig] = await Promise.all([
+      this.db.authEmailProviderConfig.findUnique({
+        where: { id: "default" }
+      }),
+      this.db.authGoogleConfig.findUnique({
+        where: { id: "default" }
+      })
+    ]);
+
+    return {
+      email: {
+        isEnabled: Boolean(emailConfig?.isEnabled),
+        provider: emailConfig?.provider ?? "SMTP",
+        fromEmail: emailConfig?.fromEmail ?? "",
+        fromName: emailConfig?.fromName ?? "",
+        smtpHost: emailConfig?.smtpHost ?? "",
+        smtpPort: emailConfig?.smtpPort ?? 465,
+        smtpSecure: emailConfig?.smtpSecure ?? true,
+        smtpUser: emailConfig?.smtpUser ?? "",
+        hasSmtpPassword: Boolean(emailConfig?.smtpPasswordEncrypted),
+        updatedAt: emailConfig?.updatedAt?.toISOString() ?? null
+      },
+      google: {
+        isEnabled: Boolean(googleConfig?.isEnabled),
+        clientId: googleConfig?.clientId ?? "",
+        hostedDomain: googleConfig?.hostedDomain ?? "",
+        autoCreateUsers: googleConfig?.autoCreateUsers ?? true,
+        linkByVerifiedEmail: googleConfig?.linkByVerifiedEmail ?? true,
+        updatedAt: googleConfig?.updatedAt?.toISOString() ?? null
+      }
+    };
+  }
+
   async aiUsageSummary(query?: AdminAiUsageQueryDto) {
     const where = this.buildAiUsageWhere(query);
     const [aggregate, perModel] = await Promise.all([

@@ -1,10 +1,15 @@
 import { BadRequestException, Injectable } from "@nestjs/common";
 
 import { convertToUzs, getLatestCurrencyRates, normalizeCurrency } from "../common/currency";
+import { EmailDeliveryService } from "../common/email-delivery.service";
+import { SecretBoxService } from "../common/secret-box.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { AdminAuditService, type AdminRequestMeta } from "./admin-audit.service";
 import { AdminAuthService } from "./admin-auth.service";
 import { AdminAdminPasswordResetDto } from "./dto/admin-admin-password-reset.dto";
+import { AdminAuthEmailConfigDto } from "./dto/admin-auth-email-config.dto";
+import { AdminAuthGoogleConfigDto } from "./dto/admin-auth-google-config.dto";
+import { AdminAuthTestEmailDto } from "./dto/admin-auth-test-email.dto";
 import { AdminAiPricingRetireDto } from "./dto/admin-ai-pricing-retire.dto";
 import { AdminAiPricingUpsertDto } from "./dto/admin-ai-pricing-upsert.dto";
 import { AdminAdminStatusDto } from "./dto/admin-admin-status.dto";
@@ -36,7 +41,9 @@ export class AdminMutationService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AdminAuditService,
-    private readonly authService: AdminAuthService
+    private readonly authService: AdminAuthService,
+    private readonly emailDelivery: EmailDeliveryService,
+    private readonly secretBox: SecretBoxService
   ) {}
 
   private get db(): any {
@@ -49,6 +56,157 @@ export class AdminMutationService {
     }
 
     return BigInt(Math.trunc(value as number));
+  }
+
+  async updateAuthEmailConfig(dto: AdminAuthEmailConfigDto, currentAdminEmail: string, requestMeta: AdminRequestMeta) {
+    const existing = await this.db.authEmailProviderConfig.findUnique({
+      where: { id: "default" }
+    });
+
+    const smtpPasswordEncrypted =
+      dto.smtpPassword?.trim()
+        ? this.secretBox.encrypt(dto.smtpPassword.trim())
+        : existing?.smtpPasswordEncrypted ?? null;
+
+    if (dto.isEnabled && (!dto.fromEmail.trim() || !dto.smtpHost.trim() || !dto.smtpPort)) {
+      throw new BadRequestException("SMTP host, port, and sender email are required when email codes are enabled");
+    }
+
+    const updated = await this.db.authEmailProviderConfig.upsert({
+      where: { id: "default" },
+      create: {
+        id: "default",
+        provider: "SMTP",
+        isEnabled: dto.isEnabled,
+        fromEmail: dto.fromEmail.trim().toLowerCase(),
+        fromName: dto.fromName?.trim() || null,
+        smtpHost: dto.smtpHost.trim(),
+        smtpPort: dto.smtpPort,
+        smtpSecure: dto.smtpSecure,
+        smtpUser: dto.smtpUser?.trim() || null,
+        smtpPasswordEncrypted
+      },
+      update: {
+        isEnabled: dto.isEnabled,
+        fromEmail: dto.fromEmail.trim().toLowerCase(),
+        fromName: dto.fromName?.trim() || null,
+        smtpHost: dto.smtpHost.trim(),
+        smtpPort: dto.smtpPort,
+        smtpSecure: dto.smtpSecure,
+        smtpUser: dto.smtpUser?.trim() || null,
+        smtpPasswordEncrypted
+      }
+    });
+
+    await this.audit.log({
+      adminEmail: currentAdminEmail,
+      actionType: "AUTH_EMAIL_CONFIG_UPDATE",
+      targetType: "AUTH_EMAIL_PROVIDER",
+      targetId: "default",
+      reason: dto.reason,
+      requestMeta,
+      beforeState: existing
+        ? {
+            isEnabled: existing.isEnabled,
+            fromEmail: existing.fromEmail,
+            smtpHost: existing.smtpHost,
+            smtpPort: existing.smtpPort,
+            smtpSecure: existing.smtpSecure,
+            smtpUser: existing.smtpUser,
+            hasSmtpPassword: Boolean(existing.smtpPasswordEncrypted)
+          }
+        : null,
+      afterState: {
+        isEnabled: updated.isEnabled,
+        fromEmail: updated.fromEmail,
+        smtpHost: updated.smtpHost,
+        smtpPort: updated.smtpPort,
+        smtpSecure: updated.smtpSecure,
+        smtpUser: updated.smtpUser,
+        hasSmtpPassword: Boolean(updated.smtpPasswordEncrypted)
+      },
+      outcome: "SUCCESS"
+    });
+
+    return { ok: true };
+  }
+
+  async sendAuthTestEmail(dto: AdminAuthTestEmailDto, currentAdminEmail: string, requestMeta: AdminRequestMeta) {
+    await this.emailDelivery.send({
+      to: dto.toEmail.trim().toLowerCase(),
+      subject: "CupFin test email",
+      text: "CupFin email provider settings are working.",
+      html: "<p>CupFin email provider settings are working.</p>"
+    });
+
+    await this.audit.log({
+      adminEmail: currentAdminEmail,
+      actionType: "AUTH_EMAIL_TEST",
+      targetType: "AUTH_EMAIL_PROVIDER",
+      targetId: "default",
+      reason: `Sent test email to ${dto.toEmail.trim().toLowerCase()}`,
+      requestMeta,
+      outcome: "SUCCESS"
+    });
+
+    return { ok: true };
+  }
+
+  async updateAuthGoogleConfig(dto: AdminAuthGoogleConfigDto, currentAdminEmail: string, requestMeta: AdminRequestMeta) {
+    if (dto.isEnabled && !dto.clientId?.trim()) {
+      throw new BadRequestException("Google client ID is required when Google login is enabled");
+    }
+
+    const existing = await this.db.authGoogleConfig.findUnique({
+      where: { id: "default" }
+    });
+
+    const updated = await this.db.authGoogleConfig.upsert({
+      where: { id: "default" },
+      create: {
+        id: "default",
+        isEnabled: dto.isEnabled,
+        clientId: dto.clientId?.trim() || null,
+        hostedDomain: dto.hostedDomain?.trim().toLowerCase() || null,
+        autoCreateUsers: dto.autoCreateUsers,
+        linkByVerifiedEmail: dto.linkByVerifiedEmail
+      },
+      update: {
+        isEnabled: dto.isEnabled,
+        clientId: dto.clientId?.trim() || null,
+        hostedDomain: dto.hostedDomain?.trim().toLowerCase() || null,
+        autoCreateUsers: dto.autoCreateUsers,
+        linkByVerifiedEmail: dto.linkByVerifiedEmail
+      }
+    });
+
+    await this.audit.log({
+      adminEmail: currentAdminEmail,
+      actionType: "AUTH_GOOGLE_CONFIG_UPDATE",
+      targetType: "AUTH_GOOGLE",
+      targetId: "default",
+      reason: dto.reason,
+      requestMeta,
+      beforeState: existing
+        ? {
+            isEnabled: existing.isEnabled,
+            hasClientId: Boolean(existing.clientId),
+            hostedDomain: existing.hostedDomain,
+            autoCreateUsers: existing.autoCreateUsers,
+            linkByVerifiedEmail: existing.linkByVerifiedEmail
+          }
+        : null,
+      afterState: {
+        isEnabled: updated.isEnabled,
+        hasClientId: Boolean(updated.clientId),
+        hostedDomain: updated.hostedDomain,
+        autoCreateUsers: updated.autoCreateUsers,
+        linkByVerifiedEmail: updated.linkByVerifiedEmail
+      },
+      outcome: "SUCCESS"
+    });
+
+    return { ok: true };
   }
 
   async setAiModelPricing(dto: AdminAiPricingUpsertDto, currentAdminEmail: string, requestMeta: AdminRequestMeta) {

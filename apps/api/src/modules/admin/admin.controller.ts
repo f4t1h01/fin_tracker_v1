@@ -26,6 +26,9 @@ import { AdminMutationService } from "./admin-mutation.service";
 import { AdminAiDemoService } from "./admin-ai-demo.service";
 import { AdminAdminPasswordResetDto } from "./dto/admin-admin-password-reset.dto";
 import { AdminAdminStatusDto } from "./dto/admin-admin-status.dto";
+import { AdminAuthEmailConfigDto } from "./dto/admin-auth-email-config.dto";
+import { AdminAuthGoogleConfigDto } from "./dto/admin-auth-google-config.dto";
+import { AdminAuthTestEmailDto } from "./dto/admin-auth-test-email.dto";
 import { AdminAiPricingQueryDto } from "./dto/admin-ai-pricing-query.dto";
 import { AdminAiPricingRetireDto } from "./dto/admin-ai-pricing-retire.dto";
 import { AdminAiPricingUpsertDto } from "./dto/admin-ai-pricing-upsert.dto";
@@ -214,6 +217,42 @@ export class AdminController {
   @Get("security")
   security() {
     return this.readService.securitySummary();
+  }
+
+  @UseGuards(AdminSessionGuard)
+  @Get("auth-settings")
+  authSettings() {
+    return this.readService.authSettings();
+  }
+
+  @UseGuards(AdminSessionGuard)
+  @Post("auth-settings/email")
+  updateAuthEmailConfig(
+    @Body() dto: AdminAuthEmailConfigDto,
+    @CurrentAdmin() admin: { email: string },
+    @Req() request: FastifyRequest
+  ) {
+    return this.mutationService.updateAuthEmailConfig(dto, admin.email, getRequestMeta(request));
+  }
+
+  @UseGuards(AdminSessionGuard)
+  @Post("auth-settings/email/test")
+  sendAuthTestEmail(
+    @Body() dto: AdminAuthTestEmailDto,
+    @CurrentAdmin() admin: { email: string },
+    @Req() request: FastifyRequest
+  ) {
+    return this.mutationService.sendAuthTestEmail(dto, admin.email, getRequestMeta(request));
+  }
+
+  @UseGuards(AdminSessionGuard)
+  @Post("auth-settings/google")
+  updateAuthGoogleConfig(
+    @Body() dto: AdminAuthGoogleConfigDto,
+    @CurrentAdmin() admin: { email: string },
+    @Req() request: FastifyRequest
+  ) {
+    return this.mutationService.updateAuthGoogleConfig(dto, admin.email, getRequestMeta(request));
   }
 
   @UseGuards(AdminSessionGuard)

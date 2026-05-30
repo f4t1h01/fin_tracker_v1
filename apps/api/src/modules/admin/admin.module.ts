@@ -11,6 +11,8 @@ import { AdminRateLimitService } from "./admin-rate-limit.service";
 import { AdminReadService } from "./admin-read.service";
 import { AdminSessionGuard } from "./admin-session.guard";
 import { AdminSqlService } from "./admin-sql.service";
+import { EmailDeliveryService } from "../common/email-delivery.service";
+import { SecretBoxService } from "../common/secret-box.service";
 import { ProfileImageDraftRunnerService } from "../profile/image/profile-image-draft-runner.service";
 
 @Module({
@@ -23,6 +25,8 @@ import { ProfileImageDraftRunnerService } from "../profile/image/profile-image-d
     AdminReadService,
     AdminMutationService,
     AdminSqlService,
+    EmailDeliveryService,
+    SecretBoxService,
     AdminSessionGuard,
     AdminRateLimitService,
     AdminRateLimitGuard,

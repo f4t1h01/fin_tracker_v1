@@ -95,6 +95,19 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
   const [loginMessage, setLoginMessage] = useState<string | null>(null);
   const [loginError, setLoginError] = useState<string | null>(null);
   const [showCreateAccountAction, setShowCreateAccountAction] = useState(false);
+  const [emailCode, setEmailCode] = useState("");
+  const [isRequestingEmailCode, setIsRequestingEmailCode] = useState(false);
+  const [isSubmittingEmailCode, setIsSubmittingEmailCode] = useState(false);
+  const [emailCodeMessage, setEmailCodeMessage] = useState<string | null>(null);
+  const [emailCodeError, setEmailCodeError] = useState<string | null>(null);
+  const [resetEmail, setResetEmail] = useState("");
+  const [resetCode, setResetCode] = useState("");
+  const [resetPassword, setResetPassword] = useState("");
+  const [resetConfirmPassword, setResetConfirmPassword] = useState("");
+  const [isRequestingPasswordReset, setIsRequestingPasswordReset] = useState(false);
+  const [isResettingPassword, setIsResettingPassword] = useState(false);
+  const [resetMessage, setResetMessage] = useState<string | null>(null);
+  const [resetError, setResetError] = useState<string | null>(null);
 
   const [createFirstName, setCreateFirstName] = useState("");
   const [createEmail, setCreateEmail] = useState("");
@@ -121,6 +134,12 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
   const [isSettingPassword, setIsSettingPassword] = useState(false);
   const [setupMessage, setSetupMessage] = useState<string | null>(null);
   const [setupError, setSetupError] = useState<string | null>(null);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [newConfirmPassword, setNewConfirmPassword] = useState("");
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [changePasswordMessage, setChangePasswordMessage] = useState<string | null>(null);
+  const [changePasswordError, setChangePasswordError] = useState<string | null>(null);
 
   const [profile, setProfile] = useState<ProfileResponse | null>(null);
   const [summary, setSummary] = useState<MonthlySummary | null>(null);
@@ -550,6 +569,116 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
     }
   };
 
+  const onRequestEmailCode = async () => {
+    setEmailCodeError(null);
+    setEmailCodeMessage(null);
+    setIsRequestingEmailCode(true);
+
+    try {
+      const response = await fetch(`${webEnv.apiUrl}/auth/email-code/request`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ email: loginEmail })
+      });
+
+      const payload = await parseApiResponse<{ message: string }>(response);
+      setEmailCodeMessage(payload.message);
+    } catch (error) {
+      setEmailCodeError(error instanceof Error ? error.message : "Could not send code");
+    } finally {
+      setIsRequestingEmailCode(false);
+    }
+  };
+
+  const onSubmitEmailCode = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setEmailCodeError(null);
+    setEmailCodeMessage(null);
+    setIsSubmittingEmailCode(true);
+
+    try {
+      const response = await fetch(`${webEnv.apiUrl}/auth/email-code/login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ email: loginEmail, code: emailCode })
+      });
+
+      const payload = await parseApiResponse<{ accessToken: string }>(response);
+      const accessToken = await attachPendingTelegramContext(payload.accessToken);
+      localStorage.setItem(tokenKey, accessToken);
+      localStorage.setItem(authSourceKey, "email-code");
+      setToken(accessToken);
+      setEmailCode("");
+      setEmailCodeMessage("Signed in successfully.");
+      ensureCanonicalProfileUrl();
+    } catch (error) {
+      setEmailCodeError(error instanceof Error ? error.message : "Could not sign in with code");
+    } finally {
+      setIsSubmittingEmailCode(false);
+    }
+  };
+
+  const onRequestPasswordReset = async () => {
+    setResetError(null);
+    setResetMessage(null);
+    setIsRequestingPasswordReset(true);
+
+    try {
+      const response = await fetch(`${webEnv.apiUrl}/auth/password/reset/request`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ email: resetEmail })
+      });
+
+      const payload = await parseApiResponse<{ message: string }>(response);
+      setResetMessage(payload.message);
+    } catch (error) {
+      setResetError(error instanceof Error ? error.message : "Could not send reset code");
+    } finally {
+      setIsRequestingPasswordReset(false);
+    }
+  };
+
+  const onConfirmPasswordReset = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setResetError(null);
+    setResetMessage(null);
+
+    if (resetPassword !== resetConfirmPassword) {
+      setResetError("Passwords do not match");
+      return;
+    }
+
+    setIsResettingPassword(true);
+    try {
+      const response = await fetch(`${webEnv.apiUrl}/auth/password/reset/confirm`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ email: resetEmail, code: resetCode, newPassword: resetPassword })
+      });
+
+      await parseApiResponse<{ ok: boolean }>(response);
+      setLoginEmail(resetEmail);
+      setLoginPassword("");
+      setResetCode("");
+      setResetPassword("");
+      setResetConfirmPassword("");
+      setResetMessage("Password updated. Sign in with your new password.");
+    } catch (error) {
+      setResetError(error instanceof Error ? error.message : "Could not update password");
+    } finally {
+      setIsResettingPassword(false);
+    }
+  };
+
   const onCreateAccount = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setCreateAccountError(null);
@@ -943,6 +1072,41 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
     }
   };
 
+  const onChangePassword = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!token) return;
+    setChangePasswordError(null);
+    setChangePasswordMessage(null);
+
+    if (newPassword !== newConfirmPassword) {
+      setChangePasswordError("Passwords do not match");
+      return;
+    }
+
+    setIsChangingPassword(true);
+    try {
+      const response = await fetch(`${webEnv.apiUrl}/auth/password/change`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ currentPassword, newPassword })
+      });
+
+      await parseApiResponse<{ ok: boolean }>(response);
+      setCurrentPassword("");
+      setNewPassword("");
+      setNewConfirmPassword("");
+      setChangePasswordMessage("Password changed.");
+      await fetchSnapshot(token);
+    } catch (error) {
+      setChangePasswordError(error instanceof Error ? error.message : "Could not change password");
+    } finally {
+      setIsChangingPassword(false);
+    }
+  };
+
   const startEditing = (item: RecentTransaction) => {
     setTxMessage(null);
     setTxError(null);
@@ -1044,6 +1208,28 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
     loginError,
     showCreateAccountAction,
     onSubmitLogin,
+    emailCode,
+    setEmailCode,
+    isRequestingEmailCode,
+    isSubmittingEmailCode,
+    emailCodeMessage,
+    emailCodeError,
+    onRequestEmailCode,
+    onSubmitEmailCode,
+    resetEmail,
+    setResetEmail,
+    resetCode,
+    setResetCode,
+    resetPassword,
+    setResetPassword,
+    resetConfirmPassword,
+    setResetConfirmPassword,
+    isRequestingPasswordReset,
+    isResettingPassword,
+    resetMessage,
+    resetError,
+    onRequestPasswordReset,
+    onConfirmPasswordReset,
     createFirstName,
     setCreateFirstName,
     createEmail,
@@ -1085,6 +1271,16 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
     setupMessage,
     setupError,
     onSetupPassword,
+    currentPassword,
+    setCurrentPassword,
+    newPassword,
+    setNewPassword,
+    newConfirmPassword,
+    setNewConfirmPassword,
+    isChangingPassword,
+    changePasswordMessage,
+    changePasswordError,
+    onChangePassword,
     bindCode,
     setBindCode,
     bindMessage,

@@ -1,23 +1,40 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException, UnauthorizedException } from "@nestjs/common";
 import { parseApiEnv } from "@repo/config";
 import { sign, verify } from "jsonwebtoken";
-import { createHash, createHmac, randomBytes, scrypt, timingSafeEqual } from "node:crypto";
+import { createHash, createHmac, randomBytes, randomInt, scrypt, timingSafeEqual } from "node:crypto";
 import { promisify } from "node:util";
 
 import { generateCoupleCodeCandidate } from "../common/couple-code";
+import { EmailDeliveryService } from "../common/email-delivery.service";
+import { SecretBoxService } from "../common/secret-box.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { BotWebAppLoginDto } from "./dto/bot-webapp-login.dto";
+import { EmailCodeLoginDto } from "./dto/email-code-login.dto";
+import { EmailCodeRequestDto } from "./dto/email-code-request.dto";
+import { PasswordChangeDto } from "./dto/password-change.dto";
 import { PasswordLoginDto } from "./dto/password-login.dto";
 import { PasswordRegisterDto } from "./dto/password-register.dto";
+import { PasswordResetConfirmDto } from "./dto/password-reset-confirm.dto";
 import { PasswordSetupDto } from "./dto/password-setup.dto";
 import { TelegramLoginDto } from "./dto/telegram-login.dto";
 import { createTelegramLinkToken as createTelegramLinkTokenValue, resolveTelegramLinkToken } from "./telegram-link-token";
 
 const scryptAsync = promisify(scrypt);
+const EMAIL_CODE_TTL_MINUTES = 15;
+const EMAIL_CODE_MAX_ATTEMPTS = 5;
+const EMAIL_CODE_MAX_REQUESTS_PER_15_MINUTES = 5;
 
 @Injectable()
 export class AuthService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly emailDelivery: EmailDeliveryService,
+    private readonly secretBox: SecretBoxService
+  ) {}
+
+  private get db(): any {
+    return this.prisma.client as any;
+  }
 
   private normalizeEmail(email: string): string {
     return email.trim().toLowerCase();
@@ -64,6 +81,122 @@ export class AuthService {
     }
 
     return timingSafeEqual(derived, expectedDigest);
+  }
+
+  private generateEmailCode() {
+    return randomInt(0, 1_000_000).toString().padStart(6, "0");
+  }
+
+  private hashEmailCode(email: string, purpose: "LOGIN" | "PASSWORD_RESET", code: string) {
+    return this.secretBox.hmac(`${purpose}:${email}:${code}`, "email-code");
+  }
+
+  private emailCodeMatches(actualHash: string, expectedHash: string) {
+    const actual = Buffer.from(actualHash, "hex");
+    const expected = Buffer.from(expectedHash, "hex");
+    return actual.length === expected.length && expected.length > 0 && timingSafeEqual(actual, expected);
+  }
+
+  private async createAndSendEmailCode(email: string, purpose: "LOGIN" | "PASSWORD_RESET", requestMeta?: { ip?: string | null; userAgent?: string | null }) {
+    const normalizedEmail = this.normalizeEmail(email);
+    const windowStart = new Date(Date.now() - 15 * 60_000);
+    const recentRequests = await this.db.authEmailCode.count({
+      where: {
+        email: normalizedEmail,
+        purpose,
+        createdAt: {
+          gte: windowStart
+        }
+      }
+    });
+
+    if (recentRequests >= EMAIL_CODE_MAX_REQUESTS_PER_15_MINUTES) {
+      throw new BadRequestException("Too many code requests. Try again later.");
+    }
+
+    const code = this.generateEmailCode();
+    const now = new Date();
+    await this.db.$transaction(async (tx: any) => {
+      await tx.authEmailCode.updateMany({
+        where: {
+          email: normalizedEmail,
+          purpose,
+          consumedAt: null
+        },
+        data: {
+          consumedAt: now
+        }
+      });
+
+      await tx.authEmailCode.create({
+        data: {
+          email: normalizedEmail,
+          purpose,
+          codeHash: this.hashEmailCode(normalizedEmail, purpose, code),
+          expiresAt: new Date(Date.now() + EMAIL_CODE_TTL_MINUTES * 60_000),
+          requestIp: requestMeta?.ip ?? null,
+          userAgent: requestMeta?.userAgent ?? null
+        }
+      });
+    });
+
+    const label = purpose === "PASSWORD_RESET" ? "password reset" : "sign-in";
+    await this.emailDelivery.send({
+      to: normalizedEmail,
+      subject: `Your CupFin ${label} code`,
+      text: `Your CupFin ${label} code is ${code}. It expires in ${EMAIL_CODE_TTL_MINUTES} minutes.`,
+      html: `<p>Your CupFin ${label} code is <strong>${code}</strong>.</p><p>It expires in ${EMAIL_CODE_TTL_MINUTES} minutes.</p>`
+    });
+  }
+
+  private async consumeEmailCode(email: string, purpose: "LOGIN" | "PASSWORD_RESET", code: string) {
+    const normalizedEmail = this.normalizeEmail(email);
+    const now = new Date();
+    const record = await this.db.authEmailCode.findFirst({
+      where: {
+        email: normalizedEmail,
+        purpose,
+        consumedAt: null,
+        expiresAt: {
+          gt: now
+        }
+      },
+      orderBy: {
+        createdAt: "desc"
+      }
+    });
+
+    if (!record) {
+      throw new UnauthorizedException("Code is invalid or expired");
+    }
+
+    if (record.attempts >= EMAIL_CODE_MAX_ATTEMPTS) {
+      await this.db.authEmailCode.update({
+        where: { id: record.id },
+        data: { consumedAt: now }
+      });
+      throw new UnauthorizedException("Code is invalid or expired");
+    }
+
+    const expectedHash = this.hashEmailCode(normalizedEmail, purpose, code);
+    if (!this.emailCodeMatches(record.codeHash, expectedHash)) {
+      await this.db.authEmailCode.update({
+        where: { id: record.id },
+        data: {
+          attempts: {
+            increment: 1
+          }
+        }
+      });
+      throw new UnauthorizedException("Code is invalid or expired");
+    }
+
+    await this.db.authEmailCode.update({
+      where: { id: record.id },
+      data: {
+        consumedAt: now
+      }
+    });
   }
 
   private buildAuthPayload(user: {
@@ -630,6 +763,149 @@ export class AuthService {
       email: user.email,
       hasPassword: true
     });
+  }
+
+  async requestEmailLoginCode(payload: EmailCodeRequestDto, requestMeta?: { ip?: string | null; userAgent?: string | null }) {
+    const emailStatus = await this.emailDelivery.getPublicStatus();
+    if (!emailStatus.emailCodeEnabled) {
+      throw new BadRequestException("Email code login is not configured yet");
+    }
+
+    const normalizedEmail = this.normalizeEmail(payload.email);
+    const user = await this.db.user.findUnique({
+      where: { email: normalizedEmail },
+      select: {
+        id: true
+      }
+    });
+
+    if (user) {
+      await this.createAndSendEmailCode(normalizedEmail, "LOGIN", requestMeta);
+    }
+
+    return {
+      ok: true,
+      message: "If this email exists, a sign-in code was sent."
+    };
+  }
+
+  async loginWithEmailCode(payload: EmailCodeLoginDto) {
+    const normalizedEmail = this.normalizeEmail(payload.email);
+    await this.consumeEmailCode(normalizedEmail, "LOGIN", payload.code);
+
+    const user = await this.db.user.findUnique({
+      where: { email: normalizedEmail },
+      select: {
+        id: true,
+        telegramId: true,
+        username: true,
+        firstName: true,
+        lastName: true,
+        isAdmin: true,
+        isDark: true,
+        coupleCode: true,
+        email: true,
+        passwordHash: true
+      }
+    });
+
+    if (!user) {
+      throw new UnauthorizedException("Code is invalid or expired");
+    }
+
+    const coupleCode = user.coupleCode ?? (await this.ensureUserCoupleCode(user.id));
+    return this.buildAuthPayload({
+      id: user.id,
+      telegramId: user.telegramId,
+      username: user.username,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      isAdmin: user.isAdmin,
+      isDark: user.isDark,
+      coupleCode,
+      email: user.email,
+      hasPassword: Boolean(user.passwordHash)
+    });
+  }
+
+  async requestPasswordResetCode(payload: EmailCodeRequestDto, requestMeta?: { ip?: string | null; userAgent?: string | null }) {
+    const emailStatus = await this.emailDelivery.getPublicStatus();
+    if (!emailStatus.emailCodeEnabled) {
+      throw new BadRequestException("Email password reset is not configured yet");
+    }
+
+    const normalizedEmail = this.normalizeEmail(payload.email);
+    const user = await this.db.user.findUnique({
+      where: { email: normalizedEmail },
+      select: {
+        id: true,
+        passwordHash: true
+      }
+    });
+
+    if (user?.passwordHash) {
+      await this.createAndSendEmailCode(normalizedEmail, "PASSWORD_RESET", requestMeta);
+    }
+
+    return {
+      ok: true,
+      message: "If this email has a password login, a reset code was sent."
+    };
+  }
+
+  async resetPasswordWithEmailCode(payload: PasswordResetConfirmDto) {
+    const normalizedEmail = this.normalizeEmail(payload.email);
+    await this.consumeEmailCode(normalizedEmail, "PASSWORD_RESET", payload.code);
+
+    const user = await this.db.user.findUnique({
+      where: { email: normalizedEmail },
+      select: { id: true }
+    });
+
+    if (!user) {
+      throw new UnauthorizedException("Code is invalid or expired");
+    }
+
+    const passwordHash = await this.hashPassword(payload.newPassword);
+    await this.db.user.update({
+      where: { id: user.id },
+      data: {
+        passwordHash,
+        passwordSetAt: new Date()
+      }
+    });
+
+    return { ok: true };
+  }
+
+  async changePassword(userId: string, payload: PasswordChangeDto) {
+    const user = await this.db.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        passwordHash: true
+      }
+    });
+
+    if (!user?.passwordHash) {
+      throw new BadRequestException("Password is not configured yet");
+    }
+
+    const validPassword = await this.verifyPassword(payload.currentPassword, user.passwordHash);
+    if (!validPassword) {
+      throw new UnauthorizedException("Current password is incorrect");
+    }
+
+    const passwordHash = await this.hashPassword(payload.newPassword);
+    await this.db.user.update({
+      where: { id: user.id },
+      data: {
+        passwordHash,
+        passwordSetAt: new Date()
+      }
+    });
+
+    return { ok: true };
   }
 
   async setupPassword(userId: string, payload: PasswordSetupDto) {

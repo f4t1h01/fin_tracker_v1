@@ -1,15 +1,27 @@
-import { Body, Controller, Get, Headers, Patch, Post, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, Headers, Patch, Post, Req, UseGuards } from "@nestjs/common";
+import type { FastifyRequest } from "fastify";
 
 import { AuthService } from "./auth.service";
 import { CurrentUser } from "./current-user.decorator";
 import { BotWebAppLoginDto } from "./dto/bot-webapp-login.dto";
+import { EmailCodeLoginDto } from "./dto/email-code-login.dto";
+import { EmailCodeRequestDto } from "./dto/email-code-request.dto";
+import { PasswordChangeDto } from "./dto/password-change.dto";
 import { PasswordLoginDto } from "./dto/password-login.dto";
 import { PasswordRegisterDto } from "./dto/password-register.dto";
+import { PasswordResetConfirmDto } from "./dto/password-reset-confirm.dto";
 import { PasswordSetupDto } from "./dto/password-setup.dto";
 import { TelegramLoginDto } from "./dto/telegram-login.dto";
 import { TelegramWebAppLoginDto } from "./dto/telegram-webapp-login.dto";
 import { UpdateThemePreferenceDto } from "./dto/update-theme-preference.dto";
 import { JwtAuthGuard } from "./jwt-auth.guard";
+
+function getRequestMeta(request: FastifyRequest) {
+  return {
+    ip: request.ip ?? null,
+    userAgent: typeof request.headers["user-agent"] === "string" ? request.headers["user-agent"] : null
+  };
+}
 
 @Controller("auth")
 export class AuthController {
@@ -35,6 +47,26 @@ export class AuthController {
     return this.authService.loginWithPassword(payload);
   }
 
+  @Post("email-code/request")
+  requestEmailLoginCode(@Body() payload: EmailCodeRequestDto, @Req() request: FastifyRequest) {
+    return this.authService.requestEmailLoginCode(payload, getRequestMeta(request));
+  }
+
+  @Post("email-code/login")
+  loginWithEmailCode(@Body() payload: EmailCodeLoginDto) {
+    return this.authService.loginWithEmailCode(payload);
+  }
+
+  @Post("password/reset/request")
+  requestPasswordResetCode(@Body() payload: EmailCodeRequestDto, @Req() request: FastifyRequest) {
+    return this.authService.requestPasswordResetCode(payload, getRequestMeta(request));
+  }
+
+  @Post("password/reset/confirm")
+  resetPasswordWithEmailCode(@Body() payload: PasswordResetConfirmDto) {
+    return this.authService.resetPasswordWithEmailCode(payload);
+  }
+
   @Post("password/register")
   registerWithPassword(@Body() payload: PasswordRegisterDto) {
     return this.authService.registerWithPassword(payload);
@@ -44,6 +76,12 @@ export class AuthController {
   @Post("password/setup")
   setupPassword(@CurrentUser() user: { id: string }, @Body() payload: PasswordSetupDto) {
     return this.authService.setupPassword(user.id, payload);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post("password/change")
+  changePassword(@CurrentUser() user: { id: string }, @Body() payload: PasswordChangeDto) {
+    return this.authService.changePassword(user.id, payload);
   }
 
   @UseGuards(JwtAuthGuard)

@@ -77,11 +77,21 @@ enum AiMessageRole {
   SYSTEM
 }
 
+enum AuthEmailProvider {
+  SMTP
+}
+
+enum AuthEmailCodePurpose {
+  LOGIN
+  PASSWORD_RESET
+}
+
 model User {
   id                String        @id @default(cuid())
   telegramId        BigInt        @unique
   lastTelegramChatId BigInt?
   email             String?       @unique
+  googleSub         String?       @unique @map("google_sub")
   passwordHash      String?
   passwordSetAt     DateTime?
   coupleCode        String?       @unique
@@ -119,6 +129,54 @@ model User {
   aiMessages         AiMessage[]  @relation("AiMessageAuthor")
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
+}
+
+model AuthEmailProviderConfig {
+  id                    String            @id @default("default")
+  provider              AuthEmailProvider @default(SMTP)
+  isEnabled             Boolean           @default(false) @map("is_enabled")
+  fromEmail             String?           @map("from_email")
+  fromName              String?           @map("from_name")
+  smtpHost              String?           @map("smtp_host")
+  smtpPort              Int?              @map("smtp_port")
+  smtpSecure            Boolean           @default(true) @map("smtp_secure")
+  smtpUser              String?           @map("smtp_user")
+  smtpPasswordEncrypted String?           @map("smtp_password_encrypted")
+  createdAt             DateTime          @default(now()) @map("created_at")
+  updatedAt             DateTime          @updatedAt @map("updated_at")
+
+  @@map("auth_email_provider_config")
+}
+
+model AuthGoogleConfig {
+  id                  String   @id @default("default")
+  isEnabled           Boolean  @default(false) @map("is_enabled")
+  clientId            String?  @map("client_id")
+  hostedDomain        String?  @map("hosted_domain")
+  autoCreateUsers     Boolean  @default(true) @map("auto_create_users")
+  linkByVerifiedEmail Boolean  @default(true) @map("link_by_verified_email")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  @@map("auth_google_config")
+}
+
+model AuthEmailCode {
+  id         String               @id @default(cuid())
+  email      String
+  purpose    AuthEmailCodePurpose
+  codeHash   String               @map("code_hash")
+  expiresAt  DateTime             @map("expires_at")
+  consumedAt DateTime?            @map("consumed_at")
+  attempts   Int                  @default(0)
+  requestIp  String?              @map("request_ip")
+  userAgent  String?              @map("user_agent")
+  createdAt  DateTime             @default(now()) @map("created_at")
+
+  @@index([email, purpose, createdAt])
+  @@index([email, purpose, expiresAt])
+  @@index([expiresAt])
+  @@map("auth_email_code")
 }
 
 model AiModelPricing {

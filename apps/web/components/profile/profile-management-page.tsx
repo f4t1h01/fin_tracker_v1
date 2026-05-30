@@ -9,6 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { AnalyticsPreferencesCard } from "./management/analytics-preferences-card";
 import { BoundAccountsCard } from "./management/bound-accounts-card";
 import { PartnerConnectionCard } from "./management/partner-connection-card";
+import { PasswordChangeCard } from "./management/password-change-card";
 import { PasswordSetupCard } from "./management/password-setup-card";
 import { ProfileDetailsCard } from "./management/profile-details-card";
 import { ProfileLoadingState } from "./profile-loading-state";
@@ -90,7 +91,22 @@ export function ProfileManagementPage() {
             onSetupPassword={workspace.onSetupPassword}
           />
         </section>
-      ) : null}
+      ) : (
+        <section className="mt-6">
+          <PasswordChangeCard
+            currentPassword={workspace.currentPassword}
+            setCurrentPassword={workspace.setCurrentPassword}
+            newPassword={workspace.newPassword}
+            setNewPassword={workspace.setNewPassword}
+            newConfirmPassword={workspace.newConfirmPassword}
+            setNewConfirmPassword={workspace.setNewConfirmPassword}
+            isChangingPassword={workspace.isChangingPassword}
+            changePasswordMessage={workspace.changePasswordMessage}
+            changePasswordError={workspace.changePasswordError}
+            onChangePassword={workspace.onChangePassword}
+          />
+        </section>
+      )}
 
       <section className="mt-6">
         <PartnerConnectionCard

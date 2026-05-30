@@ -16,6 +16,28 @@ type ProfileAuthGatewayProps = {
   loginError: string | null;
   showCreateAccountAction: boolean;
   onSubmitLogin: (event: React.FormEvent<HTMLFormElement>) => Promise<void>;
+  emailCode: string;
+  setEmailCode: (value: string) => void;
+  isRequestingEmailCode: boolean;
+  isSubmittingEmailCode: boolean;
+  emailCodeMessage: string | null;
+  emailCodeError: string | null;
+  onRequestEmailCode: () => Promise<void>;
+  onSubmitEmailCode: (event: React.FormEvent<HTMLFormElement>) => Promise<void>;
+  resetEmail: string;
+  setResetEmail: (value: string) => void;
+  resetCode: string;
+  setResetCode: (value: string) => void;
+  resetPassword: string;
+  setResetPassword: (value: string) => void;
+  resetConfirmPassword: string;
+  setResetConfirmPassword: (value: string) => void;
+  isRequestingPasswordReset: boolean;
+  isResettingPassword: boolean;
+  resetMessage: string | null;
+  resetError: string | null;
+  onRequestPasswordReset: () => Promise<void>;
+  onConfirmPasswordReset: (event: React.FormEvent<HTMLFormElement>) => Promise<void>;
   createFirstName: string;
   setCreateFirstName: (value: string) => void;
   createEmail: string;
@@ -112,6 +134,50 @@ export function ProfileAuthGateway(props: ProfileAuthGatewayProps) {
             <Button variant="outline" asChild>
               <AppLink href="/">Back to overview</AppLink>
             </Button>
+          </CardContent>
+        </Card>
+      </section>
+
+      <section className="mt-5 grid gap-5 lg:grid-cols-2">
+        <Card className="panel-soft">
+          <CardHeader><CardTitle>Email code sign in</CardTitle></CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid gap-3 md:grid-cols-[1fr_auto]">
+              <TextField required type="email" value={props.loginEmail} onChange={(event) => props.setLoginEmail(event.target.value)} placeholder="you@example.com" />
+              <Button type="button" variant="outline" disabled={props.isRequestingEmailCode || !props.loginEmail.trim()} pending={props.isRequestingEmailCode} pendingText="Sending..." onClick={() => void props.onRequestEmailCode()}>
+                Send code
+              </Button>
+            </div>
+            <form className="grid gap-3 md:grid-cols-[1fr_auto]" onSubmit={props.onSubmitEmailCode}>
+              <TextField required inputMode="numeric" pattern="[0-9]{6}" maxLength={6} value={props.emailCode} onChange={(event) => props.setEmailCode(event.target.value)} placeholder="6-digit code" />
+              <Button type="submit" disabled={props.isSubmittingEmailCode || !props.emailCode.trim()} pending={props.isSubmittingEmailCode} pendingText="Signing in...">
+                Sign in with code
+              </Button>
+            </form>
+            {props.emailCodeMessage ? <p className="status-success text-sm">{props.emailCodeMessage}</p> : null}
+            {props.emailCodeError ? <p className="status-error text-sm">{props.emailCodeError}</p> : null}
+          </CardContent>
+        </Card>
+
+        <Card className="panel-soft">
+          <CardHeader><CardTitle>Forgot password</CardTitle></CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid gap-3 md:grid-cols-[1fr_auto]">
+              <TextField required type="email" value={props.resetEmail} onChange={(event) => props.setResetEmail(event.target.value)} placeholder="you@example.com" />
+              <Button type="button" variant="outline" disabled={props.isRequestingPasswordReset || !props.resetEmail.trim()} pending={props.isRequestingPasswordReset} pendingText="Sending..." onClick={() => void props.onRequestPasswordReset()}>
+                Send reset code
+              </Button>
+            </div>
+            <form className="grid gap-3 md:grid-cols-2" onSubmit={props.onConfirmPasswordReset}>
+              <TextField required inputMode="numeric" pattern="[0-9]{6}" maxLength={6} value={props.resetCode} onChange={(event) => props.setResetCode(event.target.value)} placeholder="6-digit code" />
+              <TextField required type="password" minLength={8} value={props.resetPassword} onChange={(event) => props.setResetPassword(event.target.value)} placeholder="New password" />
+              <TextField required type="password" minLength={8} value={props.resetConfirmPassword} onChange={(event) => props.setResetConfirmPassword(event.target.value)} placeholder="Repeat new password" />
+              <Button type="submit" disabled={props.isResettingPassword} pending={props.isResettingPassword} pendingText="Updating...">
+                Update password
+              </Button>
+            </form>
+            {props.resetMessage ? <p className="status-success text-sm">{props.resetMessage}</p> : null}
+            {props.resetError ? <p className="status-error text-sm">{props.resetError}</p> : null}
           </CardContent>
         </Card>
       </section>
