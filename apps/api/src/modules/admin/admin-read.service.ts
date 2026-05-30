@@ -511,6 +511,8 @@ export class AdminReadService {
         lastName: user.lastName,
         coupleCode: user.coupleCode,
         isAdmin: user.isAdmin,
+        hasPassword: Boolean(user.passwordHash),
+        passwordSetAt: user.passwordSetAt?.toISOString() ?? null,
         showSharedCategories: user.showSharedCategories,
         weekStartsOn: user.weekStartsOn,
         createdAt: user.createdAt.toISOString(),

@@ -2,17 +2,24 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { type FormEvent, useEffect, useState } from "react";
 
 import { AdminFrame } from "@/components/admin/admin-frame";
 import { adminFetch, formatNumber, formatUsdMicros } from "@/components/admin/client";
 import type { AdminUserDetailResponse } from "@/components/admin/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { TextField } from "@/components/ui/text-field";
 
 export default function AdminUserDetailPage() {
   const params = useParams<{ id: string }>();
   const [data, setData] = useState<AdminUserDetailResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [newPassword, setNewPassword] = useState("");
+  const [resetReason, setResetReason] = useState("");
+  const [isResettingPassword, setIsResettingPassword] = useState(false);
+  const [resetMessage, setResetMessage] = useState<string | null>(null);
+  const [resetError, setResetError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!params.id) {
@@ -28,6 +35,45 @@ export default function AdminUserDetailPage() {
       });
   }, [params.id]);
 
+  async function handlePasswordReset(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setResetMessage(null);
+    setResetError(null);
+    setIsResettingPassword(true);
+
+    try {
+      const response = await adminFetch<{ ok: boolean; passwordSetAt: string }>(`/0admin/users/${params.id}/password`, {
+        method: "POST",
+        body: JSON.stringify({
+          newPassword,
+          reason: resetReason
+        })
+      });
+
+      setData((current) =>
+        current
+          ? {
+              ...current,
+              user: {
+                ...current.user,
+                hasPassword: true,
+                passwordSetAt: response.passwordSetAt
+              }
+            }
+          : current
+      );
+      setNewPassword("");
+      setResetReason("");
+      setResetMessage("User password was reset.");
+    } catch (reason) {
+      if (reason instanceof Error && reason.message !== "UNAUTHORIZED") {
+        setResetError(reason.message);
+      }
+    } finally {
+      setIsResettingPassword(false);
+    }
+  }
+
   return (
     <AdminFrame title="User detail" description="Profile, defaults, workspace links, transactions, and AI usage for one user.">
       {error ? <p className="status-error mb-4 text-sm">{error}</p> : null}
@@ -39,6 +85,8 @@ export default function AdminUserDetailPage() {
             <p><span className="body-muted">Username:</span> {data?.user.username ?? "-"}</p>
             <p><span className="body-muted">Name:</span> {data?.user.firstName ?? "-"} {data?.user.lastName ?? ""}</p>
             <p><span className="body-muted">Bind:</span> {data?.user.bind?.couple.name ?? "No active bind"}</p>
+            <p><span className="body-muted">Website password:</span> {data?.user.hasPassword ? "Configured" : "Not configured"}</p>
+            <p><span className="body-muted">Password set:</span> {data?.user.passwordSetAt ? new Date(data.user.passwordSetAt).toLocaleString("en-US") : "-"}</p>
             <p><span className="body-muted">Defaults:</span> {data?.user.defaults.income?.name ?? "No income default"} / {data?.user.defaults.expense?.name ?? "No expense default"}</p>
             <p><span className="body-muted">Summary:</span> {formatNumber(data?.summary.transactionCount ?? 0)} tx • {formatUsdMicros((data?.summary.totalAmountInUzs ?? 0) * 1000000)}</p>
           </CardContent>
@@ -56,6 +104,37 @@ export default function AdminUserDetailPage() {
           </CardContent>
         </Card>
       </div>
+
+      <Card className="panel-soft mt-4">
+        <CardHeader><CardTitle>Reset website password</CardTitle></CardHeader>
+        <CardContent>
+          <form className="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)_auto]" onSubmit={handlePasswordReset}>
+            <TextField
+              required
+              minLength={8}
+              type="password"
+              value={newPassword}
+              placeholder="New password"
+              disabled={!data?.user.email || isResettingPassword}
+              onChange={(event) => setNewPassword(event.target.value)}
+            />
+            <TextField
+              required
+              minLength={3}
+              value={resetReason}
+              placeholder="Reason for audit log"
+              disabled={!data?.user.email || isResettingPassword}
+              onChange={(event) => setResetReason(event.target.value)}
+            />
+            <Button type="submit" disabled={!data?.user.email || isResettingPassword} pending={isResettingPassword} pendingText="Resetting...">
+              Reset password
+            </Button>
+          </form>
+          {!data?.user.email ? <p className="body-muted mt-3 text-sm">This user has no email, so website password login is unavailable.</p> : null}
+          {resetMessage ? <p className="status-success mt-3 text-sm">{resetMessage}</p> : null}
+          {resetError ? <p className="status-error mt-3 text-sm">{resetError}</p> : null}
+        </CardContent>
+      </Card>
 
       <div className="mt-4 grid gap-4 lg:grid-cols-2">
         <Card className="panel-soft">

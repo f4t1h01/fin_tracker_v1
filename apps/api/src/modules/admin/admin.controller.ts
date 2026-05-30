@@ -36,6 +36,7 @@ import { AdminCategoryCorrectionDto } from "./dto/admin-category-correction.dto"
 import { AdminInvalidateInviteDto } from "./dto/admin-invalidate-invite.dto";
 import { AdminListQueryDto } from "./dto/admin-list-query.dto";
 import { AdminLoginDto } from "./dto/admin-login.dto";
+import { AdminUserPasswordResetDto } from "./dto/admin-user-password-reset.dto";
 import { AdminGoodsUomStatusDto } from "./dto/admin-goods-uom-status.dto";
 import { AdminGoodsUomUpsertDto } from "./dto/admin-goods-uom-upsert.dto";
 import { AdminSqlExecuteDto } from "./dto/admin-sql-execute.dto";
@@ -126,6 +127,17 @@ export class AdminController {
   @Get("users/:id")
   userDetail(@Param("id") id: string) {
     return this.readService.userDetail(id);
+  }
+
+  @UseGuards(AdminSessionGuard)
+  @Post("users/:id/password")
+  resetUserPassword(
+    @Param("id") id: string,
+    @Body() dto: AdminUserPasswordResetDto,
+    @CurrentAdmin() admin: { email: string },
+    @Req() request: FastifyRequest
+  ) {
+    return this.mutationService.resetUserPassword(id, dto, admin.email, getRequestMeta(request));
   }
 
   @UseGuards(AdminSessionGuard)

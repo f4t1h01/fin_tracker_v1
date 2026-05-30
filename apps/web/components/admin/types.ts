@@ -95,6 +95,8 @@ export type AdminUserDetailResponse = {
     lastName: string | null;
     coupleCode: string | null;
     isAdmin: boolean;
+    hasPassword: boolean;
+    passwordSetAt: string | null;
     showSharedCategories: boolean;
     weekStartsOn: string;
     createdAt: string;

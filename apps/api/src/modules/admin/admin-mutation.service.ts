@@ -13,6 +13,7 @@ import { AdminGoodsUomStatusDto } from "./dto/admin-goods-uom-status.dto";
 import { AdminGoodsUomUpsertDto } from "./dto/admin-goods-uom-upsert.dto";
 import { AdminInvalidateInviteDto } from "./dto/admin-invalidate-invite.dto";
 import { AdminTransactionCorrectionDto } from "./dto/admin-transaction-correction.dto";
+import { AdminUserPasswordResetDto } from "./dto/admin-user-password-reset.dto";
 
 function decimalToNumber(value: { toNumber: () => number } | number | string | null | undefined) {
   if (value === null || value === undefined) {
@@ -252,6 +253,66 @@ export class AdminMutationService {
     });
 
     return { ok: true };
+  }
+
+  async resetUserPassword(id: string, dto: AdminUserPasswordResetDto, currentAdminEmail: string, requestMeta: AdminRequestMeta) {
+    const user = await this.db.user.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        email: true,
+        passwordHash: true,
+        passwordSetAt: true
+      }
+    });
+
+    if (!user) {
+      throw new BadRequestException("User account not found");
+    }
+
+    if (!user.email) {
+      throw new BadRequestException("User must have an email before a website password can be reset");
+    }
+
+    const passwordHash = await this.authService.hashPassword(dto.newPassword);
+    const passwordSetAt = new Date();
+    const updated = await this.db.user.update({
+      where: { id },
+      data: {
+        passwordHash,
+        passwordSetAt
+      },
+      select: {
+        id: true,
+        email: true,
+        passwordSetAt: true
+      }
+    });
+
+    await this.audit.log({
+      adminEmail: currentAdminEmail,
+      actionType: "USER_PASSWORD_RESET",
+      targetType: "USER",
+      targetId: id,
+      reason: dto.reason,
+      requestMeta,
+      beforeState: {
+        email: user.email,
+        hadPassword: Boolean(user.passwordHash),
+        passwordSetAt: user.passwordSetAt?.toISOString() ?? null
+      },
+      afterState: {
+        email: updated.email,
+        passwordReset: true,
+        passwordSetAt: updated.passwordSetAt?.toISOString() ?? null
+      },
+      outcome: "SUCCESS"
+    });
+
+    return {
+      ok: true,
+      passwordSetAt: updated.passwordSetAt?.toISOString() ?? passwordSetAt.toISOString()
+    };
   }
 
   async invalidateInvite(coupleId: string, inviteId: string, dto: AdminInvalidateInviteDto, currentAdminEmail: string, requestMeta: AdminRequestMeta) {
