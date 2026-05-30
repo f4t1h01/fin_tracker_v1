@@ -68,7 +68,10 @@ export class EmailDeliveryService {
       host: config.host,
       port: config.port,
       secure: config.secure,
-      auth: config.auth
+      auth: config.auth,
+      connectionTimeout: 10_000,
+      greetingTimeout: 10_000,
+      socketTimeout: 15_000
     });
 
     await transporter.sendMail({

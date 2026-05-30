@@ -23,6 +23,7 @@ const scryptAsync = promisify(scrypt);
 const EMAIL_CODE_TTL_MINUTES = 15;
 const EMAIL_CODE_MAX_ATTEMPTS = 5;
 const EMAIL_CODE_MAX_REQUESTS_PER_15_MINUTES = 5;
+const EMAIL_CODE_RESEND_COOLDOWN_SECONDS = 60;
 
 @Injectable()
 export class AuthService {
@@ -99,6 +100,29 @@ export class AuthService {
 
   private async createAndSendEmailCode(email: string, purpose: "LOGIN" | "PASSWORD_RESET", requestMeta?: { ip?: string | null; userAgent?: string | null }) {
     const normalizedEmail = this.normalizeEmail(email);
+    const cooldownStart = new Date(Date.now() - EMAIL_CODE_RESEND_COOLDOWN_SECONDS * 1000);
+    const recentCode = await this.db.authEmailCode.findFirst({
+      where: {
+        email: normalizedEmail,
+        purpose,
+        createdAt: {
+          gte: cooldownStart
+        }
+      },
+      orderBy: {
+        createdAt: "desc"
+      },
+      select: {
+        createdAt: true
+      }
+    });
+
+    if (recentCode) {
+      const elapsedSeconds = Math.floor((Date.now() - recentCode.createdAt.getTime()) / 1000);
+      const waitSeconds = Math.max(1, EMAIL_CODE_RESEND_COOLDOWN_SECONDS - elapsedSeconds);
+      throw new BadRequestException(`Please wait ${waitSeconds} seconds before requesting another code.`);
+    }
+
     const windowStart = new Date(Date.now() - 15 * 60_000);
     const recentRequests = await this.db.authEmailCode.count({
       where: {
