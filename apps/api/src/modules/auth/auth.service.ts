@@ -167,9 +167,9 @@ export class AuthService {
     const label = purpose === "PASSWORD_RESET" ? "password reset" : "sign-in";
     await this.emailDelivery.send({
       to: normalizedEmail,
-      subject: `Your CupFin ${label} code`,
-      text: `Your CupFin ${label} code is ${code}. It expires in ${EMAIL_CODE_TTL_MINUTES} minutes.`,
-      html: `<p>Your CupFin ${label} code is <strong>${code}</strong>.</p><p>It expires in ${EMAIL_CODE_TTL_MINUTES} minutes.</p>`
+      subject: `Your Duet ${label} code`,
+      text: `Your Duet ${label} code is ${code}. It expires in ${EMAIL_CODE_TTL_MINUTES} minutes.`,
+      html: `<p>Your Duet ${label} code is <strong>${code}</strong>.</p><p>It expires in ${EMAIL_CODE_TTL_MINUTES} minutes.</p>`
     });
   }
 

@@ -134,9 +134,9 @@ export class AdminMutationService {
   async sendAuthTestEmail(dto: AdminAuthTestEmailDto, currentAdminEmail: string, requestMeta: AdminRequestMeta) {
     await this.emailDelivery.send({
       to: dto.toEmail.trim().toLowerCase(),
-      subject: "CupFin test email",
-      text: "CupFin email provider settings are working.",
-      html: "<p>CupFin email provider settings are working.</p>"
+      subject: "Duet test email",
+      text: "Duet email provider settings are working.",
+      html: "<p>Duet email provider settings are working.</p>"
     });
 
     await this.audit.log({
