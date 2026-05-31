@@ -45,7 +45,13 @@ export default function AdminAuthSettingsPage() {
       await adminFetch("/0admin/auth-settings/email", {
         method: "POST",
         body: JSON.stringify({
-          ...data.email,
+          isEnabled: data.email.isEnabled,
+          fromEmail: data.email.fromEmail,
+          fromName: data.email.fromName || undefined,
+          smtpHost: data.email.smtpHost,
+          smtpPort: data.email.smtpPort,
+          smtpSecure: data.email.smtpSecure,
+          smtpUser: data.email.smtpUser || undefined,
           smtpPassword: emailPassword || undefined,
           reason: emailReason
         })
@@ -94,7 +100,11 @@ export default function AdminAuthSettingsPage() {
       await adminFetch("/0admin/auth-settings/google", {
         method: "POST",
         body: JSON.stringify({
-          ...data.google,
+          isEnabled: data.google.isEnabled,
+          clientId: data.google.clientId || undefined,
+          hostedDomain: data.google.hostedDomain || undefined,
+          autoCreateUsers: data.google.autoCreateUsers,
+          linkByVerifiedEmail: data.google.linkByVerifiedEmail,
           reason: googleReason
         })
       });
