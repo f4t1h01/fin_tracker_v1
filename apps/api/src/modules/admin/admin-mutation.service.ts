@@ -2,6 +2,7 @@ import { BadRequestException, Injectable } from "@nestjs/common";
 
 import { convertToUzs, getLatestCurrencyRates, normalizeCurrency } from "../common/currency";
 import { EmailDeliveryService } from "../common/email-delivery.service";
+import { buildDuetEmailTemplate } from "../common/email-template";
 import { SecretBoxService } from "../common/secret-box.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { AdminAuditService, type AdminRequestMeta } from "./admin-audit.service";
@@ -136,7 +137,12 @@ export class AdminMutationService {
       to: dto.toEmail.trim().toLowerCase(),
       subject: "Duet test email",
       text: "Duet email provider settings are working.",
-      html: "<p>Duet email provider settings are working.</p>"
+      html: buildDuetEmailTemplate({
+        eyebrow: "Email provider",
+        title: "Your Duet email setup is working",
+        message: "This test confirms that Duet can send email codes through the configured SMTP provider.",
+        footer: "You can now use email code sign-in and forgot-password recovery."
+      })
     });
 
     await this.audit.log({

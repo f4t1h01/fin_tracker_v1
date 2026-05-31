@@ -6,6 +6,7 @@ import { promisify } from "node:util";
 
 import { generateCoupleCodeCandidate } from "../common/couple-code";
 import { EmailDeliveryService } from "../common/email-delivery.service";
+import { buildDuetEmailTemplate } from "../common/email-template";
 import { SecretBoxService } from "../common/secret-box.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { BotWebAppLoginDto } from "./dto/bot-webapp-login.dto";
@@ -165,11 +166,18 @@ export class AuthService {
     });
 
     const label = purpose === "PASSWORD_RESET" ? "password reset" : "sign-in";
+    const title = purpose === "PASSWORD_RESET" ? "Reset your Duet password" : "Sign in to Duet";
     await this.emailDelivery.send({
       to: normalizedEmail,
       subject: `Your Duet ${label} code`,
       text: `Your Duet ${label} code is ${code}. It expires in ${EMAIL_CODE_TTL_MINUTES} minutes.`,
-      html: `<p>Your Duet ${label} code is <strong>${code}</strong>.</p><p>It expires in ${EMAIL_CODE_TTL_MINUTES} minutes.</p>`
+      html: buildDuetEmailTemplate({
+        eyebrow: label,
+        title,
+        message: "Use this one-time code to continue. Do not share it with anyone.",
+        code,
+        footer: `This code expires in ${EMAIL_CODE_TTL_MINUTES} minutes. If you did not request it, no action is needed.`
+      })
     });
   }
 
