@@ -1144,6 +1144,44 @@ html[data-theme="dark"] .field-control {
   background: var(--card-bg);
 }
 
+.auth-panel {
+  animation: authPanelIn 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.auth-step {
+  animation: authStepIn 320ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.auth-choice {
+  display: flex;
+  min-height: 56px;
+  width: 100%;
+  align-items: center;
+  gap: 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(201, 168, 76, 0.18);
+  background: color-mix(in srgb, var(--warm-white) 84%, transparent);
+  padding: 14px 16px;
+  color: var(--ink);
+  font-size: 14px;
+  transition:
+    transform 180ms ease,
+    border-color 180ms ease,
+    background-color 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.auth-choice:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--gold) 62%, transparent);
+  box-shadow: 0 14px 34px rgba(26, 20, 16, 0.08);
+}
+
+.auth-choice-google {
+  background: #fff;
+  color: #1f1f1f;
+}
+
 .detail-box {
   border: 1px solid rgba(201, 168, 76, 0.14);
   border-radius: 12px;
@@ -1347,6 +1385,16 @@ html[data-theme="dark"] .field-control {
   to { opacity: 1; transform: scale(1); }
 }
 
+@keyframes authPanelIn {
+  from { opacity: 0; transform: translateY(18px) scale(0.98); filter: blur(8px); }
+  to { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+}
+
+@keyframes authStepIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 @keyframes navIn {
   from { opacity: 0; transform: translate(-50%, -20px); }
   to { opacity: 1; transform: translate(-50%, 0); }
@@ -1435,7 +1483,9 @@ html[data-theme="dark"] .field-control {
   .code-box,
   .heart-beat,
   .ai-features-overlay,
-  .ai-features-dialog {
+  .ai-features-dialog,
+  .auth-panel,
+  .auth-step {
     animation: none !important;
   }
 

@@ -10,7 +10,9 @@ import { EmailDeliveryService } from "../common/email-delivery.service";
 import { buildDuetEmailTemplate } from "../common/email-template";
 import { SecretBoxService } from "../common/secret-box.service";
 import { PrismaService } from "../prisma/prisma.service";
+import { AuthEmailLookupLimitService } from "./auth-email-lookup-limit.service";
 import { BotWebAppLoginDto } from "./dto/bot-webapp-login.dto";
+import { EmailCheckDto } from "./dto/email-check.dto";
 import { EmailCodeLoginDto } from "./dto/email-code-login.dto";
 import { EmailCodeRequestDto } from "./dto/email-code-request.dto";
 import { GoogleLoginDto } from "./dto/google-login.dto";
@@ -35,7 +37,8 @@ export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly emailDelivery: EmailDeliveryService,
-    private readonly secretBox: SecretBoxService
+    private readonly secretBox: SecretBoxService,
+    private readonly emailLookupLimit: AuthEmailLookupLimitService
   ) {}
 
   private get db(): any {
@@ -841,6 +844,30 @@ export class AuthService {
     });
   }
 
+  async checkEmail(payload: EmailCheckDto, requestMeta?: { ip?: string | null; userAgent?: string | null }) {
+    const normalizedEmail = this.normalizeEmail(payload.email);
+    const user = await this.db.user.findUnique({
+      where: { email: normalizedEmail },
+      select: {
+        id: true
+      }
+    });
+
+    if (user) {
+      return {
+        status: "EXISTS" as const
+      };
+    }
+
+    const lookupKey = this.emailLookupLimit.buildKey(requestMeta);
+    const limit = this.emailLookupLimit.recordMissingEmail(lookupKey);
+
+    return {
+      status: "NOT_FOUND" as const,
+      ...limit
+    };
+  }
+
   async loginWithGoogle(payload: GoogleLoginDto, authorizationHeader?: string) {
     const config = await this.db.authGoogleConfig.findUnique({
       where: { id: "default" },
@@ -1092,7 +1119,7 @@ export class AuthService {
 
     const user = await this.db.user.findUnique({
       where: { email: normalizedEmail },
-      select: { id: true }
+      select: this.getUserAuthSelect()
     });
 
     if (!user) {
@@ -1100,15 +1127,28 @@ export class AuthService {
     }
 
     const passwordHash = await this.hashPassword(payload.newPassword);
-    await this.db.user.update({
+    const updated = await this.db.user.update({
       where: { id: user.id },
       data: {
         passwordHash,
         passwordSetAt: new Date()
-      }
+      },
+      select: this.getUserAuthSelect()
     });
 
-    return { ok: true };
+    const coupleCode = updated.coupleCode ?? (await this.ensureUserCoupleCode(updated.id));
+    return this.buildAuthPayload({
+      id: updated.id,
+      telegramId: updated.telegramId,
+      username: updated.username,
+      firstName: updated.firstName,
+      lastName: updated.lastName,
+      isAdmin: updated.isAdmin,
+      isDark: updated.isDark,
+      coupleCode,
+      email: updated.email,
+      hasPassword: Boolean(updated.passwordHash)
+    });
   }
 
   async changePassword(userId: string, payload: PasswordChangeDto) {

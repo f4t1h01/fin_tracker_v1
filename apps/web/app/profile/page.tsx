@@ -100,7 +100,7 @@ export default function ProfileEntryPage() {
 
           <div className="flex flex-wrap items-center gap-3">
             <Button asChild>
-              <AppLink href="/profile/me">{auth ? "Open my workspace" : "Continue to profile"}</AppLink>
+              <AppLink href={auth ? "/profile/me" : "/auth"}>{auth ? "Open my workspace" : "Continue to sign in"}</AppLink>
             </Button>
             <Button variant="outline" asChild>
               <AppLink href="/">Back to overview</AppLink>

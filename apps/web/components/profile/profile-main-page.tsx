@@ -1,5 +1,8 @@
 "use client";
 
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
+
 import { WorkspacePageHeader } from "@/components/navigation/workspace-page-header";
 import { financeHeaderActionGroups } from "@/components/navigation/workspace-navigation";
 import { useRouteTransitionPageReady } from "@/components/navigation/route-transition-provider";
@@ -8,7 +11,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { AiFeaturesPanel } from "./ai-features-panel";
 import type { AiTransactionDraftLike } from "./ai-draft-types";
 import { buildSupportedCurrencyOptions } from "./currency-options";
-import { ProfileAuthGateway } from "./profile-auth-gateway";
 import { ProfileLoadingState } from "./profile-loading-state";
 import { ProfileMetrics } from "./profile-metrics";
 import { RecentTransactions } from "./recent-transactions";
@@ -16,17 +18,24 @@ import { TransactionEntry } from "./transaction-entry";
 import { useProfileWorkspace } from "./use-profile-workspace";
 
 export function ProfileMainPage() {
+  const router = useRouter();
   const workspace = useProfileWorkspace({ routePath: "/profile/me" });
   const isPageReady = !workspace.isAuthenticating && (!workspace.token || Boolean(workspace.authError || (workspace.profile && workspace.authMe)));
 
   useRouteTransitionPageReady(isPageReady);
+
+  useEffect(() => {
+    if (!workspace.isAuthenticating && !workspace.token) {
+      router.replace("/auth");
+    }
+  }, [router, workspace.isAuthenticating, workspace.token]);
 
   if (workspace.isAuthenticating) {
     return <ProfileLoadingState title="Preparing your profile" description="Checking saved access and loading your workspace..." />;
   }
 
   if (!workspace.token) {
-    return <ProfileAuthGateway {...workspace} />;
+    return <ProfileLoadingState title="Taking you to sign in" description="Redirecting to the authentication page..." />;
   }
 
   if (!workspace.profile || !workspace.authMe) {

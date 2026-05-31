@@ -4,6 +4,7 @@ import type { FastifyRequest } from "fastify";
 import { AuthService } from "./auth.service";
 import { CurrentUser } from "./current-user.decorator";
 import { BotWebAppLoginDto } from "./dto/bot-webapp-login.dto";
+import { EmailCheckDto } from "./dto/email-check.dto";
 import { EmailCodeLoginDto } from "./dto/email-code-login.dto";
 import { EmailCodeRequestDto } from "./dto/email-code-request.dto";
 import { GoogleLoginDto } from "./dto/google-login.dto";
@@ -56,6 +57,11 @@ export class AuthController {
   @Post("password/login")
   loginWithPassword(@Body() payload: PasswordLoginDto) {
     return this.authService.loginWithPassword(payload);
+  }
+
+  @Post("email/check")
+  checkEmail(@Body() payload: EmailCheckDto, @Req() request: FastifyRequest) {
+    return this.authService.checkEmail(payload, getRequestMeta(request));
   }
 
   @Post("email-code/request")
