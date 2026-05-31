@@ -1,3 +1,5 @@
+import { useEffect, useRef } from "react";
+
 import { AppLink } from "@/components/navigation/app-link";
 import { BrandMark } from "@/components/marketing/brand-mark";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -16,6 +18,10 @@ type ProfileAuthGatewayProps = {
   loginError: string | null;
   showCreateAccountAction: boolean;
   onSubmitLogin: (event: React.FormEvent<HTMLFormElement>) => Promise<void>;
+  googleClientId: string | null;
+  isSubmittingGoogle: boolean;
+  googleError: string | null;
+  onSubmitGoogleCredential: (credential: string) => Promise<void>;
   emailCode: string;
   setEmailCode: (value: string) => void;
   isRequestingEmailCode: boolean;
@@ -52,7 +58,82 @@ type ProfileAuthGatewayProps = {
   onCreateAccount: (event: React.FormEvent<HTMLFormElement>) => Promise<void>;
 };
 
+declare global {
+  interface Window {
+    google?: {
+      accounts: {
+        id: {
+          initialize: (config: { client_id: string; callback: (response: { credential?: string }) => void }) => void;
+          renderButton: (element: HTMLElement, options: { theme: "outline"; size: "large"; type: "standard"; text: "signin_with"; shape: "pill"; width?: number }) => void;
+        };
+      };
+    };
+  }
+}
+
 export function ProfileAuthGateway(props: ProfileAuthGatewayProps) {
+  const googleButtonRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!props.googleClientId || !googleButtonRef.current) {
+      return;
+    }
+
+    let isCancelled = false;
+    const renderGoogleButton = () => {
+      if (isCancelled || !window.google || !googleButtonRef.current || !props.googleClientId) {
+        return;
+      }
+
+      googleButtonRef.current.innerHTML = "";
+      window.google.accounts.id.initialize({
+        client_id: props.googleClientId,
+        callback: (response) => {
+          if (response.credential) {
+            void props.onSubmitGoogleCredential(response.credential);
+          }
+        }
+      });
+      window.google.accounts.id.renderButton(googleButtonRef.current, {
+        theme: "outline",
+        size: "large",
+        type: "standard",
+        text: "signin_with",
+        shape: "pill",
+        width: Math.min(360, googleButtonRef.current.offsetWidth || 320)
+      });
+    };
+
+    if (window.google) {
+      renderGoogleButton();
+      return () => {
+        isCancelled = true;
+      };
+    }
+
+    const existingScript = document.getElementById("google-identity-services");
+    if (existingScript) {
+      existingScript.addEventListener("load", renderGoogleButton, { once: true });
+      return () => {
+        isCancelled = true;
+        existingScript.removeEventListener("load", renderGoogleButton);
+      };
+    }
+
+    const script = document.createElement("script");
+    script.id = "google-identity-services";
+    script.src = "https://accounts.google.com/gsi/client";
+    script.async = true;
+    script.defer = true;
+    script.addEventListener("load", renderGoogleButton, { once: true });
+    document.head.appendChild(script);
+
+    return () => {
+      isCancelled = true;
+      script.removeEventListener("load", renderGoogleButton);
+    };
+  }, [props.googleClientId, props.onSubmitGoogleCredential]);
+
   return (
     <main className="container-shell pb-16 pt-24">
       <header className="soft-rise mb-8 flex flex-wrap items-start justify-between gap-4">
@@ -80,6 +161,18 @@ export function ProfileAuthGateway(props: ProfileAuthGatewayProps) {
             <CardTitle>Sign in</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
+            {props.googleClientId ? (
+              <div className="space-y-3">
+                <div ref={googleButtonRef} className="min-h-[44px]" />
+                {props.isSubmittingGoogle ? <p className="body-muted text-sm">Signing in with Google...</p> : null}
+                {props.googleError ? <p className="status-error text-sm">{props.googleError}</p> : null}
+                <div className="flex items-center gap-3 text-xs uppercase tracking-[0.2em] text-muted-foreground">
+                  <span className="h-px flex-1 bg-border" />
+                  <span>Email</span>
+                  <span className="h-px flex-1 bg-border" />
+                </div>
+              </div>
+            ) : null}
             <form className="space-y-3" onSubmit={props.onSubmitLogin}>
               <label className="space-y-1 text-sm">
                 <span className="field-label">Email</span>

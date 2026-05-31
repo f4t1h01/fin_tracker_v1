@@ -1,5 +1,6 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException, UnauthorizedException } from "@nestjs/common";
 import { parseApiEnv } from "@repo/config";
+import { OAuth2Client } from "google-auth-library";
 import { sign, verify } from "jsonwebtoken";
 import { createHash, createHmac, randomBytes, randomInt, scrypt, timingSafeEqual } from "node:crypto";
 import { promisify } from "node:util";
@@ -12,6 +13,7 @@ import { PrismaService } from "../prisma/prisma.service";
 import { BotWebAppLoginDto } from "./dto/bot-webapp-login.dto";
 import { EmailCodeLoginDto } from "./dto/email-code-login.dto";
 import { EmailCodeRequestDto } from "./dto/email-code-request.dto";
+import { GoogleLoginDto } from "./dto/google-login.dto";
 import { PasswordChangeDto } from "./dto/password-change.dto";
 import { PasswordLoginDto } from "./dto/password-login.dto";
 import { PasswordRegisterDto } from "./dto/password-register.dto";
@@ -28,6 +30,8 @@ const EMAIL_CODE_RESEND_COOLDOWN_SECONDS = 60;
 
 @Injectable()
 export class AuthService {
+  private readonly googleClient = new OAuth2Client();
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly emailDelivery: EmailDeliveryService,
@@ -343,6 +347,22 @@ export class AuthService {
     return -(BigInt(Date.now()) * 1000000n + randomPart);
   }
 
+  private getUserAuthSelect() {
+    return {
+      id: true,
+      telegramId: true,
+      username: true,
+      firstName: true,
+      lastName: true,
+      isAdmin: true,
+      isDark: true,
+      coupleCode: true,
+      email: true,
+      googleSub: true,
+      passwordHash: true
+    };
+  }
+
   private verifyTelegramHash(payload: TelegramLoginDto): boolean {
     const env = parseApiEnv(process.env);
     const entries = Object.entries(payload).filter(([key, value]) => {
@@ -437,6 +457,30 @@ export class AuthService {
     const env = parseApiEnv(process.env);
     return {
       startParam: createTelegramLinkTokenValue(userId, env.API_JWT_SECRET)
+    };
+  }
+
+  async authProviders() {
+    const [email, googleConfig] = await Promise.all([
+      this.emailDelivery.getPublicStatus(),
+      this.db.authGoogleConfig.findUnique({
+        where: { id: "default" },
+        select: {
+          isEnabled: true,
+          clientId: true
+        }
+      })
+    ]);
+
+    const googleClientId = googleConfig?.clientId?.trim() ?? "";
+    const isGoogleEnabled = Boolean(googleConfig?.isEnabled && googleClientId);
+
+    return {
+      email,
+      google: {
+        isEnabled: isGoogleEnabled,
+        clientId: isGoogleEnabled ? googleClientId : null
+      }
     };
   }
 
@@ -795,6 +839,163 @@ export class AuthService {
       email: user.email,
       hasPassword: true
     });
+  }
+
+  async loginWithGoogle(payload: GoogleLoginDto, authorizationHeader?: string) {
+    const config = await this.db.authGoogleConfig.findUnique({
+      where: { id: "default" },
+      select: {
+        isEnabled: true,
+        clientId: true,
+        hostedDomain: true,
+        autoCreateUsers: true,
+        linkByVerifiedEmail: true
+      }
+    });
+
+    const clientId = config?.clientId?.trim();
+    if (!config?.isEnabled || !clientId) {
+      throw new BadRequestException("Google sign-in is not configured yet");
+    }
+
+    let googlePayload: {
+      sub?: string;
+      email?: string;
+      email_verified?: boolean;
+      given_name?: string;
+      family_name?: string;
+      picture?: string;
+      hd?: string;
+    } | undefined;
+    try {
+      const ticket = await this.googleClient.verifyIdToken({
+        idToken: payload.credential,
+        audience: clientId
+      });
+      googlePayload = ticket.getPayload();
+    } catch {
+      throw new UnauthorizedException("Google sign-in token is invalid");
+    }
+
+    const googleSub = googlePayload?.sub;
+    const googleEmail = googlePayload?.email;
+    if (!googlePayload || !googleSub || !googleEmail || googlePayload.email_verified !== true) {
+      throw new UnauthorizedException("Google account email is not verified");
+    }
+
+    const hostedDomain = config.hostedDomain?.trim().toLowerCase();
+    if (hostedDomain && googlePayload.hd?.toLowerCase() !== hostedDomain) {
+      throw new UnauthorizedException("This Google account is not allowed for this app");
+    }
+
+    const normalizedEmail = this.normalizeEmail(googleEmail);
+    const authorizedUserId = this.resolveAuthorizedUserId(authorizationHeader);
+    const select = this.getUserAuthSelect();
+
+    let user = authorizedUserId
+      ? await this.db.user.findUnique({
+          where: { id: authorizedUserId },
+          select
+        })
+      : await this.db.user.findUnique({
+          where: { googleSub },
+          select
+        });
+
+    if (!user && config.linkByVerifiedEmail) {
+      user = await this.db.user.findUnique({
+        where: { email: normalizedEmail },
+        select
+      });
+    }
+
+    if (user) {
+      if (user.googleSub && user.googleSub !== googleSub) {
+        throw new ConflictException("This account is already linked to another Google account");
+      }
+
+      const emailOwner = await this.db.user.findUnique({
+        where: { email: normalizedEmail },
+        select: { id: true }
+      });
+      if (emailOwner && emailOwner.id !== user.id) {
+        throw new ConflictException("This Google email is already used by another account");
+      }
+
+      const updated = await this.db.user.update({
+        where: { id: user.id },
+        data: {
+          googleSub,
+          email: user.email ?? normalizedEmail,
+          firstName: user.firstName ?? googlePayload.given_name ?? null,
+          lastName: user.lastName ?? googlePayload.family_name ?? null,
+          photoUrl: googlePayload.picture ?? undefined
+        },
+        select
+      });
+
+      const coupleCode = updated.coupleCode ?? (await this.ensureUserCoupleCode(updated.id));
+      return this.buildAuthPayload({
+        id: updated.id,
+        telegramId: updated.telegramId,
+        username: updated.username,
+        firstName: updated.firstName,
+        lastName: updated.lastName,
+        isAdmin: updated.isAdmin,
+        isDark: updated.isDark,
+        coupleCode,
+        email: updated.email,
+        hasPassword: Boolean(updated.passwordHash)
+      });
+    }
+
+    if (!config.autoCreateUsers) {
+      throw new UnauthorizedException("No Duet account is linked to this Google email");
+    }
+
+    const emailOwner = await this.db.user.findUnique({
+      where: { email: normalizedEmail },
+      select: { id: true }
+    });
+    if (emailOwner) {
+      throw new ConflictException("Account already exists for this email. Please sign in with email first.");
+    }
+
+    for (let attempt = 0; attempt < 12; attempt += 1) {
+      try {
+        const created = await this.db.user.create({
+          data: {
+            telegramId: this.generateWebsiteTelegramIdCandidate(),
+            email: normalizedEmail,
+            googleSub,
+            firstName: googlePayload.given_name ?? null,
+            lastName: googlePayload.family_name ?? null,
+            photoUrl: googlePayload.picture ?? null
+          },
+          select
+        });
+
+        const coupleCode = created.coupleCode ?? (await this.ensureUserCoupleCode(created.id));
+        return this.buildAuthPayload({
+          id: created.id,
+          telegramId: created.telegramId,
+          username: created.username,
+          firstName: created.firstName,
+          lastName: created.lastName,
+          isAdmin: created.isAdmin,
+          isDark: created.isDark,
+          coupleCode,
+          email: created.email,
+          hasPassword: Boolean(created.passwordHash)
+        });
+      } catch (error) {
+        if (attempt === 11) {
+          throw error;
+        }
+      }
+    }
+
+    throw new BadRequestException("Could not create account right now");
   }
 
   async requestEmailLoginCode(payload: EmailCodeRequestDto, requestMeta?: { ip?: string | null; userAgent?: string | null }) {

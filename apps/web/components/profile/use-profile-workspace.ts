@@ -57,6 +57,16 @@ type UseProfileWorkspaceOptions = {
   routePath?: string;
 };
 
+type AuthProvidersResponse = {
+  google: {
+    isEnabled: boolean;
+    clientId: string | null;
+  };
+  email: {
+    emailCodeEnabled: boolean;
+  };
+};
+
 const useClientLayoutEffect = typeof window === "undefined" ? useEffect : useLayoutEffect;
 
 function normalizeMonthlySummary(summary: Partial<MonthlySummary> | null | undefined): MonthlySummary {
@@ -95,6 +105,9 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
   const [loginMessage, setLoginMessage] = useState<string | null>(null);
   const [loginError, setLoginError] = useState<string | null>(null);
   const [showCreateAccountAction, setShowCreateAccountAction] = useState(false);
+  const [googleClientId, setGoogleClientId] = useState<string | null>(null);
+  const [isSubmittingGoogle, setIsSubmittingGoogle] = useState(false);
+  const [googleError, setGoogleError] = useState<string | null>(null);
   const [emailCode, setEmailCode] = useState("");
   const [isRequestingEmailCode, setIsRequestingEmailCode] = useState(false);
   const [isSubmittingEmailCode, setIsSubmittingEmailCode] = useState(false);
@@ -367,6 +380,27 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
   }, [applySnapshot]);
 
   useEffect(() => {
+    let isCancelled = false;
+
+    void fetch(`${webEnv.apiUrl}/auth/providers`)
+      .then((response) => parseApiResponse<AuthProvidersResponse>(response))
+      .then((payload) => {
+        if (!isCancelled) {
+          setGoogleClientId(payload.google.isEnabled ? payload.google.clientId : null);
+        }
+      })
+      .catch(() => {
+        if (!isCancelled) {
+          setGoogleClientId(null);
+        }
+      });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
     const listener = (event: Event) => {
       updatePreferredCurrencies((event as CustomEvent<SupportedCurrency[]>).detail);
     };
@@ -621,6 +655,38 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
       setIsSubmittingEmailCode(false);
     }
   };
+
+  const onSubmitGoogleCredential = useCallback(
+    async (credential: string) => {
+      setGoogleError(null);
+      setLoginError(null);
+      setLoginMessage(null);
+      setShowCreateAccountAction(false);
+      setIsSubmittingGoogle(true);
+
+      try {
+        const response = await fetch(`${webEnv.apiUrl}/auth/google/login`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({ credential })
+        });
+
+        const payload = await parseApiResponse<{ accessToken: string }>(response);
+        const accessToken = await attachPendingTelegramContext(payload.accessToken);
+        localStorage.setItem(tokenKey, accessToken);
+        localStorage.setItem(authSourceKey, "google");
+        setToken(accessToken);
+        ensureCanonicalProfileUrl();
+      } catch (error) {
+        setGoogleError(error instanceof Error ? error.message : "Could not sign in with Google");
+      } finally {
+        setIsSubmittingGoogle(false);
+      }
+    },
+    [attachPendingTelegramContext, ensureCanonicalProfileUrl]
+  );
 
   const onRequestPasswordReset = async () => {
     setResetError(null);
@@ -1208,6 +1274,10 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
     loginError,
     showCreateAccountAction,
     onSubmitLogin,
+    googleClientId,
+    isSubmittingGoogle,
+    googleError,
+    onSubmitGoogleCredential,
     emailCode,
     setEmailCode,
     isRequestingEmailCode,

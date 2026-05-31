@@ -6,6 +6,7 @@ import { CurrentUser } from "./current-user.decorator";
 import { BotWebAppLoginDto } from "./dto/bot-webapp-login.dto";
 import { EmailCodeLoginDto } from "./dto/email-code-login.dto";
 import { EmailCodeRequestDto } from "./dto/email-code-request.dto";
+import { GoogleLoginDto } from "./dto/google-login.dto";
 import { PasswordChangeDto } from "./dto/password-change.dto";
 import { PasswordLoginDto } from "./dto/password-login.dto";
 import { PasswordRegisterDto } from "./dto/password-register.dto";
@@ -26,6 +27,16 @@ function getRequestMeta(request: FastifyRequest) {
 @Controller("auth")
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
+
+  @Get("providers")
+  authProviders() {
+    return this.authService.authProviders();
+  }
+
+  @Post("google/login")
+  loginWithGoogle(@Body() payload: GoogleLoginDto, @Headers("authorization") authorizationHeader?: string) {
+    return this.authService.loginWithGoogle(payload, authorizationHeader);
+  }
 
   @Post("telegram")
   loginWithTelegram(@Body() payload: TelegramLoginDto, @Headers("authorization") authorizationHeader?: string) {
