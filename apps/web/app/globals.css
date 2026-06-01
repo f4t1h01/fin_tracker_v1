@@ -1182,6 +1182,15 @@ html[data-theme="dark"] .field-control {
   color: #1f1f1f;
 }
 
+.auth-choice-google-live {
+  justify-content: center;
+  padding: 10px 16px;
+}
+
+.auth-choice-google-live > div {
+  width: min(100%, 360px);
+}
+
 .detail-box {
   border: 1px solid rgba(201, 168, 76, 0.14);
   border-radius: 12px;
