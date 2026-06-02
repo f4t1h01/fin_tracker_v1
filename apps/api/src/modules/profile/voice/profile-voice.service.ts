@@ -9,6 +9,7 @@ import { extractVoiceTransactionDraft } from "./openai-extraction.client";
 import { transcribeVoiceAudio } from "./openai-transcription.client";
 import { OpenAiRequestError } from "./openai-request-error";
 import { matchVoiceCategory, type VoiceCategoryCatalog } from "./voice-category-matcher";
+import { normalizeVoiceFinancialExtraction } from "./voice-financial-normalizer";
 import type { VoiceTransactionDraftResponse } from "./voice-transaction-draft.schema";
 import { OPENAI_EXTRACTION_MODEL, OPENAI_TRANSCRIPTION_MODEL } from "./voice.constants";
 
@@ -124,20 +125,25 @@ export class ProfileVoiceService {
       throw error;
     }
 
-    const matchedCategory = matchVoiceCategory({
-      catalog,
-      kind: extracted.draft.kind,
-      categoryName: extracted.draft.categoryName
+    const normalizedDraft = normalizeVoiceFinancialExtraction({
+      draft: extracted.draft,
+      transcript: transcription.transcript
     });
 
-    const missingFields = new Set<string>(extracted.draft.missingFields);
-    if (!extracted.draft.kind) {
+    const matchedCategory = matchVoiceCategory({
+      catalog,
+      kind: normalizedDraft.kind,
+      categoryName: normalizedDraft.categoryName
+    });
+
+    const missingFields = new Set<string>(normalizedDraft.missingFields);
+    if (!normalizedDraft.kind) {
       missingFields.add("kind");
     }
-    if (typeof extracted.draft.amount !== "number") {
+    if (typeof normalizedDraft.amount !== "number") {
       missingFields.add("amount");
     }
-    if (!extracted.draft.currency) {
+    if (!normalizedDraft.currency) {
       missingFields.add("currency");
     }
     if (!matchedCategory.categoryId) {
@@ -146,7 +152,7 @@ export class ProfileVoiceService {
       missingFields.delete("category");
     }
 
-    const warnings = [...extracted.draft.warnings];
+    const warnings = [...normalizedDraft.warnings];
     if (!matchedCategory.categoryId) {
       warnings.push(matchedCategory.categoryNameCandidate ? `No exact category match for "${matchedCategory.categoryNameCandidate}"` : "No category was identified from the voice note");
     }
@@ -154,13 +160,13 @@ export class ProfileVoiceService {
     return {
       transcript: transcription.transcript,
       draft: {
-        kind: extracted.draft.kind,
-        amount: extracted.draft.amount,
-        currency: extracted.draft.currency,
+        kind: normalizedDraft.kind,
+        amount: normalizedDraft.amount,
+        currency: normalizedDraft.currency,
         categoryId: matchedCategory.categoryId,
         categoryNameCandidate: matchedCategory.categoryId ? null : matchedCategory.categoryNameCandidate,
-        note: extracted.draft.note,
-        confidence: extracted.draft.confidence,
+        note: normalizedDraft.note,
+        confidence: normalizedDraft.confidence,
         missingFields: Array.from(missingFields),
         warnings
       }
