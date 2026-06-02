@@ -80,4 +80,34 @@ describe("normalizeVoiceFinancialExtraction", () => {
     assert.deepEqual(normalized.missingFields, ["amount", "currency"]);
     assert.ok(normalized.warnings.includes("Amount must be greater than zero."));
   });
+
+  it("sums multiple marked expense amounts when the model returns one line item", () => {
+    const normalized = normalizeVoiceFinancialExtraction({
+      transcript: "Taxi 20 ming va lunch 30 ming so'm",
+      draft: draft({
+        amount: 20,
+        currency: null,
+        missingFields: ["currency"]
+      })
+    });
+
+    assert.equal(normalized.amount, 50_000);
+    assert.equal(normalized.currency, "UZS");
+    assert.ok(normalized.warnings.includes("Multiple expense amounts were combined into one draft."));
+  });
+
+  it("does not sum marked amounts when the transcript mixes received money", () => {
+    const normalized = normalizeVoiceFinancialExtraction({
+      transcript: "Salary received 2 million and groceries 50 ming",
+      draft: draft({
+        amount: 50,
+        currency: null,
+        missingFields: ["currency"]
+      })
+    });
+
+    assert.equal(normalized.amount, 50_000);
+    assert.equal(normalized.currency, "UZS");
+    assert.ok(!normalized.warnings.includes("Multiple expense amounts were combined into one draft."));
+  });
 });

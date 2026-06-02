@@ -813,7 +813,7 @@ class DuetViewModel(application: Application) : AndroidViewModel(application) {
 
 private const val LOG_TAG = "DuetAndroid"
 private const val VOICE_RECORDING_LIMIT_SECONDS = 60
-private const val VOICE_RECORDING_MIN_SECONDS = 3
+private const val VOICE_RECORDING_MIN_SECONDS = 2
 private const val VOICE_VISUALIZER_UPDATE_MS = 48L
 private val DEFAULT_VISUALIZER_LEVELS = defaultVoiceLevels()
 private const val FALLBACK_VISUALIZER_NOISE_FLOOR = 0.018f

@@ -1,8 +1,11 @@
 import { SUPPORTED_CURRENCIES, type SupportedCurrency } from "../../common/currency";
 import type { VoiceTransactionExtraction } from "./voice-transaction-draft.schema";
 
-const THOUSAND_MARKER_PATTERN = /\b(?:ming|thousand|тыс\.?|тысяч[аи]?|тысяча|тысячи|минг)\b/iu;
 const MILLION_MARKER_PATTERN = /\b(?:million|mln|миллион[а-я]*|млн)\b/iu;
+const MARKED_AMOUNT_PATTERN =
+  /(\d+(?:[.,]\d+)?)\s*(ming|thousand|тыс\.?|тысяч[аи]?|тысяча|тысячи|минг|million|mln|миллион[а-я]*|млн)\b/giu;
+const CUMULATIVE_EXPENSE_BLOCKLIST_PATTERN =
+  /\b(?:salary|income|deposit|refund|cashback|change|received|got paid|oylik|maosh|qaytim|qaytardi|возврат|сдач[аи]|зарплат[а-я]*|получил[а-я]*)\b/iu;
 
 const CURRENCY_ALIAS_PATTERNS: Array<{
   currency: SupportedCurrency;
@@ -54,6 +57,85 @@ function normalizeAmountPrecision(amount: number) {
   return Number(Number(amount).toFixed(2));
 }
 
+function markerScale(marker: string) {
+  return MILLION_MARKER_PATTERN.test(marker) ? 1_000_000 : 1_000;
+}
+
+function extractMarkedAmountPhrases(transcript: string) {
+  const amounts: Array<{ raw: number; scaled: number }> = [];
+
+  for (const match of transcript.matchAll(MARKED_AMOUNT_PATTERN)) {
+    const rawAmount = match[1]?.replace(",", ".") ?? "";
+    const marker = match[2] ?? "";
+    const amount = Number(rawAmount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      continue;
+    }
+
+    amounts.push({
+      raw: normalizeAmountPrecision(amount),
+      scaled: normalizeAmountPrecision(amount * markerScale(marker))
+    });
+  }
+
+  return amounts;
+}
+
+function extractMarkedAmounts(transcript: string) {
+  return extractMarkedAmountPhrases(transcript).map((amount) => amount.scaled);
+}
+
+function isApproximatelyEqual(left: number, right: number) {
+  return Math.abs(left - right) <= 0.01;
+}
+
+function normalizeCumulativeExpenseAmount(params: {
+  kind: VoiceTransactionExtraction["kind"];
+  amount: number | null;
+  transcript: string;
+}): {
+  amount: number | null;
+  warning: string | null;
+} {
+  if (params.kind !== "EXPENSE" || CUMULATIVE_EXPENSE_BLOCKLIST_PATTERN.test(params.transcript)) {
+    return {
+      amount: params.amount,
+      warning: null
+    };
+  }
+
+  const markedAmounts = extractMarkedAmounts(params.transcript);
+  if (markedAmounts.length < 2 || markedAmounts.length > 6) {
+    return {
+      amount: params.amount,
+      warning: null
+    };
+  }
+
+  const total = normalizeAmountPrecision(markedAmounts.reduce((sum, amount) => sum + amount, 0));
+  if (params.amount !== null && isApproximatelyEqual(params.amount, total)) {
+    return {
+      amount: params.amount,
+      warning: "Multiple expense amounts were combined into one draft."
+    };
+  }
+
+  const modelUsedOneLineItem =
+    params.amount === null ||
+    markedAmounts.some((amount) => params.amount !== null && isApproximatelyEqual(amount, params.amount));
+  if (!modelUsedOneLineItem) {
+    return {
+      amount: params.amount,
+      warning: null
+    };
+  }
+
+  return {
+    amount: total,
+    warning: "Multiple expense amounts were combined into one draft."
+  };
+}
+
 function normalizeScaledAmount(params: {
   amount: number | null;
   transcript: string;
@@ -75,23 +157,24 @@ function normalizeScaledAmount(params: {
     };
   }
 
-  const transcript = params.transcript.toLowerCase();
-  let amount = params.amount;
-  let scale: number | null = null;
+  const amount = params.amount;
+  const markedAmount = extractMarkedAmountPhrases(params.transcript).find((item) =>
+    isApproximatelyEqual(amount, item.raw) ||
+    isApproximatelyEqual(amount, item.scaled)
+  );
 
-  if (amount < 10_000 && MILLION_MARKER_PATTERN.test(transcript)) {
-    scale = 1_000_000;
-  } else if (amount < 1_000 && THOUSAND_MARKER_PATTERN.test(transcript)) {
-    scale = 1_000;
-  }
-
-  if (scale) {
-    amount *= scale;
+  if (markedAmount) {
+    return {
+      amount: markedAmount.scaled,
+      warning: isApproximatelyEqual(amount, markedAmount.scaled)
+        ? null
+        : "Amount was expanded from spoken shorthand."
+    };
   }
 
   return {
     amount: normalizeAmountPrecision(amount),
-    warning: scale ? "Amount was expanded from spoken shorthand." : null
+    warning: null
   };
 }
 
@@ -151,15 +234,21 @@ export function normalizeVoiceFinancialExtraction(params: {
     transcript: params.transcript
   });
   warnings = mergeWarnings(warnings, amountResult.warning);
+  const cumulativeAmountResult = normalizeCumulativeExpenseAmount({
+    kind: params.draft.kind,
+    amount: amountResult.amount,
+    transcript: params.transcript
+  });
+  warnings = mergeWarnings(warnings, cumulativeAmountResult.warning);
 
   const currencyResult = normalizeCurrency({
     currency: params.draft.currency,
-    amount: amountResult.amount,
+    amount: cumulativeAmountResult.amount,
     transcript: params.transcript
   });
   warnings = mergeWarnings(warnings, currencyResult.warning);
 
-  if (typeof amountResult.amount === "number") {
+  if (typeof cumulativeAmountResult.amount === "number") {
     missingFields.delete("amount");
   } else {
     missingFields.add("amount");
@@ -173,7 +262,7 @@ export function normalizeVoiceFinancialExtraction(params: {
 
   return {
     ...params.draft,
-    amount: amountResult.amount,
+    amount: cumulativeAmountResult.amount,
     currency: currencyResult.currency,
     missingFields: Array.from(missingFields),
     warnings
