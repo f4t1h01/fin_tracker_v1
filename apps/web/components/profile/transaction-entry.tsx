@@ -112,9 +112,18 @@ export function TransactionEntry(props: TransactionEntryProps) {
               </SelectField>
             </label>
 
-            <label className="space-y-1 text-sm md:col-span-2">
-              <span className="field-label">Category</span>
+            <div className="space-y-1 text-sm md:col-span-2">
+              <div className="flex items-center justify-between gap-3">
+                <span className="field-label">Category</span>
+                <AppLink
+                  href="/profile/me/categories"
+                  className="inline-flex items-center gap-1 rounded-[8px] border border-[rgba(201,168,76,0.18)] px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--ink-soft)] transition-colors hover:border-[rgba(201,168,76,0.36)] hover:bg-[rgba(201,168,76,0.08)] hover:text-[var(--ink)]"
+                >
+                  Manage
+                </AppLink>
+              </div>
               <SelectField
+                aria-label="Category"
                 required
                 name="category"
                 value={props.selectedCategoryId}
@@ -145,7 +154,7 @@ export function TransactionEntry(props: TransactionEntryProps) {
                   </optgroup>
                 ) : null}
               </SelectField>
-            </label>
+            </div>
           </div>
 
           <label className="space-y-1 text-sm">
@@ -154,15 +163,7 @@ export function TransactionEntry(props: TransactionEntryProps) {
           </label>
 
           <div className="space-y-3 pt-3">
-            <p className="body-muted text-left text-sm">Press if you didn't find a relevant category.</p>
-            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-              <Button
-                type="button"
-                asChild
-                className="min-h-12 w-full !justify-start px-6 py-4 text-[14px] font-semibold uppercase tracking-[0.14em] md:w-auto md:flex-none"
-              >
-                <AppLink href="/profile/me/categories">Manage categories</AppLink>
-              </Button>
+            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-end">
               <Button
                 type="submit"
                 disabled={props.isSubmittingTx}

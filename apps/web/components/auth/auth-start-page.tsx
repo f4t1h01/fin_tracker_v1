@@ -87,11 +87,9 @@ export function AuthStartPage() {
   return (
     <AuthShell eyebrow="Duet access" title="Choose how to continue." description="Use Google for the fastest start, or continue with your email password.">
       <div className="auth-step space-y-3">
-        <div className="auth-choice auth-choice-google auth-choice-google-live">
-          {isLoadingGoogle ? <span>Preparing Google sign-in...</span> : null}
-          {!isLoadingGoogle && googleClientId ? <GoogleIdentityButton clientId={googleClientId} onCredential={onGoogleCredential} /> : null}
-          {!isLoadingGoogle && !googleClientId ? <span>Google sign-in is not enabled yet</span> : null}
-        </div>
+        {isLoadingGoogle ? <div className="auth-choice">Preparing Google sign-in...</div> : null}
+        {!isLoadingGoogle && googleClientId ? <GoogleIdentityButton clientId={googleClientId} onCredential={onGoogleCredential} /> : null}
+        {!isLoadingGoogle && !googleClientId ? <div className="auth-choice">Google sign-in is not enabled yet</div> : null}
         {isSubmittingGoogle ? <p className="body-muted text-sm">Signing in with Google...</p> : null}
         {googleError ? <p className="status-error text-sm">{googleError}</p> : null}
         <AppLink href="/auth/check" className="auth-choice">

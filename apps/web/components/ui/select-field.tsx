@@ -45,6 +45,7 @@ const SelectField = React.forwardRef<HTMLSelectElement, SelectFieldProps>(({ cla
   const rootRef = React.useRef<HTMLDivElement | null>(null);
   const triggerRef = React.useRef<HTMLButtonElement | null>(null);
   const panelRef = React.useRef<HTMLDivElement | null>(null);
+  const triggerAriaLabel = props["aria-label"];
 
   const options = React.useMemo<SelectOptionItem[]>(() => {
     return React.Children.toArray(children).flatMap((child) => {
@@ -126,6 +127,7 @@ const SelectField = React.forwardRef<HTMLSelectElement, SelectFieldProps>(({ cla
         ref={triggerRef}
         type="button"
         disabled={disabled}
+        aria-label={triggerAriaLabel}
         aria-haspopup="listbox"
         aria-expanded={open}
         className={cn("field-control field-select flex w-full items-center justify-between gap-3 text-left", triggerClassName)}

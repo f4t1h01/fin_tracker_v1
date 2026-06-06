@@ -1177,18 +1177,38 @@ html[data-theme="dark"] .field-control {
   box-shadow: 0 14px 34px rgba(26, 20, 16, 0.08);
 }
 
-.auth-choice-google {
-  background: #fff;
-  color: #1f1f1f;
+.auth-choice-google-system {
+  position: relative;
+  overflow: hidden;
+  cursor: pointer;
 }
 
-.auth-choice-google-live {
-  justify-content: center;
-  padding: 10px 16px;
+.auth-choice-google-content {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 12px;
+  pointer-events: none;
 }
 
-.auth-choice-google-live > div {
-  width: min(100%, 360px);
+.auth-choice-google-click-target {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  min-height: 56px;
+  align-items: stretch;
+  opacity: 0;
+}
+
+.auth-choice-google-click-target > div,
+.auth-choice-google-click-target iframe {
+  width: 100% !important;
+  min-width: 100% !important;
+}
+
+.auth-choice-google-click-target iframe {
+  min-height: 56px !important;
 }
 
 .detail-box {

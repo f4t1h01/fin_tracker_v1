@@ -1,6 +1,9 @@
 "use client";
 
+import { ArrowRight } from "lucide-react";
 import { useEffect, useRef } from "react";
+
+import { GoogleMark } from "./google-mark";
 
 declare global {
   interface Window {
@@ -8,7 +11,7 @@ declare global {
       accounts: {
         id: {
           initialize: (config: { client_id: string; callback: (response: { credential?: string }) => void }) => void;
-          renderButton: (element: HTMLElement, options: { theme: "outline"; size: "large"; type: "standard"; text: "signin_with"; shape: "pill"; width?: number }) => void;
+          renderButton: (element: HTMLElement, options: { theme: "outline"; size: "large"; type: "standard"; text: "signin_with"; shape: "rectangular"; width?: number }) => void;
         };
       };
     };
@@ -48,8 +51,8 @@ export function GoogleIdentityButton({ clientId, onCredential }: GoogleIdentityB
         size: "large",
         type: "standard",
         text: "signin_with",
-        shape: "pill",
-        width: Math.min(360, buttonRef.current.offsetWidth || 320)
+        shape: "rectangular",
+        width: buttonRef.current.offsetWidth || 320
       });
     };
 
@@ -83,5 +86,14 @@ export function GoogleIdentityButton({ clientId, onCredential }: GoogleIdentityB
     };
   }, [clientId, onCredential]);
 
-  return <div ref={buttonRef} className="min-h-[44px]" />;
+  return (
+    <div className="auth-choice auth-choice-google-system">
+      <span className="auth-choice-google-content">
+        <GoogleMark />
+        <span>Continue with Google</span>
+        <ArrowRight className="ml-auto size-4" />
+      </span>
+      <div ref={buttonRef} className="auth-choice-google-click-target" />
+    </div>
+  );
 }
