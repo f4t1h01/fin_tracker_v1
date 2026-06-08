@@ -6,6 +6,7 @@ x-logging: &default-logging
 
 services:
   api:
+    restart: unless-stopped
     build:
       context: .
       dockerfile: Dockerfile
@@ -20,6 +21,7 @@ services:
     logging: *default-logging
 
   web:
+    restart: unless-stopped
     build:
       context: .
       dockerfile: Dockerfile
@@ -38,6 +40,7 @@ services:
     logging: *default-logging
 
   bot:
+    restart: unless-stopped
     build:
       context: .
       dockerfile: Dockerfile
