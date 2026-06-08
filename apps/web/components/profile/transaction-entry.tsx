@@ -1,4 +1,4 @@
-import { ArrowRight, PlusCircle } from "lucide-react";
+import { ArrowRight, PlusCircle, Tags } from "lucide-react";
 
 import { AppLink } from "@/components/navigation/app-link";
 import { Button } from "@/components/ui/button";
@@ -58,11 +58,22 @@ export function TransactionEntry(props: TransactionEntryProps) {
   return (
     <Card className="panel-soft">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <PlusCircle className="size-5 text-pop" />
-          Add transaction
-        </CardTitle>
-        <CardDescription>Workspace: {props.workspaceName}</CardDescription>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="space-y-1">
+            <CardTitle className="flex items-center gap-2">
+              <PlusCircle className="size-5 text-pop" />
+              Add transaction
+            </CardTitle>
+            <CardDescription>Workspace: {props.workspaceName}</CardDescription>
+          </div>
+          <AppLink
+            href="/profile/me/categories"
+            className="inline-flex w-fit items-center gap-1.5 rounded-[8px] border border-[rgba(111,139,114,0.22)] bg-[rgba(111,139,114,0.08)] px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--sage)] transition-colors hover:border-[rgba(111,139,114,0.42)] hover:bg-[rgba(111,139,114,0.14)]"
+          >
+            <Tags className="size-3" />
+            Manage categories
+          </AppLink>
+        </div>
       </CardHeader>
       <CardContent>
         <form className="space-y-4" onSubmit={props.onSubmit} onInvalid={reportInvalid}>
@@ -113,15 +124,7 @@ export function TransactionEntry(props: TransactionEntryProps) {
             </label>
 
             <div className="space-y-1 text-sm md:col-span-2">
-              <div className="flex items-center justify-between gap-3">
-                <span className="field-label">Category</span>
-                <AppLink
-                  href="/profile/me/categories"
-                  className="inline-flex items-center gap-1 rounded-[8px] border border-[rgba(201,168,76,0.18)] px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--ink-soft)] transition-colors hover:border-[rgba(201,168,76,0.36)] hover:bg-[rgba(201,168,76,0.08)] hover:text-[var(--ink)]"
-                >
-                  Manage
-                </AppLink>
-              </div>
+              <span className="field-label">Category</span>
               <SelectField
                 aria-label="Category"
                 required
