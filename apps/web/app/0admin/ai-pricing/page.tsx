@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SelectField } from "@/components/ui/select-field";
 import { TextField } from "@/components/ui/text-field";
 
-const KNOWN_MODELS = ["gpt-4o-mini", "gpt-4o-transcribe"];
+const KNOWN_MODELS = ["gpt-4o-mini", "gpt-4o-transcribe", "gpt-4.1-mini"];
 
 export default function AdminAiPricingPage() {
   const [data, setData] = useState<AdminAiPricingListResponse | null>(null);

@@ -136,7 +136,7 @@ This starts the web, API, and bot workspaces in development mode.
 3. Make sure the API base URL in the Android configuration points to the running backend.
 4. Run the `app` configuration on an emulator or physical Android device.
 
-Recommended demo flow:
+Suggested smoke test flow:
 
 1. Register or log in.
 2. Open Profile and confirm user/workspace data loads.
@@ -284,14 +284,6 @@ pnpm build
 Android tests are under `apps/android/app/src/test`. They cover focused data and utility behavior such as currency normalization, query building, DTO parsing, and voice audio helpers.
 
 Run Android unit tests from Android Studio or from `apps/android` with the Gradle test task.
-
-## Assignment 2 Submission Notes
-
-The folder `assignemnt 2 submission form` contains the technical report draft for the Mobile App Development final project:
-
-- `report.md`: 5-8 page technical report content with architecture and navigation diagrams.
-
-Presentation slides are intentionally not included here because they will be prepared separately.
 
 ## MVP deployment preflight
 

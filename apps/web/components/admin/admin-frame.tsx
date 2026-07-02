@@ -12,21 +12,46 @@ import { cn } from "@/lib/cn";
 import { adminFetch } from "./client";
 import type { AdminSession } from "./types";
 
-const navItems = [
-  { href: "/0admin", label: "Overview" },
-  { href: "/0admin/users", label: "Users" },
-  { href: "/0admin/couples", label: "Couples" },
-  { href: "/0admin/transactions", label: "Transactions" },
-  { href: "/0admin/categories", label: "Categories" },
-  { href: "/0admin/goods/uoms", label: "Goods UOMs" },
-  { href: "/0admin/ai-demo", label: "AI demo" },
-  { href: "/0admin/ai-usage", label: "AI usage" },
-  { href: "/0admin/ai-pricing", label: "AI pricing" },
-  { href: "/0admin/sql", label: "SQL" },
-  { href: "/0admin/auth-settings", label: "Auth settings" },
-  { href: "/0admin/security", label: "Security" },
-  { href: "/0admin/audit", label: "Audit" }
+const navGroups = [
+  {
+    label: "Home",
+    items: [{ href: "/0admin", label: "Overview" }]
+  },
+  {
+    label: "Support",
+    items: [
+      { href: "/0admin/users", label: "Users" },
+      { href: "/0admin/couples", label: "Couples" },
+      { href: "/0admin/transactions", label: "Transactions" },
+      { href: "/0admin/categories", label: "Categories" },
+      { href: "/0admin/goods/uoms", label: "Goods units" }
+    ]
+  },
+  {
+    label: "Monitoring",
+    items: [
+      { href: "/0admin/ai-usage", label: "AI usage" },
+      { href: "/0admin/ai-pricing", label: "AI pricing" },
+      { href: "/0admin/audit", label: "Audit" }
+    ]
+  },
+  {
+    label: "Access",
+    items: [
+      { href: "/0admin/auth-settings", label: "Auth settings" },
+      { href: "/0admin/security", label: "Security" },
+      { href: "/0admin/sql", label: "SQL" }
+    ]
+  }
 ];
+
+function isActiveAdminRoute(pathname: string, href: string) {
+  if (href === "/0admin") {
+    return pathname === href;
+  }
+
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
 
 type AdminFrameProps = {
   title: string;
@@ -86,20 +111,31 @@ export function AdminFrame({ title, description, actions, children }: AdminFrame
       </div>
 
       <Card className="panel-soft mb-6">
-        <CardContent className="flex flex-wrap gap-2 pt-6">
-          {navItems.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={cn(
-                "rounded-full border px-4 py-2 text-sm transition-colors",
-                pathname === item.href
-                  ? "border-[var(--gold)] bg-[color-mix(in_srgb,var(--gold)_14%,transparent)] text-[var(--ink)]"
-                  : "border-[rgba(201,168,76,0.18)] text-[var(--ink-soft)] hover:border-[var(--gold)] hover:text-[var(--ink)]"
-              )}
-            >
-              {item.label}
-            </Link>
+        <CardContent className="grid gap-4 pt-6 lg:grid-cols-[0.65fr_1.7fr_1.1fr_1.1fr]">
+          {navGroups.map((group) => (
+            <nav key={group.label} aria-label={`Admin ${group.label}`} className="space-y-2">
+              <p className="field-label text-xs">{group.label}</p>
+              <div className="flex flex-wrap gap-2">
+                {group.items.map((item) => {
+                  const active = isActiveAdminRoute(pathname, item.href);
+
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className={cn(
+                        "rounded-full border px-3 py-2 text-sm transition-colors",
+                        active
+                          ? "border-[var(--gold)] bg-[color-mix(in_srgb,var(--gold)_14%,transparent)] text-[var(--ink)]"
+                          : "border-[rgba(201,168,76,0.18)] text-[var(--ink-soft)] hover:border-[var(--gold)] hover:text-[var(--ink)]"
+                      )}
+                    >
+                      {item.label}
+                    </Link>
+                  );
+                })}
+              </div>
+            </nav>
           ))}
         </CardContent>
       </Card>

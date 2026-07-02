@@ -1,16 +1,4 @@
-import {
-  BadRequestException,
-  Body,
-  Controller,
-  Get,
-  Param,
-  Post,
-  Query,
-  Req,
-  Res,
-  UseGuards
-} from "@nestjs/common";
-import type { MultipartFile } from "@fastify/multipart";
+import { Body, Controller, Get, Param, Post, Query, Req, Res, UseGuards } from "@nestjs/common";
 import type { FastifyReply, FastifyRequest } from "fastify";
 
 import { serializeAdminSessionClearCookie, serializeAdminSessionCookie } from "./admin-cookie.util";
@@ -23,7 +11,6 @@ import { AdminReadService } from "./admin-read.service";
 import { AdminSessionGuard } from "./admin-session.guard";
 import { AdminSqlService } from "./admin-sql.service";
 import { AdminMutationService } from "./admin-mutation.service";
-import { AdminAiDemoService } from "./admin-ai-demo.service";
 import { AdminAdminPasswordResetDto } from "./dto/admin-admin-password-reset.dto";
 import { AdminAdminStatusDto } from "./dto/admin-admin-status.dto";
 import { AdminAuthEmailConfigDto } from "./dto/admin-auth-email-config.dto";
@@ -45,15 +32,6 @@ import { AdminGoodsUomUpsertDto } from "./dto/admin-goods-uom-upsert.dto";
 import { AdminSqlExecuteDto } from "./dto/admin-sql-execute.dto";
 import { AdminTransactionCorrectionDto } from "./dto/admin-transaction-correction.dto";
 import { AdminTransactionsQueryDto } from "./dto/admin-transactions-query.dto";
-import { PROFILE_UPLOAD_FILE_SIZE_LIMIT_BYTES } from "../profile/upload.constants";
-
-type MultipartImageRequest = FastifyRequest & {
-  file: (options?: {
-    limits?: {
-      fileSize?: number;
-    };
-  }) => Promise<MultipartFile | undefined>;
-};
 
 function getRequestMeta(request: FastifyRequest): AdminRequestMeta {
   return {
@@ -79,8 +57,7 @@ export class AdminController {
     private readonly authService: AdminAuthService,
     private readonly readService: AdminReadService,
     private readonly sqlService: AdminSqlService,
-    private readonly mutationService: AdminMutationService,
-    private readonly aiDemoService: AdminAiDemoService
+    private readonly mutationService: AdminMutationService
   ) {}
 
   @AdminRateLimit({ max: 10, windowMs: 15 * 60_000, scope: "admin-login" })
@@ -314,29 +291,6 @@ export class AdminController {
     @Req() request: FastifyRequest
   ) {
     return this.mutationService.retireAiModelPricing(id, dto, admin.email, getRequestMeta(request));
-  }
-
-  @UseGuards(AdminSessionGuard)
-  @Post("ai-demo/image-draft")
-  async createImageDraftDemo(
-    @Query("targetUserId") targetUserId: string | undefined,
-    @Req() request: MultipartImageRequest
-  ) {
-    if (!targetUserId?.trim()) {
-      throw new BadRequestException("targetUserId is required");
-    }
-
-    const file = await request.file({
-      limits: {
-        fileSize: PROFILE_UPLOAD_FILE_SIZE_LIMIT_BYTES
-      }
-    });
-
-    if (!file) {
-      throw new BadRequestException("Upload a receipt image first");
-    }
-
-    return this.aiDemoService.createImageDraftDemo(targetUserId, file);
   }
 
   @UseGuards(AdminSessionGuard)
