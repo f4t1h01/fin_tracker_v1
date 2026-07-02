@@ -21,8 +21,10 @@ const defaultForm = {
 export default function AdminGoodsUomsPage() {
   const [data, setData] = useState<AdminGoodsUomListResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
   const [form, setForm] = useState(defaultForm);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [pendingUnitId, setPendingUnitId] = useState<string | null>(null);
 
   const refresh = async () => {
     try {
@@ -40,6 +42,7 @@ export default function AdminGoodsUomsPage() {
   const onCreate = async () => {
     setIsSubmitting(true);
     setError(null);
+    setMessage(null);
     try {
       await adminFetch("/0admin/goods/uoms", {
         method: "POST",
@@ -52,6 +55,7 @@ export default function AdminGoodsUomsPage() {
         })
       });
       setForm(defaultForm);
+      setMessage("Goods unit was added.");
       await refresh();
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Could not create goods UOM");
@@ -62,23 +66,30 @@ export default function AdminGoodsUomsPage() {
 
   const onToggleStatus = async (id: string, isActive: boolean) => {
     setIsSubmitting(true);
+    setPendingUnitId(id);
     setError(null);
+    setMessage(null);
     try {
       await adminFetch(`/0admin/goods/uoms/${id}/status`, {
         method: "POST",
         body: JSON.stringify({ isActive: !isActive })
       });
+      setMessage(`Goods unit was ${isActive ? "disabled" : "enabled"}.`);
       await refresh();
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Could not update goods UOM status");
     } finally {
       setIsSubmitting(false);
+      setPendingUnitId(null);
     }
   };
+
+  const canCreate = Boolean(form.code.trim() && form.label.trim() && Number.isFinite(Number(form.decimals)) && Number.isFinite(Number(form.sortOrder)));
 
   return (
     <AdminFrame title="Goods UOMs" description="Manage the unit catalog used by My Goods item forms and inventory rows.">
       {error ? <p className="status-error mb-4 text-sm">{error}</p> : null}
+      {message ? <p className="status-success mb-4 text-sm">{message}</p> : null}
 
       <Card className="panel-soft mb-6">
         <CardHeader><CardTitle>Add unit</CardTitle></CardHeader>
@@ -94,7 +105,7 @@ export default function AdminGoodsUomsPage() {
           <TextField value={form.decimals} onChange={(event) => setForm((current) => ({ ...current, decimals: event.target.value }))} placeholder="Decimals" />
           <div className="flex gap-2">
             <TextField value={form.sortOrder} onChange={(event) => setForm((current) => ({ ...current, sortOrder: event.target.value }))} placeholder="Sort" />
-            <Button type="button" disabled={isSubmitting} onClick={() => void onCreate()}>
+            <Button type="button" disabled={!canCreate || isSubmitting} pending={isSubmitting && pendingUnitId === null} pendingText="Adding..." onClick={() => void onCreate()}>
               Add
             </Button>
           </div>
@@ -111,7 +122,14 @@ export default function AdminGoodsUomsPage() {
                   <p className="font-medium">{item.code} • {item.label}</p>
                   <p className="body-muted text-xs">{item.groupKey} • decimals {item.decimals} • sort {item.sortOrder}</p>
                 </div>
-                <Button type="button" variant="outline" disabled={isSubmitting} onClick={() => void onToggleStatus(item.id, item.isActive)}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={isSubmitting}
+                  pending={pendingUnitId === item.id}
+                  pendingText="Saving..."
+                  onClick={() => void onToggleStatus(item.id, item.isActive)}
+                >
                   {item.isActive ? "Disable" : "Enable"}
                 </Button>
               </div>

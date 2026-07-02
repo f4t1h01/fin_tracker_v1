@@ -20,6 +20,9 @@ export default function AdminTransactionDetailPage() {
   const [kind, setKind] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [happenedAt, setHappenedAt] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const load = () => {
     void adminFetch<AdminTransactionDetailResponse>(`/0admin/transactions/${params.id}`)
@@ -31,7 +34,11 @@ export default function AdminTransactionDetailPage() {
         setCategoryId(payload.transaction.category.id);
         setHappenedAt(payload.transaction.happenedAt.slice(0, 16));
       })
-      .catch(() => null);
+      .catch((cause) => {
+        if (cause instanceof Error && cause.message !== "UNAUTHORIZED") {
+          setError(cause.message);
+        }
+      });
   };
 
   useEffect(() => {
@@ -41,15 +48,34 @@ export default function AdminTransactionDetailPage() {
   }, [params.id]);
 
   const onSave = async () => {
-    await adminFetch(`/0admin/transactions/${params.id}/correct`, {
-      method: "POST",
-      body: JSON.stringify({ reason, note, currency, kind, categoryId, happenedAt: new Date(happenedAt).toISOString() })
-    });
-    load();
+    setMessage(null);
+    setError(null);
+    setIsSaving(true);
+
+    try {
+      await adminFetch(`/0admin/transactions/${params.id}/correct`, {
+        method: "POST",
+        body: JSON.stringify({ reason, note, currency, kind, categoryId, happenedAt: new Date(happenedAt).toISOString() })
+      });
+      setReason("");
+      setMessage("Transaction correction was applied.");
+      load();
+    } catch (cause) {
+      if (cause instanceof Error && cause.message !== "UNAUTHORIZED") {
+        setError(cause.message);
+      }
+    } finally {
+      setIsSaving(false);
+    }
   };
+
+  const canSave = Boolean(data && reason.trim().length >= 3 && currency.trim().length === 3 && kind && categoryId && happenedAt);
+  const selectedCategory = data?.availableCategories.find((item) => item.id === categoryId);
 
   return (
     <AdminFrame title="Transaction detail" description="Inspect normalized values and apply audited corrections to note, kind, currency, date, and category.">
+      {message ? <p className="status-success mb-4 text-sm">{message}</p> : null}
+      {error ? <p className="status-error mb-4 text-sm">{error}</p> : null}
       <div className="grid gap-4 lg:grid-cols-2">
         <Card className="panel-soft">
           <CardHeader><CardTitle>Current record</CardTitle></CardHeader>
@@ -65,13 +91,22 @@ export default function AdminTransactionDetailPage() {
           <CardContent className="space-y-3">
             <TextField value={reason} placeholder="Reason" onChange={(event) => setReason(event.target.value)} />
             <SelectField value={kind} onChange={(event) => setKind(event.target.value)}><option value="EXPENSE">Expense</option><option value="INCOME">Income</option></SelectField>
-            <TextField value={currency} onChange={(event) => setCurrency(event.target.value)} />
+            <TextField value={currency} maxLength={3} onChange={(event) => setCurrency(event.target.value.toUpperCase())} />
             <TextField value={note} onChange={(event) => setNote(event.target.value)} />
             <TextField type="datetime-local" value={happenedAt} onChange={(event) => setHappenedAt(event.target.value)} />
             <SelectField value={categoryId} onChange={(event) => setCategoryId(event.target.value)}>
               {data?.availableCategories.map((item) => <option key={item.id} value={item.id}>{item.name} ({item.scope})</option>)}
             </SelectField>
-            <Button type="button" onClick={onSave}>Apply correction</Button>
+            <div className="detail-box space-y-1 text-sm">
+              <p className="body-muted text-xs">Preview</p>
+              <p>{data?.transaction.kind ?? "-"} {"->"} {kind || "-"}</p>
+              <p>{data?.transaction.currency ?? "-"} {"->"} {currency || "-"}</p>
+              <p>{data?.transaction.category.name ?? "-"} {"->"} {selectedCategory?.name ?? "-"}</p>
+            </div>
+            <Button type="button" disabled={!canSave || isSaving} pending={isSaving} pendingText="Applying..." onClick={onSave}>
+              Apply correction
+            </Button>
+            {!reason.trim() ? <p className="body-muted text-xs">A short audit reason is required before saving.</p> : null}
           </CardContent>
         </Card>
       </div>

@@ -13,9 +13,16 @@ export default function AdminSecurityPage() {
   const [data, setData] = useState<AdminSecurityResponse | null>(null);
   const [reason, setReason] = useState("");
   const [newPassword, setNewPassword] = useState("");
+  const [message, setMessage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [pendingAction, setPendingAction] = useState<string | null>(null);
 
   const load = () => {
-    void adminFetch<AdminSecurityResponse>("/0admin/security").then(setData).catch(() => null);
+    void adminFetch<AdminSecurityResponse>("/0admin/security").then(setData).catch((cause) => {
+      if (cause instanceof Error && cause.message !== "UNAUTHORIZED") {
+        setError(cause.message);
+      }
+    });
   };
 
   useEffect(() => {
@@ -23,24 +30,55 @@ export default function AdminSecurityPage() {
   }, []);
 
   const toggleAdmin = async (email: string, isActive: boolean) => {
-    await adminFetch(`/0admin/security/admins/${encodeURIComponent(email)}/status`, {
-      method: "POST",
-      body: JSON.stringify({ isActive: !isActive, reason })
-    });
-    load();
+    setMessage(null);
+    setError(null);
+    setPendingAction(`status:${email}`);
+
+    try {
+      await adminFetch(`/0admin/security/admins/${encodeURIComponent(email)}/status`, {
+        method: "POST",
+        body: JSON.stringify({ isActive: !isActive, reason })
+      });
+      setMessage(`Admin ${isActive ? "deactivated" : "reactivated"}.`);
+      load();
+    } catch (cause) {
+      if (cause instanceof Error && cause.message !== "UNAUTHORIZED") {
+        setError(cause.message);
+      }
+    } finally {
+      setPendingAction(null);
+    }
   };
 
   const resetPassword = async (email: string) => {
-    await adminFetch(`/0admin/security/admins/${encodeURIComponent(email)}/password`, {
-      method: "POST",
-      body: JSON.stringify({ newPassword, reason })
-    });
-    setNewPassword("");
-    load();
+    setMessage(null);
+    setError(null);
+    setPendingAction(`password:${email}`);
+
+    try {
+      await adminFetch(`/0admin/security/admins/${encodeURIComponent(email)}/password`, {
+        method: "POST",
+        body: JSON.stringify({ newPassword, reason })
+      });
+      setNewPassword("");
+      setMessage("Admin password was reset.");
+      load();
+    } catch (cause) {
+      if (cause instanceof Error && cause.message !== "UNAUTHORIZED") {
+        setError(cause.message);
+      }
+    } finally {
+      setPendingAction(null);
+    }
   };
+
+  const hasReason = reason.trim().length >= 3;
+  const canResetPassword = hasReason && newPassword.length >= 8;
 
   return (
     <AdminFrame title="Security" description="Admin account status, password resets, failed logins, and recent auth audit events.">
+      {message ? <p className="status-success mb-4 text-sm">{message}</p> : null}
+      {error ? <p className="status-error mb-4 text-sm">{error}</p> : null}
       <div className="mb-6 grid gap-4 md:grid-cols-2">
         <Card className="panel-soft"><CardHeader><CardTitle>Admins</CardTitle></CardHeader><CardContent className="text-2xl font-semibold">{formatNumber(data?.stats.totalAdmins ?? 0)}</CardContent></Card>
         <Card className="panel-soft"><CardHeader><CardTitle>Failed logins</CardTitle></CardHeader><CardContent className="text-2xl font-semibold">{formatNumber(data?.stats.failedLogins ?? 0)}</CardContent></Card>
@@ -50,7 +88,8 @@ export default function AdminSecurityPage() {
         <CardHeader><CardTitle>Action input</CardTitle></CardHeader>
         <CardContent className="grid gap-4 md:grid-cols-2">
           <TextField value={reason} placeholder="Reason for audit log" onChange={(event) => setReason(event.target.value)} />
-          <TextField value={newPassword} placeholder="New password for reset" onChange={(event) => setNewPassword(event.target.value)} />
+          <TextField type="password" value={newPassword} placeholder="New password for reset" onChange={(event) => setNewPassword(event.target.value)} />
+          {!hasReason ? <p className="body-muted text-xs md:col-span-2">A short audit reason is required before admin status or password actions are enabled.</p> : null}
         </CardContent>
       </Card>
 
@@ -65,10 +104,23 @@ export default function AdminSecurityPage() {
                   <p className="body-muted text-xs">{admin.isActive ? "Active" : "Inactive"} • Last login {admin.lastLoginAt ? new Date(admin.lastLoginAt).toLocaleString("en-US") : "never"}</p>
                 </div>
                 <div className="flex gap-2">
-                  <Button type="button" variant="outline" onClick={() => toggleAdmin(admin.email, admin.isActive)}>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={!hasReason || pendingAction !== null}
+                    pending={pendingAction === `status:${admin.email}`}
+                    pendingText="Saving..."
+                    onClick={() => toggleAdmin(admin.email, admin.isActive)}
+                  >
                     {admin.isActive ? "Deactivate" : "Reactivate"}
                   </Button>
-                  <Button type="button" onClick={() => resetPassword(admin.email)}>
+                  <Button
+                    type="button"
+                    disabled={!canResetPassword || pendingAction !== null}
+                    pending={pendingAction === `password:${admin.email}`}
+                    pendingText="Resetting..."
+                    onClick={() => resetPassword(admin.email)}
+                  >
                     Reset password
                   </Button>
                 </div>

@@ -19,6 +19,9 @@ export default function AdminCategoryDetailPage() {
   const [parentCategoryId, setParentCategoryId] = useState("");
   const [ownerUserId, setOwnerUserId] = useState("");
   const [isVisible, setIsVisible] = useState("true");
+  const [isSaving, setIsSaving] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const load = () => {
     void adminFetch<AdminCategoryDetailResponse>(`/0admin/categories/${params.id}`)
@@ -29,7 +32,11 @@ export default function AdminCategoryDetailPage() {
         setOwnerUserId(payload.category.ownerUser?.id ?? "");
         setIsVisible(String(payload.category.isVisible));
       })
-      .catch(() => null);
+      .catch((cause) => {
+        if (cause instanceof Error && cause.message !== "UNAUTHORIZED") {
+          setError(cause.message);
+        }
+      });
   };
 
   useEffect(() => {
@@ -39,15 +46,34 @@ export default function AdminCategoryDetailPage() {
   }, [params.id]);
 
   const onSave = async () => {
-    await adminFetch(`/0admin/categories/${params.id}/correct`, {
-      method: "POST",
-      body: JSON.stringify({ reason, scope, parentCategoryId, ownerUserId, isVisible: isVisible === "true" })
-    });
-    load();
+    setMessage(null);
+    setError(null);
+    setIsSaving(true);
+
+    try {
+      await adminFetch(`/0admin/categories/${params.id}/correct`, {
+        method: "POST",
+        body: JSON.stringify({ reason, scope, parentCategoryId, ownerUserId, isVisible: isVisible === "true" })
+      });
+      setReason("");
+      setMessage("Category correction was applied.");
+      load();
+    } catch (cause) {
+      if (cause instanceof Error && cause.message !== "UNAUTHORIZED") {
+        setError(cause.message);
+      }
+    } finally {
+      setIsSaving(false);
+    }
   };
+
+  const canSave = Boolean(data && reason.trim().length >= 3 && scope && isVisible);
+  const selectedParent = data?.availableParents.find((item) => item.id === parentCategoryId);
 
   return (
     <AdminFrame title="Category detail" description="Inspect usage and apply audited repairs to visibility, scope, owner, or parent linkage.">
+      {message ? <p className="status-success mb-4 text-sm">{message}</p> : null}
+      {error ? <p className="status-error mb-4 text-sm">{error}</p> : null}
       <div className="grid gap-4 lg:grid-cols-2">
         <Card className="panel-soft">
           <CardHeader><CardTitle>Category</CardTitle></CardHeader>
@@ -68,7 +94,16 @@ export default function AdminCategoryDetailPage() {
               <option value="">No parent</option>
               {data?.availableParents.map((item) => <option key={item.id} value={item.id}>{item.name} ({item.scope})</option>)}
             </SelectField>
-            <Button type="button" onClick={onSave}>Apply correction</Button>
+            <div className="detail-box space-y-1 text-sm">
+              <p className="body-muted text-xs">Preview</p>
+              <p>{data?.category.scope ?? "-"} {"->"} {scope || "-"}</p>
+              <p>{data?.category.isVisible ? "Visible" : "Hidden"} {"->"} {isVisible === "true" ? "Visible" : "Hidden"}</p>
+              <p>{data?.category.parentCategory?.name ?? "No parent"} {"->"} {selectedParent?.name ?? "No parent"}</p>
+            </div>
+            <Button type="button" disabled={!canSave || isSaving} pending={isSaving} pendingText="Applying..." onClick={onSave}>
+              Apply correction
+            </Button>
+            {!reason.trim() ? <p className="body-muted text-xs">A short audit reason is required before saving.</p> : null}
           </CardContent>
         </Card>
       </div>
