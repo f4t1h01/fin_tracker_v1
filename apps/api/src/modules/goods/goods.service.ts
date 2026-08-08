@@ -2252,8 +2252,10 @@ export class GoodsService {
     const workspace = await this.getWorkspaceContext(userId, true);
     const clientMutationId = dto.clientMutationId?.trim() || null;
     if (clientMutationId) {
-      const existing = await this.prisma.client.goodsItem.findUnique({
-        where: { clientMutationId },
+      // Idempotency keys are scoped per creator, so another client cannot squat
+      // this id and permanently break this user's offline sync.
+      const existing = await this.prisma.client.goodsItem.findFirst({
+        where: { clientMutationId, createdById: userId },
         select: {
           id: true,
           coupleId: true,

@@ -1,2 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
-<full-backup-content />
+<!--
+  Android 11 and below (allowBackup). The session store must never leave the
+  device: its master key lives in the hardware keystore and is not backed up, so a
+  restored copy would be useless at best, and on the plaintext fallback path it
+  would be an exported bearer token.
+-->
+<full-backup-content>
+    <exclude domain="sharedpref" path="duet_secure_session.xml" />
+    <exclude domain="sharedpref" path="duet_secure_session_fallback.xml" />
+</full-backup-content>

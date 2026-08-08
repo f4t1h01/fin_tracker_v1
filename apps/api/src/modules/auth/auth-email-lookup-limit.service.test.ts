@@ -44,6 +44,22 @@ describe("auth email lookup limit", () => {
     assert.deepEqual(service.recordMissingEmail(key), { attemptsRemaining: 0, retryAfterSeconds: 180 });
     assertLockedFor(service, key, 180);
   });
+
+  it("forgives escalation after a long idle gap instead of locking a key forever", () => {
+    const service = new TestLookupLimitService();
+    const key = "127.0.0.1:decay";
+
+    service.recordMissingEmail(key);
+    service.recordMissingEmail(key);
+    assert.deepEqual(service.recordMissingEmail(key), { attemptsRemaining: 0, retryAfterSeconds: 30 });
+
+    service.advance(31 * 60_000);
+
+    // Escalation restarts from the shortest delay, not the 180s tail.
+    assert.deepEqual(service.recordMissingEmail(key), { attemptsRemaining: 2 });
+    assert.deepEqual(service.recordMissingEmail(key), { attemptsRemaining: 1 });
+    assert.deepEqual(service.recordMissingEmail(key), { attemptsRemaining: 0, retryAfterSeconds: 30 });
+  });
 });
 
 function assertLockedFor(service: AuthEmailLookupLimitService, key: string, expectedRetryAfterSeconds: number) {

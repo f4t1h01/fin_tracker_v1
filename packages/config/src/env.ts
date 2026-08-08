@@ -26,8 +26,30 @@ export const botEnvSchema = z.object({
   WEB_APP_URL: z.string().trim().url().default("http://localhost:3000/profile/me")
 });
 
+export type ApiEnv = z.infer<typeof apiEnvSchema>;
+
 export function parseApiEnv(env: NodeJS.ProcessEnv) {
   return apiEnvSchema.parse(env);
+}
+
+let cachedApiEnv: ApiEnv | null = null;
+
+/**
+ * Memoized API env accessor. The API validates env once at bootstrap and then
+ * reads this on hot paths (guards, token signing, key derivation), so callers
+ * must not re-run the full zod parse per request.
+ */
+export function getApiEnv(): ApiEnv {
+  if (!cachedApiEnv) {
+    cachedApiEnv = parseApiEnv(process.env);
+  }
+
+  return cachedApiEnv;
+}
+
+/** Test-only hook so suites can reset the memoized env between cases. */
+export function resetApiEnvCache() {
+  cachedApiEnv = null;
 }
 
 export type AiModelPricing = {

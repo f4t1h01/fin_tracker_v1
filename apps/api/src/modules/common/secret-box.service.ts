@@ -1,11 +1,11 @@
 import { Injectable } from "@nestjs/common";
-import { parseApiEnv } from "@repo/config";
+import { getApiEnv } from "@repo/config";
 import { createCipheriv, createDecipheriv, createHash, createHmac, randomBytes } from "node:crypto";
 
 @Injectable()
 export class SecretBoxService {
   private key(purpose = "secret-box") {
-    const env = parseApiEnv(process.env);
+    const env = getApiEnv();
     return createHash("sha256").update(`fin-tracker:${purpose}:v1:`).update(env.API_JWT_SECRET).digest();
   }
 

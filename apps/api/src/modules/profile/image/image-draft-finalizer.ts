@@ -19,7 +19,7 @@ function normalizeProductLabel(value: string) {
   return value
     .trim()
     .replace(/\s+/g, " ")
-    .replace(/^[\-\*\u2022]+/, "")
+    .replace(/^[-*\u2022]+/, "")
     .trim();
 }
 

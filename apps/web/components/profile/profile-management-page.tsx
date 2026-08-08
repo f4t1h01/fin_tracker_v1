@@ -81,6 +81,11 @@ export function ProfileManagementPage() {
           <PasswordSetupCard
             setupEmail={workspace.setupEmail}
             setSetupEmail={workspace.setSetupEmail}
+            setupCode={workspace.setupCode}
+            setSetupCode={workspace.setSetupCode}
+            hasRequestedSetupCode={workspace.hasRequestedSetupCode}
+            isSendingSetupCode={workspace.isSendingSetupCode}
+            onRequestSetupCode={workspace.onRequestSetupCode}
             setupPassword={workspace.setupPassword}
             setSetupPassword={workspace.setSetupPassword}
             setupConfirmPassword={workspace.setupConfirmPassword}

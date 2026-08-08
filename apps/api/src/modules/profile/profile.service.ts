@@ -29,22 +29,13 @@ type SummaryRange = {
   year: number;
 };
 
-type DashboardDateRange = SummaryRange & {
-  preset: DashboardRangePreset;
-  from: string | null;
-  to: string | null;
-  label: string;
-};
-
 const defaultWeekStartsOn: WeekStartDay = "MONDAY";
 const dashboardViewModes = ["COUPLE", "PERSONAL"] as const;
-const categoryScopes = ["PERSONAL", "SHARED"] as const;
-const dashboardTrendGranularities = ["DAY", "WEEK", "MONTH"] as const;
 const dashboardTimeZone = "Asia/Tashkent";
 
-type CategoryScope = (typeof categoryScopes)[number];
+type CategoryScope = "PERSONAL" | "SHARED";
 type TransactionKind = "EXPENSE" | "INCOME";
-type DashboardTrendGranularity = (typeof dashboardTrendGranularities)[number];
+type DashboardTrendGranularity = "DAY" | "WEEK" | "MONTH";
 
 type CategoryTreeNode = {
   id: string;
@@ -144,6 +135,10 @@ type DashboardRatesResponse = {
 };
 
 const defaultDashboardRateCurrencies: readonly [SupportedCurrency, SupportedCurrency] = ["UZS", "USD"];
+/** Roughly 14 months, enough for year-over-year views without unbounded reads. */
+const MAX_DASHBOARD_RANGE_DAYS = 430;
+/** Absolute backstop on rows pulled into memory for one dashboard request. */
+const MAX_DASHBOARD_ROWS = 20_000;
 
 function isWeekStartDay(value: string | null | undefined): value is WeekStartDay {
   return Boolean(value && weekStartDays.includes(value as WeekStartDay));
@@ -370,46 +365,14 @@ function normalizeDashboardRateSelection(values: string[]) {
 
 @Injectable()
 export class ProfileService {
-  private userColumnExistsCache = new Map<string, boolean>();
-
   constructor(private readonly prisma: PrismaService) {}
 
-  private async hasUserColumn(columnName: string) {
-    if (this.userColumnExistsCache.has(columnName)) {
-      return this.userColumnExistsCache.get(columnName) ?? false;
-    }
-
-    const result = await this.prisma.client.$queryRawUnsafe<Array<{ exists: boolean }>>(
-      `SELECT EXISTS (
-        SELECT 1
-        FROM information_schema.columns
-        WHERE table_name = 'User' AND column_name = '${columnName}'
-      ) AS "exists"`
-    );
-
-    const exists = Boolean(result[0]?.exists);
-    this.userColumnExistsCache.set(columnName, exists);
-    return exists;
-  }
-
-  private hasBirthdayColumn() {
-    return this.hasUserColumn("birthday");
-  }
-
-  private hasWeekStartsOnColumn() {
-    return this.hasUserColumn("week_starts_on");
-  }
-
-  private hasDashboardRateCurrenciesColumn() {
-    return this.hasUserColumn("dashboard_rate_currencies");
-  }
-
+  // Columns used below (birthday, week_starts_on, dashboard_rate_currencies) are
+  // all covered by committed migrations. This service used to probe
+  // information_schema at runtime and silently disable features when a column was
+  // missing, which turned a failed migration into quiet data loss instead of an
+  // error. Deploys run `prisma migrate deploy` first, so the schema is trusted.
   private async getWeekStartsOnPreference(userId: string) {
-    const hasWeekStartsOnColumn = await this.hasWeekStartsOnColumn();
-    if (!hasWeekStartsOnColumn) {
-      return defaultWeekStartsOn;
-    }
-
     const user = await this.prisma.client.user.findUnique({
       where: { id: userId },
       select: { id: true, weekStartsOn: true }
@@ -491,6 +454,14 @@ export class ProfileService {
 
       if (inclusiveEnd < start) {
         throw new BadRequestException("Custom range end date cannot be earlier than the start date");
+      }
+
+      // The dashboard loads the whole range into memory to filter and aggregate,
+      // so the span has to be bounded or one request can read an unbounded number
+      // of rows.
+      const spanDays = Math.round((inclusiveEnd.getTime() - start.getTime()) / 86_400_000) + 1;
+      if (spanDays > MAX_DASHBOARD_RANGE_DAYS) {
+        throw new BadRequestException(`Custom range cannot be longer than ${MAX_DASHBOARD_RANGE_DAYS} days`);
       }
 
       return {
@@ -742,7 +713,6 @@ export class ProfileService {
   }
 
   private async getAuthState(userId: string) {
-    const [hasBirthdayColumn, hasWeekStartsOnColumn] = await Promise.all([this.hasBirthdayColumn(), this.hasWeekStartsOnColumn()]);
     const user = await this.prisma.client.user.findUnique({
       where: { id: userId },
       select: {
@@ -756,13 +726,13 @@ export class ProfileService {
         username: true,
         firstName: true,
         lastName: true,
-        ...(hasBirthdayColumn ? { birthday: true } : {}),
+        birthday: true,
         photoUrl: true,
         telegramPhone: true,
         isAdmin: true,
         isDark: true,
         showSharedCategories: true,
-        ...(hasWeekStartsOnColumn ? { weekStartsOn: true } : {})
+        weekStartsOn: true
       }
     });
 
@@ -781,13 +751,13 @@ export class ProfileService {
       username: user.username,
       firstName: user.firstName,
       lastName: user.lastName,
-      birthday: hasBirthdayColumn ? ((user as { birthday?: Date | null }).birthday ?? null) : null,
+      birthday: user.birthday ?? null,
       photoUrl: user.photoUrl,
       telegramPhone: user.telegramPhone,
       isAdmin: user.isAdmin,
       isDark: user.isDark,
       showSharedCategories: user.showSharedCategories,
-      weekStartsOn: hasWeekStartsOnColumn && isWeekStartDay((user as { weekStartsOn?: string | null }).weekStartsOn) ? (user as { weekStartsOn?: WeekStartDay }).weekStartsOn ?? defaultWeekStartsOn : defaultWeekStartsOn
+      weekStartsOn: isWeekStartDay(user.weekStartsOn) ? user.weekStartsOn : defaultWeekStartsOn
     };
   }
 
@@ -928,13 +898,6 @@ export class ProfileService {
   }
 
   private async getDashboardRatePreferences(userId: string) {
-    const hasDashboardRateCurrenciesColumn = await this.hasDashboardRateCurrenciesColumn();
-    if (!hasDashboardRateCurrenciesColumn) {
-      return {
-        selectedCurrencies: [...defaultDashboardRateCurrencies]
-      };
-    }
-
     const user = await this.prisma.client.user.findUnique({
       where: { id: userId },
       select: {
@@ -1184,10 +1147,6 @@ export class ProfileService {
   }
 
   async getProfile(userId: string) {
-    const [hasBirthdayColumn, hasDashboardRateCurrenciesColumn] = await Promise.all([
-      this.hasBirthdayColumn(),
-      this.hasDashboardRateCurrenciesColumn()
-    ]);
     const user = await this.prisma.client.user.findUnique({
       where: { id: userId },
       select: {
@@ -1196,8 +1155,8 @@ export class ProfileService {
         firstName: true,
         lastName: true,
         username: true,
-        ...(hasBirthdayColumn ? { birthday: true } : {}),
-        ...(hasDashboardRateCurrenciesColumn ? { dashboardRateCurrencies: true } : {}),
+        birthday: true,
+        dashboardRateCurrencies: true,
         coupleCode: true,
         coupleBind: {
           select: {
@@ -1216,9 +1175,7 @@ export class ProfileService {
 
     const coupleCode = user.coupleCode ?? (await this.ensureUserCoupleCode(userId));
     const activeCoupleId = await this.resolveActiveCoupleId(userId, false);
-    const dashboardRateCurrencies = hasDashboardRateCurrenciesColumn
-      ? parseStoredDashboardRateCurrencies((user as { dashboardRateCurrencies?: string | null }).dashboardRateCurrencies)
-      : [...defaultDashboardRateCurrencies];
+    const dashboardRateCurrencies = parseStoredDashboardRateCurrencies(user.dashboardRateCurrencies);
 
     if (!activeCoupleId) {
       return {
@@ -1228,7 +1185,7 @@ export class ProfileService {
           username: user.username,
           firstName: user.firstName,
           lastName: user.lastName,
-          birthday: hasBirthdayColumn ? ((user as { birthday?: Date | null }).birthday ?? null) : null,
+          birthday: user.birthday ?? null,
           coupleCode
         },
         activeCouple: null,
@@ -1258,7 +1215,7 @@ export class ProfileService {
         username: user.username,
         firstName: user.firstName,
         lastName: user.lastName,
-        birthday: hasBirthdayColumn ? ((user as { birthday?: Date | null }).birthday ?? null) : null,
+        birthday: user.birthday ?? null,
         coupleCode
       },
       activeCouple: activeCouple
@@ -1275,12 +1232,6 @@ export class ProfileService {
   }
 
   async updateDetails(userId: string, dto: UpdateProfileDetailsDto) {
-    const hasBirthdayColumn = await this.hasBirthdayColumn();
-
-    if (!hasBirthdayColumn && dto.birthday !== undefined) {
-      throw new BadRequestException("Birthday is not available yet on this deployment. Run the latest database migration first.");
-    }
-
     const existing = await this.prisma.client.user.findUnique({
       where: { id: userId },
       select: { id: true }
@@ -1295,12 +1246,7 @@ export class ProfileService {
       data: {
         firstName: dto.firstName?.trim() || null,
         lastName: dto.lastName?.trim() || null,
-        ...(hasBirthdayColumn
-          ? {
-              birthday:
-                dto.birthday === undefined ? undefined : dto.birthday ? new Date(`${dto.birthday}T00:00:00.000Z`) : null
-            }
-          : {})
+        birthday: dto.birthday === undefined ? undefined : dto.birthday ? new Date(`${dto.birthday}T00:00:00.000Z`) : null
       },
       select: {
         id: true,
@@ -1308,7 +1254,7 @@ export class ProfileService {
         firstName: true,
         lastName: true,
         username: true,
-        ...(hasBirthdayColumn ? { birthday: true } : {}),
+        birthday: true,
         coupleCode: true,
         lastTelegramChatId: true,
         email: true,
@@ -1318,12 +1264,6 @@ export class ProfileService {
   }
 
   async updateAnalyticsPreferences(userId: string, dto: UpdateAnalyticsPreferencesDto) {
-    const hasWeekStartsOnColumn = await this.hasWeekStartsOnColumn();
-
-    if (!hasWeekStartsOnColumn) {
-      throw new BadRequestException("Analytics preferences are not available yet on this deployment. Run the latest database migration first.");
-    }
-
     const existing = await this.prisma.client.user.findUnique({
       where: { id: userId },
       select: { id: true }
@@ -1383,11 +1323,6 @@ export class ProfileService {
 
   async updateDashboardRates(userId: string, dto: UpdateDashboardRatesDto): Promise<DashboardRatesResponse> {
     const selectedCurrencies = normalizeDashboardRateSelection(dto.selectedCurrencies);
-    const hasDashboardRateCurrenciesColumn = await this.hasDashboardRateCurrenciesColumn();
-
-    if (!hasDashboardRateCurrenciesColumn) {
-      throw new BadRequestException("Dashboard rate preferences are unavailable until the database migration is applied");
-    }
 
     await this.prisma.client.user.update({
       where: { id: userId },
@@ -1435,7 +1370,8 @@ export class ProfileService {
         },
         orderBy: {
           happenedAt: "desc"
-        }
+        },
+        take: MAX_DASHBOARD_ROWS
       })
     ]);
 
@@ -1860,19 +1796,12 @@ export class ProfileService {
   }
 
   async createTransaction(userId: string, dto: CreateProfileTransactionDto) {
-    console.info("[transaction:create] service start", {
-      userId,
-      amount: dto.amount,
-      kind: dto.kind,
-      currency: dto.currency,
-      hasCategoryId: Boolean(dto.categoryId),
-      hasCategoryName: Boolean(dto.categoryName),
-      hasClientMutationId: Boolean(dto.clientMutationId)
-    });
     const clientMutationId = dto.clientMutationId?.trim() || null;
     if (clientMutationId) {
+      // Idempotency keys are scoped per user, so another client cannot squat this
+      // id and permanently break this user's offline sync.
       const existing = await this.prisma.client.transaction.findUnique({
-        where: { clientMutationId },
+        where: { userId_clientMutationId: { userId, clientMutationId } },
         include: {
           category: {
             select: {
@@ -1891,9 +1820,6 @@ export class ProfileService {
       });
 
       if (existing) {
-        if (existing.userId !== userId) {
-          throw new BadRequestException("This offline create request belongs to another user");
-        }
         return existing;
       }
     }
@@ -1928,24 +1854,10 @@ export class ProfileService {
     }
 
     if (!categoryId) {
-      console.warn("[transaction:create] blocked: missing category", {
-        userId,
-        kind: dto.kind,
-        hasDefaultCategory: false
-      });
       throw new BadRequestException("Choose a category before saving the transaction");
     }
 
     const category = await this.resolveSelectedCategory(userId, coupleId, dto.kind, categoryId);
-    console.info("[transaction:create] writing transaction", {
-      userId,
-      coupleId,
-      categoryId: category.id,
-      kind: dto.kind,
-      currency,
-      amount: dto.amount,
-      amountInUzs
-    });
 
     return this.prisma.client.transaction.create({
       data: {

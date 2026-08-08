@@ -178,8 +178,26 @@ Telegram bot link:
 ## Authentication flow
 
 - Telegram-first onboarding: open bot, send `/start`, tap `Open app`
-- First profile visit can set `email + password` for browser login
+- First profile visit can set `email + password` for browser login, confirmed with a one-time email code
 - Website login/page entry: `/profile/me` (Telegram widget or email/password)
+
+### Email confirmation (OTP)
+
+Creating an account and attaching an email both require proving control of the mailbox:
+
+1. `POST /auth/register/request-code` (new account) or `POST /auth/email/claim/request` (existing account) sends a 6-digit code.
+2. `POST /auth/password/register` or `POST /auth/password/setup` accepts that `code` and stores the address as verified.
+
+Codes expire in 15 minutes, allow 5 attempts, and have a 60-second resend cooldown. Because
+the code is delivered by email, **SMTP must be configured in `/0admin/auth-settings` before
+new accounts can be created**. Google sign-in is exempt: Google already asserts a verified
+email.
+
+### Session revocation
+
+Access tokens carry a `tokenVersion` claim checked against the database on every request.
+Changing or resetting a password bumps that version, which signs out every other device.
+`POST /auth/password/change` therefore returns a fresh `accessToken` for the calling client.
 
 ## AI models and flow
 
@@ -280,6 +298,14 @@ pnpm typecheck
 pnpm test
 pnpm build
 ```
+
+`pnpm lint` runs ESLint once over the whole monorepo using the root `eslint.config.mjs`.
+It fails on errors only; the remaining warnings (`no-explicit-any`, `react-hooks/exhaustive-deps`)
+are known.
+
+On Windows, `pnpm build` compiles the web app and prerenders every page but fails at the end
+of Next.js `output: "standalone"` trace copying with `EPERM ... symlink`, because creating
+symlinks needs Developer Mode or an elevated shell. Linux (CI and Docker) is unaffected.
 
 Android tests are under `apps/android/app/src/test`. They cover focused data and utility behavior such as currency normalization, query building, DTO parsing, and voice audio helpers.
 

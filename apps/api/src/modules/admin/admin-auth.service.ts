@@ -1,5 +1,5 @@
 import { Injectable, UnauthorizedException } from "@nestjs/common";
-import { parseApiEnv } from "@repo/config";
+import { getApiEnv } from "@repo/config";
 import { sign } from "jsonwebtoken";
 import { randomBytes, scrypt, timingSafeEqual } from "node:crypto";
 import { promisify } from "node:util";
@@ -25,9 +25,11 @@ export class AdminAuthService {
     return email.trim().toLowerCase();
   }
 
-  private issueAccessToken(email: string) {
-    const env = parseApiEnv(process.env);
-    return sign({ sub: email, type: "admin" }, env.API_JWT_SECRET, {
+  private issueAccessToken(email: string, tokenVersion: number) {
+    const env = getApiEnv();
+    // tokenVersion is re-checked by AdminSessionGuard on every request so a
+    // deactivation or password reset can revoke live sessions.
+    return sign({ sub: email, type: "admin", tokenVersion }, env.API_JWT_SECRET, {
       expiresIn: `${adminSessionTtlSeconds}s`
     });
   }
@@ -94,7 +96,8 @@ export class AdminAuthService {
       select: {
         email: true,
         passwordHash: true,
-        isActive: true
+        isActive: true,
+        tokenVersion: true
       }
     });
 
@@ -155,7 +158,7 @@ export class AdminAuthService {
     });
 
     return {
-      accessToken: this.issueAccessToken(normalizedEmail),
+      accessToken: this.issueAccessToken(normalizedEmail, admin.tokenVersion ?? 0),
       admin: {
         email: normalizedEmail
       }

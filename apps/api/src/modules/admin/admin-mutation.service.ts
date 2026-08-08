@@ -359,7 +359,10 @@ export class AdminMutationService {
     const updated = await this.db.zeroAdmin.update({
       where: { email: normalizedEmail },
       data: {
-        isActive: dto.isActive
+        isActive: dto.isActive,
+        // Bumping the version revokes any live session for this admin, so
+        // deactivation takes effect immediately instead of at cookie expiry.
+        tokenVersion: { increment: 1 }
       }
     });
 
@@ -399,7 +402,9 @@ export class AdminMutationService {
     await this.db.zeroAdmin.update({
       where: { email: normalizedEmail },
       data: {
-        passwordHash
+        passwordHash,
+        // A reset must evict whoever was holding the old credentials.
+        tokenVersion: { increment: 1 }
       }
     });
 

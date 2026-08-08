@@ -12,7 +12,6 @@ import type {
   GoodsConsumptionUnit,
   GoodsDinnerAdvisorResponse,
   GoodsHistoryResponse,
-  GoodsItem,
   GoodsListResponse,
   GoodsManageCategoriesResponse,
   GoodsManagePlacesResponse,

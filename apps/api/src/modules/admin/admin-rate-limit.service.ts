@@ -1,31 +1,16 @@
-import { HttpException, HttpStatus, Injectable } from "@nestjs/common";
+import { Injectable } from "@nestjs/common";
 
-type RateLimitBucket = {
-  count: number;
-  resetAt: number;
-};
+import { RateLimitService } from "../common/rate-limit.service";
 
+/**
+ * Thin wrapper kept so admin call sites stay unchanged. The bucket store,
+ * eviction and 429 shaping all live in the shared RateLimitService now.
+ */
 @Injectable()
 export class AdminRateLimitService {
-  private readonly buckets = new Map<string, RateLimitBucket>();
+  constructor(private readonly rateLimit: RateLimitService) {}
 
   check(key: string, max: number, windowMs: number) {
-    const now = Date.now();
-    const current = this.buckets.get(key);
-
-    if (!current || current.resetAt <= now) {
-      this.buckets.set(key, {
-        count: 1,
-        resetAt: now + windowMs
-      });
-      return;
-    }
-
-    if (current.count >= max) {
-      const retryAfterSeconds = Math.max(1, Math.ceil((current.resetAt - now) / 1000));
-      throw new HttpException(`Rate limit exceeded. Retry in ${retryAfterSeconds}s.`, HttpStatus.TOO_MANY_REQUESTS);
-    }
-
-    current.count += 1;
+    this.rateLimit.check(key, max, windowMs, "Rate limit exceeded. Try again later.");
   }
 }

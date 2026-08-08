@@ -21,14 +21,24 @@ val currencyLabels = mapOf(
 data class ApiErrorPayload(val message: Any? = null)
 
 data class PasswordLoginRequest(val email: String, val password: String)
-data class PasswordRegisterRequest(val email: String, val password: String, val firstName: String? = null)
+data class EmailCodeRequest(val email: String)
+data class EmailCodeRequestResponse(val ok: Boolean = true, val expiresInMinutes: Int? = null)
+
+/** [code] is the one-time email confirmation code; registration requires it. */
+data class PasswordRegisterRequest(
+    val email: String,
+    val code: String,
+    val password: String,
+    val firstName: String? = null
+)
 data class ThemePreferenceRequest(val isDark: Boolean)
 data class ThemePreferenceResponse(val isDark: Boolean)
 data class DashboardRatesUpdateRequest(val selectedCurrencies: List<String>)
 data class BindCoupleRequest(val code: String)
 data class UpdateProfileDetailsRequest(val firstName: String? = null, val lastName: String? = null, val birthday: String? = null)
 data class UpdateProfilePreferencesRequest(val weekStartsOn: String)
-data class PasswordSetupRequest(val email: String, val password: String)
+/** [code] is the one-time email confirmation code; claiming an email requires it. */
+data class PasswordSetupRequest(val email: String, val code: String, val password: String)
 data class CategoryPreferencesRequest(
     val showSharedCategories: Boolean,
     val defaultIncomeCategoryId: String? = null,

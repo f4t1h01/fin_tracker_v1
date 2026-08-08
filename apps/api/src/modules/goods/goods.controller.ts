@@ -1,7 +1,10 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from "@nestjs/common";
 
+import { AiQuotaService } from "../ai/ai-quota.service";
 import { CurrentUser } from "../auth/current-user.decorator";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import { RateLimit } from "../common/rate-limit.decorator";
+import { RateLimitGuard } from "../common/rate-limit.guard";
 import {
   CreateGoodsAdvisorMessageDto,
   CreateGoodsAdvisorThreadDto,
@@ -25,7 +28,10 @@ import { GoodsService } from "./goods.service";
 @UseGuards(JwtAuthGuard)
 @Controller("profile/me/goods")
 export class GoodsController {
-  constructor(private readonly goodsService: GoodsService) {}
+  constructor(
+    private readonly goodsService: GoodsService,
+    private readonly aiQuota: AiQuotaService
+  ) {}
 
   @Get("advisor/threads")
   listAdvisorThreads(@CurrentUser() user: { id: string }) {
@@ -42,8 +48,19 @@ export class GoodsController {
     return this.goodsService.getAdvisorThread(user.id, id);
   }
 
+  // Advisor chat and dinner advice both call the model, so both need a burst
+  // limit plus the durable daily quota.
+  @UseGuards(RateLimitGuard)
+  @RateLimit({
+    max: 15,
+    windowMs: 60_000,
+    scope: "ai-goods-advisor",
+    keys: ["user", "ip"],
+    message: "Too many advisor requests in a row. Wait a moment and try again."
+  })
   @Post("advisor/threads/:id/messages")
-  sendAdvisorThreadMessage(@CurrentUser() user: { id: string }, @Param("id") id: string, @Body() dto: CreateGoodsAdvisorMessageDto) {
+  async sendAdvisorThreadMessage(@CurrentUser() user: { id: string }, @Param("id") id: string, @Body() dto: CreateGoodsAdvisorMessageDto) {
+    await this.aiQuota.assertWithinDailyQuota(user.id, "GOODS_ADVISOR");
     return this.goodsService.sendAdvisorThreadMessage(user.id, id, dto);
   }
 
@@ -57,8 +74,17 @@ export class GoodsController {
     return this.goodsService.deleteAdvisorThread(user.id, id);
   }
 
+  @UseGuards(RateLimitGuard)
+  @RateLimit({
+    max: 15,
+    windowMs: 60_000,
+    scope: "ai-goods-advisor",
+    keys: ["user", "ip"],
+    message: "Too many advisor requests in a row. Wait a moment and try again."
+  })
   @Post("advisor/dinner")
-  dinnerAdvisor(@CurrentUser() user: { id: string }, @Body() dto: GoodsDinnerAdvisorDto) {
+  async dinnerAdvisor(@CurrentUser() user: { id: string }, @Body() dto: GoodsDinnerAdvisorDto) {
+    await this.aiQuota.assertWithinDailyQuota(user.id, "GOODS_ADVISOR");
     return this.goodsService.requestDinnerAdvice(user.id, dto);
   }
 

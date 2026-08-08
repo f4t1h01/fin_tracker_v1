@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "corepack pnpm --parallel --filter @app/api --filter @app/web --filter @app/bot dev",
     "build": "corepack pnpm -r --if-present build",
-    "lint": "corepack pnpm -r --if-present lint",
+    "lint": "eslint .",
     "typecheck": "corepack pnpm -r --if-present typecheck",
     "test": "corepack pnpm -r --if-present test",
     "db:generate": "corepack pnpm --filter @repo/db prisma:generate",
@@ -13,6 +13,11 @@
     "db:studio": "corepack pnpm --filter @repo/db prisma:studio"
   },
   "devDependencies": {
-    "typescript": "^5.7.3"
+    "@eslint/js": "^9.18.0",
+    "eslint": "^9.18.0",
+    "eslint-plugin-react-hooks": "^5.1.0",
+    "globals": "^15.14.0",
+    "typescript": "^5.7.3",
+    "typescript-eslint": "^8.20.0"
   }
 }

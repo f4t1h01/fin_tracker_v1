@@ -1,45 +1,41 @@
 import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from "@nestjs/common";
-import { parseApiEnv } from "@repo/config";
-import { verify } from "jsonwebtoken";
 
-import { parseCookieHeader } from "./admin-cookie.util";
-import { adminSessionCookieName } from "./admin-session.constants";
+import { PrismaService } from "../prisma/prisma.service";
+import { readAdminSessionCookie, verifyAdminSessionToken } from "./admin-session.util";
 
 @Injectable()
 export class AdminSessionGuard implements CanActivate {
-  canActivate(context: ExecutionContext): boolean {
+  constructor(private readonly prisma: PrismaService) {}
+
+  async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
-    const cookieHeader = request.headers.cookie;
-    const cookies = parseCookieHeader(typeof cookieHeader === "string" ? cookieHeader : undefined);
-    const token = cookies[adminSessionCookieName];
+    const token = readAdminSessionCookie(request);
 
     if (!token) {
       throw new UnauthorizedException("Missing admin session");
     }
 
-    const env = parseApiEnv(process.env);
-
-    try {
-      const payload = verify(token, env.API_JWT_SECRET) as {
-        sub?: string;
-        type?: string;
-      };
-
-      if (payload.type !== "admin" || typeof payload.sub !== "string" || !payload.sub) {
-        throw new UnauthorizedException("Invalid admin session");
-      }
-
-      request.admin = {
-        email: payload.sub
-      };
-
-      return true;
-    } catch (error) {
-      if (error instanceof UnauthorizedException) {
-        throw error;
-      }
-
+    const claims = verifyAdminSessionToken(token);
+    if (!claims) {
       throw new UnauthorizedException("Invalid admin session");
     }
+
+    // A valid signature is not enough: deactivating an admin or resetting their
+    // password must end live sessions immediately, so account state is
+    // re-checked on every request.
+    const admin = await this.prisma.client.zeroAdmin.findUnique({
+      where: { email: claims.email },
+      select: { isActive: true, tokenVersion: true }
+    });
+
+    if (!admin || !admin.isActive || admin.tokenVersion !== claims.tokenVersion) {
+      throw new UnauthorizedException("Admin session is no longer valid");
+    }
+
+    request.admin = {
+      email: claims.email
+    };
+
+    return true;
   }
 }

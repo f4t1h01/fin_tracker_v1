@@ -5,6 +5,8 @@ import { useEffect, useState } from "react";
 import { BrandMark } from "@/components/marketing/brand-mark";
 import { AppLink } from "@/components/navigation/app-link";
 import { useRouteTransitionPageReady } from "@/components/navigation/route-transition-provider";
+import { parseApiResponse } from "@/components/profile/api";
+import { tokenKey } from "@/components/profile/types";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,27 +19,6 @@ type AuthMeResponse = {
   username: string | null;
   isDark: boolean;
 };
-
-const tokenKey = "cf_token";
-
-async function parseApiResponse<T>(response: Response): Promise<T> {
-  if (response.ok) {
-    return (await response.json()) as T;
-  }
-
-  let errorMessage = `Request failed with status ${response.status}`;
-
-  try {
-    const payload = (await response.json()) as { message?: string | string[] };
-    if (Array.isArray(payload.message)) {
-      errorMessage = payload.message.join(", ");
-    } else if (payload.message) {
-      errorMessage = payload.message;
-    }
-  } catch {}
-
-  throw new Error(errorMessage);
-}
 
 export default function ProfileEntryPage() {
   const [auth, setAuth] = useState<AuthMeResponse | null>(null);

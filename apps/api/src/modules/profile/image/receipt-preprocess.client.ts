@@ -74,6 +74,11 @@ type ReceiptPreprocessScriptOutput = {
   previewImages?: Partial<Record<ReceiptPreviewStageKey, ReceiptPreprocessPreviewAsset>>;
 };
 
+/** Upper bound on the Python preprocessing step so one upload cannot pin a worker. */
+const RECEIPT_PREPROCESS_TIMEOUT_MS = 30_000;
+/** Keeps captured child output from growing unbounded on a chatty failure. */
+const PREPROCESS_LOG_CAP_BYTES = 16_000;
+
 const supportedImageExtensions = new Set([".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif"]);
 const supportedImageMimeTypes = new Set(["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"]);
 const apiPackageRoot = join(__dirname, "..", "..", "..", "..");
@@ -226,33 +231,63 @@ async function runPreprocessScript(params: {
 
     let stderr = "";
     let stdout = "";
+    let settled = false;
+    let timedOut = false;
+
+    // Without this a pathological image can leave the child running forever and
+    // the HTTP request never resolves.
+    const timeout = setTimeout(() => {
+      timedOut = true;
+      child.kill("SIGKILL");
+    }, RECEIPT_PREPROCESS_TIMEOUT_MS);
+
+    const settle = (action: () => void) => {
+      if (settled) {
+        return;
+      }
+
+      settled = true;
+      clearTimeout(timeout);
+      action();
+    };
 
     child.stdout.on("data", (chunk: Buffer | string) => {
-      stdout += chunk.toString();
+      if (stdout.length < PREPROCESS_LOG_CAP_BYTES) {
+        stdout += chunk.toString();
+      }
     });
 
     child.stderr.on("data", (chunk: Buffer | string) => {
-      stderr += chunk.toString();
+      if (stderr.length < PREPROCESS_LOG_CAP_BYTES) {
+        stderr += chunk.toString();
+      }
     });
 
     child.on("error", (error) => {
-      reject(new InternalServerErrorException(`Could not start receipt preprocessing: ${error.message}`));
+      settle(() => reject(new InternalServerErrorException(`Could not start receipt preprocessing: ${error.message}`)));
     });
 
     child.on("close", (code) => {
-      if (code === 0) {
-        resolve();
-        return;
-      }
+      settle(() => {
+        if (timedOut) {
+          reject(new BadRequestException("This image took too long to process. Try a smaller or clearer photo."));
+          return;
+        }
 
-      const details = stderr.trim() || stdout.trim();
-      const lower = details.toLowerCase();
-      if (lower.includes("unsupported") || lower.includes("decode") || lower.includes("cannot identify image")) {
-        reject(new BadRequestException("Could not read this image. Upload a clearer JPG, PNG, WEBP, HEIC, or HEIF file."));
-        return;
-      }
+        if (code === 0) {
+          resolve();
+          return;
+        }
 
-      reject(new InternalServerErrorException(details ? `Receipt preprocessing failed: ${details}` : "Receipt preprocessing failed"));
+        const details = stderr.trim() || stdout.trim();
+        const lower = details.toLowerCase();
+        if (lower.includes("unsupported") || lower.includes("decode") || lower.includes("cannot identify image")) {
+          reject(new BadRequestException("Could not read this image. Upload a clearer JPG, PNG, WEBP, HEIC, or HEIF file."));
+          return;
+        }
+
+        reject(new InternalServerErrorException(details ? `Receipt preprocessing failed: ${details}` : "Receipt preprocessing failed"));
+      });
     });
   });
 }

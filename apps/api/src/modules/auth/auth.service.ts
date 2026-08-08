@@ -1,5 +1,5 @@
-import { BadRequestException, ConflictException, Injectable, NotFoundException, UnauthorizedException } from "@nestjs/common";
-import { parseApiEnv } from "@repo/config";
+import { BadRequestException, ConflictException, Injectable, UnauthorizedException } from "@nestjs/common";
+import { getApiEnv } from "@repo/config";
 import { OAuth2Client } from "google-auth-library";
 import { sign, verify } from "jsonwebtoken";
 import { createHash, createHmac, randomBytes, randomInt, scrypt, timingSafeEqual } from "node:crypto";
@@ -29,10 +29,28 @@ const EMAIL_CODE_TTL_MINUTES = 15;
 const EMAIL_CODE_MAX_ATTEMPTS = 5;
 const EMAIL_CODE_MAX_REQUESTS_PER_15_MINUTES = 5;
 const EMAIL_CODE_RESEND_COOLDOWN_SECONDS = 60;
+/**
+ * Telegram login-widget payloads are signed but carry no nonce, so the only
+ * thing bounding replay is auth_date. Telegram's own guidance is to reject
+ * payloads older than a day.
+ */
+const TELEGRAM_WIDGET_MAX_AGE_SECONDS = 86_400;
+
+const invalidCredentialsMessage = "Email or password is incorrect";
+
+type EmailCodePurpose = "LOGIN" | "PASSWORD_RESET" | "REGISTRATION" | "EMAIL_CLAIM";
+
+const emailCodeCopy: Record<EmailCodePurpose, { label: string; title: string }> = {
+  LOGIN: { label: "sign-in", title: "Sign in to Duet" },
+  PASSWORD_RESET: { label: "password reset", title: "Reset your Duet password" },
+  REGISTRATION: { label: "account confirmation", title: "Confirm your Duet email" },
+  EMAIL_CLAIM: { label: "email confirmation", title: "Confirm your Duet email" }
+};
 
 @Injectable()
 export class AuthService {
   private readonly googleClient = new OAuth2Client();
+  private dummyPasswordHash: string | null = null;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -49,9 +67,11 @@ export class AuthService {
     return email.trim().toLowerCase();
   }
 
-  private issueAccessToken(userId: string, telegramId: bigint): string {
-    const env = parseApiEnv(process.env);
-    return sign({ telegramId: telegramId.toString(), sub: userId }, env.API_JWT_SECRET, {
+  private issueAccessToken(userId: string, telegramId: bigint, tokenVersion: number): string {
+    const env = getApiEnv();
+    // JwtAuthGuard compares tokenVersion against the stored value on every
+    // request, which is what makes password changes/resets revoke old tokens.
+    return sign({ telegramId: telegramId.toString(), sub: userId, tokenVersion }, env.API_JWT_SECRET, {
       expiresIn: "7d"
     });
   }
@@ -60,6 +80,18 @@ export class AuthService {
     const salt = randomBytes(16);
     const derived = (await scryptAsync(password, salt, 64)) as Buffer;
     return `scrypt:${salt.toString("hex")}:${derived.toString("hex")}`;
+  }
+
+  /**
+   * Throwaway hash used to spend the same scrypt work on unknown accounts as on
+   * real ones, so response time does not reveal whether an email exists.
+   */
+  private async getDummyPasswordHash(): Promise<string> {
+    if (!this.dummyPasswordHash) {
+      this.dummyPasswordHash = await this.hashPassword(randomBytes(24).toString("hex"));
+    }
+
+    return this.dummyPasswordHash;
   }
 
   private async verifyPassword(password: string, storedHash: string): Promise<boolean> {
@@ -96,7 +128,7 @@ export class AuthService {
     return randomInt(0, 1_000_000).toString().padStart(6, "0");
   }
 
-  private hashEmailCode(email: string, purpose: "LOGIN" | "PASSWORD_RESET", code: string) {
+  private hashEmailCode(email: string, purpose: EmailCodePurpose, code: string) {
     return this.secretBox.hmac(`${purpose}:${email}:${code}`, "email-code");
   }
 
@@ -106,7 +138,7 @@ export class AuthService {
     return actual.length === expected.length && expected.length > 0 && timingSafeEqual(actual, expected);
   }
 
-  private async createAndSendEmailCode(email: string, purpose: "LOGIN" | "PASSWORD_RESET", requestMeta?: { ip?: string | null; userAgent?: string | null }) {
+  private async createAndSendEmailCode(email: string, purpose: EmailCodePurpose, requestMeta?: { ip?: string | null; userAgent?: string | null }) {
     const normalizedEmail = this.normalizeEmail(email);
     const cooldownStart = new Date(Date.now() - EMAIL_CODE_RESEND_COOLDOWN_SECONDS * 1000);
     const recentCode = await this.db.authEmailCode.findFirst({
@@ -172,8 +204,7 @@ export class AuthService {
       });
     });
 
-    const label = purpose === "PASSWORD_RESET" ? "password reset" : "sign-in";
-    const title = purpose === "PASSWORD_RESET" ? "Reset your Duet password" : "Sign in to Duet";
+    const { label, title } = emailCodeCopy[purpose];
     await this.emailDelivery.send({
       to: normalizedEmail,
       subject: `Your Duet ${label} code`,
@@ -188,7 +219,7 @@ export class AuthService {
     });
   }
 
-  private async consumeEmailCode(email: string, purpose: "LOGIN" | "PASSWORD_RESET", code: string) {
+  private async consumeEmailCode(email: string, purpose: EmailCodePurpose, code: string) {
     const normalizedEmail = this.normalizeEmail(email);
     const now = new Date();
     const record = await this.db.authEmailCode.findFirst({
@@ -241,6 +272,7 @@ export class AuthService {
   private buildAuthPayload(user: {
     id: string;
     telegramId: bigint;
+    tokenVersion: number;
     username: string | null;
     firstName: string | null;
     lastName: string | null;
@@ -251,7 +283,7 @@ export class AuthService {
     hasPassword: boolean;
   }) {
     return {
-      accessToken: this.issueAccessToken(user.id, user.telegramId),
+      accessToken: this.issueAccessToken(user.id, user.telegramId, user.tokenVersion),
       user: {
         id: user.id,
         telegramId: user.telegramId.toString(),
@@ -267,24 +299,46 @@ export class AuthService {
     };
   }
 
-  private resolveAuthorizedUserId(authorizationHeader?: string): string | null {
+  /**
+   * Resolves the caller behind an optional bearer token on otherwise-public
+   * login routes, which is how account linking works. Revoked tokens are
+   * rejected here too, so a stale token cannot be used to attach a new
+   * identity to an account.
+   */
+  private async resolveAuthorizedUserId(authorizationHeader?: string): Promise<string | null> {
     if (!authorizationHeader?.startsWith("Bearer ")) {
       return null;
     }
 
-    const token = authorizationHeader.replace("Bearer ", "").trim();
+    const token = authorizationHeader.slice("Bearer ".length).trim();
     if (!token) {
       return null;
     }
 
-    const env = parseApiEnv(process.env);
+    const env = getApiEnv();
 
+    let payload: { sub?: unknown; tokenVersion?: unknown };
     try {
-      const payload = verify(token, env.API_JWT_SECRET) as { sub?: string };
-      return typeof payload.sub === "string" && payload.sub ? payload.sub : null;
+      payload = verify(token, env.API_JWT_SECRET) as typeof payload;
     } catch {
       return null;
     }
+
+    if (typeof payload.sub !== "string" || !payload.sub) {
+      return null;
+    }
+
+    const user = await this.prisma.client.user.findUnique({
+      where: { id: payload.sub },
+      select: { id: true, tokenVersion: true }
+    });
+
+    const tokenVersion = typeof payload.tokenVersion === "number" ? payload.tokenVersion : 0;
+    if (!user || user.tokenVersion !== tokenVersion) {
+      return null;
+    }
+
+    return user.id;
   }
 
   private async resolveTelegramLinkUserId(linkToken?: string): Promise<string | null> {
@@ -292,7 +346,7 @@ export class AuthService {
       return null;
     }
 
-    const env = parseApiEnv(process.env);
+    const env = getApiEnv();
     const parsed = resolveTelegramLinkToken(linkToken, env.API_JWT_SECRET);
     if (!parsed) {
       return null;
@@ -354,6 +408,7 @@ export class AuthService {
     return {
       id: true,
       telegramId: true,
+      tokenVersion: true,
       username: true,
       firstName: true,
       lastName: true,
@@ -361,13 +416,23 @@ export class AuthService {
       isDark: true,
       coupleCode: true,
       email: true,
+      emailVerifiedAt: true,
       googleSub: true,
       passwordHash: true
     };
   }
 
   private verifyTelegramHash(payload: TelegramLoginDto): boolean {
-    const env = parseApiEnv(process.env);
+    const env = getApiEnv();
+
+    // Signature alone does not bound replay: without this an intercepted widget
+    // payload stays valid forever.
+    const authTimestamp = Number(payload.auth_date);
+    const nowSeconds = Math.floor(Date.now() / 1000);
+    if (!Number.isFinite(authTimestamp) || Math.abs(nowSeconds - authTimestamp) > TELEGRAM_WIDGET_MAX_AGE_SECONDS) {
+      return false;
+    }
+
     const entries = Object.entries(payload).filter(([key, value]) => {
       if (key === "hash") {
         return false;
@@ -409,7 +474,7 @@ export class AuthService {
       .map(([key, value]) => `${key}=${value}`)
       .join("\n");
 
-    const env = parseApiEnv(process.env);
+    const env = getApiEnv();
     const secret = createHmac("sha256", "WebAppData").update(env.TELEGRAM_BOT_TOKEN).digest();
     const digest = createHmac("sha256", secret).update(entries).digest();
     const incomingHash = Buffer.from(hash, "hex");
@@ -457,7 +522,7 @@ export class AuthService {
       throw new UnauthorizedException("Invalid token");
     }
 
-    const env = parseApiEnv(process.env);
+    const env = getApiEnv();
     return {
       startParam: createTelegramLinkTokenValue(userId, env.API_JWT_SECRET)
     };
@@ -488,7 +553,7 @@ export class AuthService {
   }
 
   private verifyBotWebAppSignature(payload: BotWebAppLoginDto): boolean {
-    const env = parseApiEnv(process.env);
+    const env = getApiEnv();
     const now = Math.floor(Date.now() / 1000);
 
     if (Math.abs(now - payload.timestamp) > 600) {
@@ -515,7 +580,7 @@ export class AuthService {
     }
 
     const telegramId = BigInt(payload.id);
-    const authorizedUserId = this.resolveAuthorizedUserId(authorizationHeader);
+    const authorizedUserId = await this.resolveAuthorizedUserId(authorizationHeader);
 
     if (authorizedUserId) {
       const existingByTelegramId = await this.prisma.client.user.findUnique({
@@ -543,6 +608,7 @@ export class AuthService {
       return this.buildAuthPayload({
         id: linkedUser.id,
         telegramId: linkedUser.telegramId,
+        tokenVersion: linkedUser.tokenVersion,
         username: linkedUser.username,
         firstName: linkedUser.firstName,
         lastName: linkedUser.lastName,
@@ -577,6 +643,7 @@ export class AuthService {
     return this.buildAuthPayload({
       id: user.id,
       telegramId: user.telegramId,
+      tokenVersion: user.tokenVersion,
       username: user.username,
         firstName: user.firstName,
         lastName: user.lastName,
@@ -588,6 +655,36 @@ export class AuthService {
     });
   }
 
+  /**
+   * Step 1 of registration: prove control of the mailbox before an account can
+   * claim that address. Without this, anyone could take an email they do not own,
+   * which also blocks the real owner from ever registering it.
+   */
+  async requestRegistrationCode(payload: EmailCodeRequestDto, requestMeta?: { ip?: string | null; userAgent?: string | null }) {
+    const emailStatus = await this.emailDelivery.getPublicStatus();
+    if (!emailStatus.emailCodeEnabled) {
+      throw new BadRequestException("Email confirmation is not configured yet, so new accounts cannot be created");
+    }
+
+    const normalizedEmail = this.normalizeEmail(payload.email);
+    const existingUser = await this.db.user.findUnique({
+      where: { email: normalizedEmail },
+      select: { id: true }
+    });
+
+    if (existingUser) {
+      throw new ConflictException("Account already exists for this email. Please sign in.");
+    }
+
+    await this.createAndSendEmailCode(normalizedEmail, "REGISTRATION", requestMeta);
+
+    return {
+      ok: true,
+      expiresInMinutes: EMAIL_CODE_TTL_MINUTES
+    };
+  }
+
+  /** Step 2 of registration: the code proves the address, then the account is created. */
   async registerWithPassword(payload: PasswordRegisterDto) {
     const normalizedEmail = this.normalizeEmail(payload.email);
     const existingUser = await this.prisma.client.user.findUnique({
@@ -599,7 +696,10 @@ export class AuthService {
       throw new ConflictException("Account already exists for this email. Please sign in.");
     }
 
+    await this.consumeEmailCode(normalizedEmail, "REGISTRATION", payload.code);
+
     const passwordHash = await this.hashPassword(payload.password);
+    const emailVerifiedAt = new Date();
 
     for (let attempt = 0; attempt < 12; attempt += 1) {
       try {
@@ -607,6 +707,7 @@ export class AuthService {
           data: {
             telegramId: this.generateWebsiteTelegramIdCandidate(),
             email: normalizedEmail,
+            emailVerifiedAt,
             passwordHash,
             passwordSetAt: new Date(),
             firstName: payload.firstName?.trim() || null
@@ -614,6 +715,7 @@ export class AuthService {
           select: {
             id: true,
             telegramId: true,
+            tokenVersion: true,
             username: true,
             firstName: true,
             lastName: true,
@@ -630,6 +732,7 @@ export class AuthService {
         return this.buildAuthPayload({
           id: created.id,
           telegramId: created.telegramId,
+          tokenVersion: created.tokenVersion,
           username: created.username,
           firstName: created.firstName,
           lastName: created.lastName,
@@ -657,7 +760,7 @@ export class AuthService {
     const telegramId = BigInt(payload.telegramId);
     const chatId = payload.chatId ? BigInt(payload.chatId) : telegramId;
 
-    const authorizedUserId = this.resolveAuthorizedUserId(authorizationHeader) ?? (await this.resolveTelegramLinkUserId(payload.linkToken));
+    const authorizedUserId = (await this.resolveAuthorizedUserId(authorizationHeader)) ?? (await this.resolveTelegramLinkUserId(payload.linkToken));
 
     if (authorizedUserId) {
       const existingByTelegramId = await this.prisma.client.user.findUnique({
@@ -681,6 +784,7 @@ export class AuthService {
       return this.buildAuthPayload({
         id: linkedUser.id,
         telegramId: linkedUser.telegramId,
+        tokenVersion: linkedUser.tokenVersion,
         username: linkedUser.username,
         firstName: linkedUser.firstName,
         lastName: linkedUser.lastName,
@@ -709,6 +813,7 @@ export class AuthService {
     return this.buildAuthPayload({
       id: user.id,
       telegramId: user.telegramId,
+      tokenVersion: user.tokenVersion,
       username: user.username,
         firstName: user.firstName,
         lastName: user.lastName,
@@ -722,7 +827,7 @@ export class AuthService {
 
   async loginFromTelegramWebApp(initData: string, authorizationHeader?: string, linkToken?: string) {
     const parsed = this.parseTelegramWebAppInitData(initData);
-    const authorizedUserId = this.resolveAuthorizedUserId(authorizationHeader) ?? (await this.resolveTelegramLinkUserId(linkToken ?? parsed.startParam ?? undefined));
+    const authorizedUserId = (await this.resolveAuthorizedUserId(authorizationHeader)) ?? (await this.resolveTelegramLinkUserId(linkToken ?? parsed.startParam ?? undefined));
 
     if (authorizedUserId) {
       const existingByTelegramId = await this.prisma.client.user.findUnique({
@@ -750,6 +855,7 @@ export class AuthService {
       return this.buildAuthPayload({
         id: linkedUser.id,
         telegramId: linkedUser.telegramId,
+        tokenVersion: linkedUser.tokenVersion,
         username: linkedUser.username,
         firstName: linkedUser.firstName,
         lastName: linkedUser.lastName,
@@ -784,6 +890,7 @@ export class AuthService {
     return this.buildAuthPayload({
       id: user.id,
       telegramId: user.telegramId,
+      tokenVersion: user.tokenVersion,
       username: user.username,
       firstName: user.firstName,
       lastName: user.lastName,
@@ -803,6 +910,7 @@ export class AuthService {
       select: {
         id: true,
         telegramId: true,
+        tokenVersion: true,
         username: true,
         firstName: true,
         lastName: true,
@@ -814,18 +922,19 @@ export class AuthService {
       }
     });
 
-    if (!user) {
-      throw new NotFoundException("Account was not found. Please create account.");
-    }
-
-    if (!user.passwordHash) {
-      throw new UnauthorizedException("This account does not have a website password yet.");
+    // One message and one status for every failure mode, so this endpoint cannot
+    // be used to enumerate which emails have accounts or passwords. Account
+    // existence is exposed deliberately and under rate limit by /auth/email/check.
+    if (!user?.passwordHash) {
+      // Burn comparable work so a missing account is not measurably faster.
+      await this.verifyPassword(payload.password, await this.getDummyPasswordHash());
+      throw new UnauthorizedException(invalidCredentialsMessage);
     }
 
     const validPassword = await this.verifyPassword(payload.password, user.passwordHash);
 
     if (!validPassword) {
-      throw new UnauthorizedException("Password is incorrect");
+      throw new UnauthorizedException(invalidCredentialsMessage);
     }
 
     const coupleCode = user.coupleCode ?? (await this.ensureUserCoupleCode(user.id));
@@ -833,6 +942,7 @@ export class AuthService {
     return this.buildAuthPayload({
       id: user.id,
       telegramId: user.telegramId,
+      tokenVersion: user.tokenVersion,
       username: user.username,
       firstName: user.firstName,
       lastName: user.lastName,
@@ -916,7 +1026,7 @@ export class AuthService {
     }
 
     const normalizedEmail = this.normalizeEmail(googleEmail);
-    const authorizedUserId = this.resolveAuthorizedUserId(authorizationHeader);
+    const authorizedUserId = await this.resolveAuthorizedUserId(authorizationHeader);
     const select = this.getUserAuthSelect();
 
     let user = authorizedUserId
@@ -930,10 +1040,15 @@ export class AuthService {
         });
 
     if (!user && config.linkByVerifiedEmail) {
-      user = await this.db.user.findUnique({
+      const emailMatch = await this.db.user.findUnique({
         where: { email: normalizedEmail },
         select
       });
+
+      // Match by email only when that account actually proved it owns the
+      // address. Otherwise an account that merely claimed someone's email could
+      // absorb the real owner's Google identity on their next sign-in.
+      user = emailMatch?.emailVerifiedAt ? emailMatch : null;
     }
 
     if (user) {
@@ -954,6 +1069,9 @@ export class AuthService {
         data: {
           googleSub,
           email: user.email ?? normalizedEmail,
+          // Google asserts email_verified, which is checked above, so adopting
+          // this address counts as verified ownership.
+          emailVerifiedAt: user.emailVerifiedAt ?? new Date(),
           firstName: user.firstName ?? googlePayload.given_name ?? null,
           lastName: user.lastName ?? googlePayload.family_name ?? null,
           photoUrl: googlePayload.picture ?? undefined
@@ -965,6 +1083,7 @@ export class AuthService {
       return this.buildAuthPayload({
         id: updated.id,
         telegramId: updated.telegramId,
+        tokenVersion: updated.tokenVersion,
         username: updated.username,
         firstName: updated.firstName,
         lastName: updated.lastName,
@@ -994,6 +1113,8 @@ export class AuthService {
           data: {
             telegramId: this.generateWebsiteTelegramIdCandidate(),
             email: normalizedEmail,
+            // email_verified was asserted by Google and checked above.
+            emailVerifiedAt: new Date(),
             googleSub,
             firstName: googlePayload.given_name ?? null,
             lastName: googlePayload.family_name ?? null,
@@ -1006,6 +1127,7 @@ export class AuthService {
         return this.buildAuthPayload({
           id: created.id,
           telegramId: created.telegramId,
+          tokenVersion: created.tokenVersion,
           username: created.username,
           firstName: created.firstName,
           lastName: created.lastName,
@@ -1058,6 +1180,7 @@ export class AuthService {
       select: {
         id: true,
         telegramId: true,
+        tokenVersion: true,
         username: true,
         firstName: true,
         lastName: true,
@@ -1077,6 +1200,7 @@ export class AuthService {
     return this.buildAuthPayload({
       id: user.id,
       telegramId: user.telegramId,
+      tokenVersion: user.tokenVersion,
       username: user.username,
       firstName: user.firstName,
       lastName: user.lastName,
@@ -1131,7 +1255,10 @@ export class AuthService {
       where: { id: user.id },
       data: {
         passwordHash,
-        passwordSetAt: new Date()
+        passwordSetAt: new Date(),
+        // A reset is an account-recovery action: every session issued under the
+        // old password must stop working, including an attacker's.
+        tokenVersion: { increment: 1 }
       },
       select: this.getUserAuthSelect()
     });
@@ -1140,6 +1267,7 @@ export class AuthService {
     return this.buildAuthPayload({
       id: updated.id,
       telegramId: updated.telegramId,
+      tokenVersion: updated.tokenVersion,
       username: updated.username,
       firstName: updated.firstName,
       lastName: updated.lastName,
@@ -1154,10 +1282,7 @@ export class AuthService {
   async changePassword(userId: string, payload: PasswordChangeDto) {
     const user = await this.db.user.findUnique({
       where: { id: userId },
-      select: {
-        id: true,
-        passwordHash: true
-      }
+      select: this.getUserAuthSelect()
     });
 
     if (!user?.passwordHash) {
@@ -1170,17 +1295,78 @@ export class AuthService {
     }
 
     const passwordHash = await this.hashPassword(payload.newPassword);
-    await this.db.user.update({
+    const updated = await this.db.user.update({
       where: { id: user.id },
       data: {
         passwordHash,
-        passwordSetAt: new Date()
-      }
+        passwordSetAt: new Date(),
+        // Other devices holding a token minted under the old password lose access.
+        tokenVersion: { increment: 1 }
+      },
+      select: this.getUserAuthSelect()
     });
 
-    return { ok: true };
+    const coupleCode = updated.coupleCode ?? (await this.ensureUserCoupleCode(updated.id));
+
+    // The caller's own token was just revoked, so hand back a fresh one instead of
+    // logging the user out of the device they are actively using.
+    return {
+      ok: true,
+      ...this.buildAuthPayload({
+        id: updated.id,
+        telegramId: updated.telegramId,
+        tokenVersion: updated.tokenVersion,
+        username: updated.username,
+        firstName: updated.firstName,
+        lastName: updated.lastName,
+        isAdmin: updated.isAdmin,
+        isDark: updated.isDark,
+        coupleCode,
+        email: updated.email,
+        hasPassword: true
+      })
+    };
   }
 
+  /**
+   * Step 1 of attaching an email to an existing (usually Telegram-created)
+   * account. Same reason as registration: an unverified claim would let one
+   * account squat someone else's address, which previously also enabled a
+   * Google-link takeover of that address.
+   */
+  async requestEmailClaimCode(userId: string, payload: EmailCodeRequestDto, requestMeta?: { ip?: string | null; userAgent?: string | null }) {
+    const emailStatus = await this.emailDelivery.getPublicStatus();
+    if (!emailStatus.emailCodeEnabled) {
+      throw new BadRequestException("Email confirmation is not configured yet");
+    }
+
+    const normalizedEmail = this.normalizeEmail(payload.email);
+    const [currentUser, existingEmail] = await Promise.all([
+      this.db.user.findUnique({ where: { id: userId }, select: { id: true, passwordHash: true } }),
+      this.db.user.findUnique({ where: { email: normalizedEmail }, select: { id: true } })
+    ]);
+
+    if (!currentUser) {
+      throw new UnauthorizedException("User not found");
+    }
+
+    if (currentUser.passwordHash) {
+      throw new BadRequestException("Password is already configured");
+    }
+
+    if (existingEmail && existingEmail.id !== currentUser.id) {
+      throw new ConflictException("Email is already in use");
+    }
+
+    await this.createAndSendEmailCode(normalizedEmail, "EMAIL_CLAIM", requestMeta);
+
+    return {
+      ok: true,
+      expiresInMinutes: EMAIL_CODE_TTL_MINUTES
+    };
+  }
+
+  /** Step 2: the code proves the address, then email + password are stored. */
   async setupPassword(userId: string, payload: PasswordSetupDto) {
     const normalizedEmail = this.normalizeEmail(payload.email);
 
@@ -1190,6 +1376,7 @@ export class AuthService {
         select: {
           id: true,
           telegramId: true,
+          tokenVersion: true,
           username: true,
           firstName: true,
           lastName: true,
@@ -1220,17 +1407,21 @@ export class AuthService {
       throw new BadRequestException("Password is already configured");
     }
 
+    await this.consumeEmailCode(normalizedEmail, "EMAIL_CLAIM", payload.code);
+
     const passwordHash = await this.hashPassword(payload.password);
     const updated = await this.prisma.client.user.update({
       where: { id: currentUser.id },
       data: {
         email: normalizedEmail,
+        emailVerifiedAt: new Date(),
         passwordHash,
         passwordSetAt: new Date()
       },
       select: {
         id: true,
         telegramId: true,
+        tokenVersion: true,
         username: true,
         firstName: true,
         lastName: true,
@@ -1247,6 +1438,7 @@ export class AuthService {
     return this.buildAuthPayload({
       id: updated.id,
       telegramId: updated.telegramId,
+      tokenVersion: updated.tokenVersion,
       username: updated.username,
       firstName: updated.firstName,
       lastName: updated.lastName,

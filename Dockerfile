@@ -71,6 +71,10 @@ RUN pnpm --filter @repo/db prisma:generate
 
 ENV NODE_ENV=production
 
+# Drop root for the running process. The image only needs read access to /app; the
+# receipt preprocessing step writes to the OS temp dir, which is world-writable.
+USER node
+
 CMD ["node", "apps/api/dist/main.js"]
 
 FROM prod-deps AS bot-runtime
@@ -78,6 +82,8 @@ COPY --from=build /app/packages/config/dist packages/config/dist
 COPY --from=build /app/apps/bot/dist apps/bot/dist
 
 ENV NODE_ENV=production
+
+USER node
 
 CMD ["node", "apps/bot/dist/index.js"]
 
@@ -90,6 +96,8 @@ ENV PORT=3000
 
 COPY --from=build /app/apps/web/.next/standalone ./
 COPY --from=build /app/apps/web/.next/static ./apps/web/.next/static
+
+USER node
 
 CMD ["node", "apps/web/server.js"]
 

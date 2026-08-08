@@ -17,6 +17,9 @@ interface DuetApi {
     @POST("auth/password/login")
     suspend fun login(@Body body: PasswordLoginRequest): AuthResponse
 
+    @POST("auth/register/request-code")
+    suspend fun requestRegistrationCode(@Body body: EmailCodeRequest): EmailCodeRequestResponse
+
     @POST("auth/password/register")
     suspend fun register(@Body body: PasswordRegisterRequest): AuthResponse
 
@@ -43,6 +46,9 @@ interface DuetApi {
 
     @PATCH("profile/me/preferences")
     suspend fun updateProfilePreferences(@Body body: UpdateProfilePreferencesRequest): AuthMeResponse
+
+    @POST("auth/email/claim/request")
+    suspend fun requestEmailClaimCode(@Body body: EmailCodeRequest): EmailCodeRequestResponse
 
     @POST("auth/password/setup")
     suspend fun setupPassword(@Body body: PasswordSetupRequest): AuthMeResponse

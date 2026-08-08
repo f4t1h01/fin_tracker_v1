@@ -1,5 +1,6 @@
 import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
-import { parseApiEnv } from "@repo/config";
+import { getApiEnv } from "@repo/config";
+import { createHash, timingSafeEqual } from "node:crypto";
 
 import { resolveTelegramLinkToken } from "../auth/telegram-link-token";
 import { convertToUzs, getLatestCurrencyRates, normalizeCurrency } from "../common/currency";
@@ -47,8 +48,19 @@ export class BotService {
   }
 
   verifySecret(secret?: string) {
-    const env = parseApiEnv(process.env);
-    if (!secret || secret !== env.BOT_SHARED_SECRET) {
+    const env = getApiEnv();
+
+    if (!secret) {
+      throw new ForbiddenException("Invalid bot secret");
+    }
+
+    // Constant-time, matching how every other secret in the codebase is compared.
+    // Hash first so differing lengths do not leak through timingSafeEqual's
+    // length precondition.
+    const provided = createHash("sha256").update(secret).digest();
+    const expected = createHash("sha256").update(env.BOT_SHARED_SECRET).digest();
+
+    if (!timingSafeEqual(provided, expected)) {
       throw new ForbiddenException("Invalid bot secret");
     }
   }
@@ -80,7 +92,7 @@ export class BotService {
   }
 
   private resolveLinkTokenUserId(linkToken: string) {
-    const env = parseApiEnv(process.env);
+    const env = getApiEnv();
     const parsed = resolveTelegramLinkToken(linkToken, env.API_JWT_SECRET);
 
     if (!parsed) {

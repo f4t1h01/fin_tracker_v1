@@ -115,43 +115,69 @@ fun SplashScreen() {
 fun AuthScreen(state: DuetUiState, actions: DuetViewModel) {
     var mode by rememberSaveable { mutableStateOf("SIGN_IN") }
     var email by rememberSaveable { mutableStateOf("") }
+    var code by rememberSaveable { mutableStateOf("") }
+    // Registration is two steps: confirm the email with a one-time code, then set
+    // the password. Until the code is sent, only the email field is meaningful.
+    var hasRequestedCode by rememberSaveable { mutableStateOf(false) }
     var password by rememberSaveable { mutableStateOf("") }
     var confirmPassword by rememberSaveable { mutableStateOf("") }
     var firstName by rememberSaveable { mutableStateOf("") }
     val focus = LocalFocusManager.current
+    val isRegistering = mode == "REGISTER"
+    val isConfirmingRegistration = isRegistering && hasRequestedCode
 
     ScreenList {
         item {
-            BrandBlock("Profile access", if (mode == "SIGN_IN") "Sign in to your finance workspace." else "Create your Duet account.")
+            BrandBlock(
+                "Profile access",
+                when {
+                    !isRegistering -> "Sign in to your finance workspace."
+                    isConfirmingRegistration -> "Enter the code we emailed you."
+                    else -> "Confirm your email to start."
+                }
+            )
             StatusBanner(state, actions)
             CardPanel {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     SegmentRow(
                         options = listOf("SIGN_IN" to "Sign in", "REGISTER" to "Create"),
                         selected = mode,
-                        onSelect = { mode = it }
+                        onSelect = {
+                            mode = it
+                            hasRequestedCode = false
+                            code = ""
+                        }
                     )
-                    if (mode == "REGISTER") {
+                    DuetTextField(
+                        value = email,
+                        onValueChange = { email = it },
+                        label = "Email",
+                        enabled = !isConfirmingRegistration,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Next)
+                    )
+                    if (isConfirmingRegistration) {
+                        DuetTextField(
+                            value = code,
+                            onValueChange = { value -> code = value.filter { it.isDigit() }.take(6) },
+                            label = "Confirmation code",
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword, imeAction = ImeAction.Next)
+                        )
                         DuetTextField(
                             value = firstName,
                             onValueChange = { firstName = it },
                             label = "Name"
                         )
                     }
-                    DuetTextField(
-                        value = email,
-                        onValueChange = { email = it },
-                        label = "Email",
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Next)
-                    )
-                    DuetTextField(
-                        value = password,
-                        onValueChange = { password = it },
-                        label = "Password",
-                        visualTransformation = PasswordVisualTransformation(),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done)
-                    )
-                    if (mode == "REGISTER") {
+                    if (!isRegistering || isConfirmingRegistration) {
+                        DuetTextField(
+                            value = password,
+                            onValueChange = { password = it },
+                            label = "Password",
+                            visualTransformation = PasswordVisualTransformation(),
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done)
+                        )
+                    }
+                    if (isConfirmingRegistration) {
                         DuetTextField(
                             value = confirmPassword,
                             onValueChange = { confirmPassword = it },
@@ -160,21 +186,34 @@ fun AuthScreen(state: DuetUiState, actions: DuetViewModel) {
                         )
                     }
                     DuetButton(
-                        text = if (mode == "SIGN_IN") "Sign in" else "Create account",
+                        text = when {
+                            !isRegistering -> "Sign in"
+                            isConfirmingRegistration -> "Create account"
+                            else -> "Send confirmation code"
+                        },
                         modifier = Modifier.fillMaxWidth(),
                         pending = state.isBusy,
                         enabled = !state.isBusy,
                         onClick = {
                             focus.clearFocus()
-                            if (mode == "SIGN_IN") {
-                                actions.signIn(email, password)
-                            } else if (password == confirmPassword) {
-                                actions.register(email, password, firstName)
+                            when {
+                                !isRegistering -> actions.signIn(email, password)
+                                !hasRequestedCode -> actions.requestRegistrationCode(email) { hasRequestedCode = true }
+                                password == confirmPassword -> actions.register(email, code, password, firstName)
                             }
                         }
                     )
-                    if (mode == "REGISTER" && password != confirmPassword && confirmPassword.isNotBlank()) {
-                        Text("Passwords do not match", color = duetColors().negative, style = MaterialTheme.typography.bodySmall)
+                    if (isConfirmingRegistration) {
+                        DuetButton(
+                            text = "Resend code",
+                            modifier = Modifier.fillMaxWidth(),
+                            variant = DuetButtonVariant.Outline,
+                            enabled = !state.isBusy,
+                            onClick = { actions.requestRegistrationCode(email) { hasRequestedCode = true } }
+                        )
+                        if (password != confirmPassword && confirmPassword.isNotBlank()) {
+                            Text("Passwords do not match", color = duetColors().negative, style = MaterialTheme.typography.bodySmall)
+                        }
                     }
                 }
             }
@@ -529,6 +568,8 @@ fun SettingsScreen(
     var categoryScope by rememberSaveable { mutableStateOf("PERSONAL") }
     var weekStartsOn by rememberSaveable(snapshot?.auth?.weekStartsOn) { mutableStateOf(snapshot?.auth?.weekStartsOn ?: "MONDAY") }
     var setupEmail by rememberSaveable(snapshot?.auth?.email) { mutableStateOf(snapshot?.auth?.email.orEmpty()) }
+    var setupCode by rememberSaveable { mutableStateOf("") }
+    var hasRequestedSetupCode by rememberSaveable { mutableStateOf(false) }
     var setupPassword by rememberSaveable { mutableStateOf("") }
     var showShared by rememberSaveable(snapshot?.categories?.preferences?.showSharedCategories) { mutableStateOf(snapshot?.categories?.preferences?.showSharedCategories ?: true) }
     var defaultIncomeId by rememberSaveable(snapshot?.categories?.preferences?.defaultIncomeCategoryId) { mutableStateOf(snapshot?.categories?.preferences?.defaultIncomeCategoryId.orEmpty()) }
@@ -558,9 +599,40 @@ fun SettingsScreen(
                 CardPanel {
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         Text("Email login", style = MaterialTheme.typography.titleLarge, color = duetColors().ink)
-                        DuetTextField(setupEmail, { setupEmail = it }, "Email")
-                        DuetTextField(setupPassword, { setupPassword = it }, "Password", visualTransformation = PasswordVisualTransformation())
-                        DuetButton("Setup password", modifier = Modifier.fillMaxWidth(), enabled = setupEmail.isNotBlank() && setupPassword.length >= 6, onClick = { actions.setupPassword(setupEmail, setupPassword) })
+                        // The email is confirmed with a one-time code before it is
+                        // attached to the account.
+                        DuetTextField(setupEmail, { setupEmail = it }, "Email", enabled = !hasRequestedSetupCode)
+                        if (!hasRequestedSetupCode) {
+                            DuetButton(
+                                "Send confirmation code",
+                                modifier = Modifier.fillMaxWidth(),
+                                enabled = setupEmail.isNotBlank() && !state.isBusy,
+                                pending = state.isBusy,
+                                onClick = { actions.requestEmailClaimCode(setupEmail) { hasRequestedSetupCode = true } }
+                            )
+                        } else {
+                            DuetTextField(
+                                setupCode,
+                                { value -> setupCode = value.filter { it.isDigit() }.take(6) },
+                                "Confirmation code",
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword, imeAction = ImeAction.Next)
+                            )
+                            DuetTextField(setupPassword, { setupPassword = it }, "Password", visualTransformation = PasswordVisualTransformation())
+                            DuetButton(
+                                "Setup password",
+                                modifier = Modifier.fillMaxWidth(),
+                                enabled = setupCode.length == 6 && setupPassword.length >= 8 && !state.isBusy,
+                                pending = state.isBusy,
+                                onClick = { actions.setupPassword(setupEmail, setupCode, setupPassword) }
+                            )
+                            DuetButton(
+                                "Resend code",
+                                modifier = Modifier.fillMaxWidth(),
+                                variant = DuetButtonVariant.Outline,
+                                enabled = !state.isBusy,
+                                onClick = { actions.requestEmailClaimCode(setupEmail) { hasRequestedSetupCode = true } }
+                            )
+                        }
                     }
                 }
             }

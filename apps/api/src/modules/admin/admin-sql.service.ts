@@ -8,6 +8,55 @@ const sqlRowLimit = 200;
 const sqlPayloadLimitBytes = 256_000;
 const sqlTimeoutMs = 5_000;
 
+/**
+ * Prisma connects as the database owner, so a plain SELECT can still reach
+ * superuser-only functions that read files on the database host, import/export
+ * large objects, or open outbound connections. None of those are DML, so the
+ * write-keyword denylist below does not catch them and they need naming.
+ *
+ * Matched against the statement with `_` treated as a word character, because
+ * `\b(SET)\b` does not match inside `SET_CONFIG`.
+ */
+const forbiddenSqlIdentifiers = [
+  // Server-side file and directory access.
+  "PG_READ_FILE",
+  "PG_READ_BINARY_FILE",
+  "PG_STAT_FILE",
+  "PG_LS_DIR",
+  "PG_LS_LOGDIR",
+  "PG_LS_WALDIR",
+  "PG_LS_ARCHIVE_STATUSDIR",
+  "PG_LS_TMPDIR",
+  "PG_LOGDIR_LS",
+  // Large object import/export writes to and reads from the host filesystem.
+  "LO_IMPORT",
+  "LO_EXPORT",
+  "LO_PUT",
+  "LO_FROM_BYTEA",
+  "LOWRITE",
+  // Outbound connections / arbitrary execution bridges.
+  "DBLINK",
+  "DBLINK_EXEC",
+  "DBLINK_CONNECT",
+  "PG_TERMINATE_BACKEND",
+  "PG_CANCEL_BACKEND",
+  "PG_RELOAD_CONF",
+  "PG_ROTATE_LOGFILE",
+  "PG_PROMOTE",
+  "PG_SLEEP",
+  "PG_SLEEP_FOR",
+  "PG_SLEEP_UNTIL",
+  // Session mutation smuggled past the SET keyword check.
+  "SET_CONFIG",
+  // Stored credential material.
+  "PG_AUTHID",
+  "PG_SHADOW",
+  "PG_STATISTIC"
+];
+
+/** Columns holding secrets or password material, even inside our own tables. */
+const forbiddenSqlColumns = ["PASSWORDHASH", "PASSWORD_HASH", "SMTP_PASSWORD_ENCRYPTED", "CODE_HASH", "ROLPASSWORD"];
+
 @Injectable()
 export class AdminSqlService {
   constructor(
@@ -33,6 +82,11 @@ export class AdminSqlService {
       throw new BadRequestException("SQL comments are not allowed");
     }
 
+    // Dollar-quoted strings can carry a whole function body past keyword checks.
+    if (/\$[A-Za-z0-9_]*\$/.test(trimmed)) {
+      throw new BadRequestException("Dollar-quoted strings are not allowed");
+    }
+
     const normalized = trimmed.replace(/\s+/g, " ").trim().toUpperCase();
 
     if (/\b(INSERT|UPDATE|DELETE|ALTER|DROP|CREATE|TRUNCATE|GRANT|REVOKE|COPY|DO|CALL|MERGE|VACUUM|REINDEX|REFRESH|SET|RESET|SHOW|DISCARD|BEGIN|COMMIT|ROLLBACK|LOCK)\b/.test(normalized)) {
@@ -41,6 +95,20 @@ export class AdminSqlService {
 
     if (!/^(SELECT|WITH|EXPLAIN)\b/.test(normalized)) {
       throw new BadRequestException("Only SELECT, WITH ... SELECT, and EXPLAIN are allowed");
+    }
+
+    // `_` is a word character for \b, so identifiers are bounded manually.
+    const identifierBoundary = "(?<![A-Z0-9_])%s(?![A-Z0-9_])";
+    for (const identifier of forbiddenSqlIdentifiers) {
+      if (new RegExp(identifierBoundary.replace("%s", identifier)).test(normalized)) {
+        throw new BadRequestException(`${identifier} is not allowed in the read-only console`);
+      }
+    }
+
+    for (const column of forbiddenSqlColumns) {
+      if (new RegExp(identifierBoundary.replace("%s", column)).test(normalized.replace(/"/g, ""))) {
+        throw new BadRequestException("Reading stored credential material is not allowed");
+      }
     }
 
     return trimmed;
@@ -88,6 +156,9 @@ export class AdminSqlService {
 
       const rows = await this.db.$transaction(async (tx: any) => {
         await tx.$executeRawUnsafe(`SET LOCAL statement_timeout = ${sqlTimeoutMs}`);
+        // Defence in depth: even if the keyword filters are bypassed, the engine
+        // itself refuses to write inside this transaction.
+        await tx.$executeRawUnsafe("SET LOCAL transaction_read_only = on");
         return tx.$queryRawUnsafe(sql);
       });
 

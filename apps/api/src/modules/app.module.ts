@@ -5,6 +5,7 @@ import { AdminModule } from "./admin/admin.module";
 import { AuthModule } from "./auth/auth.module";
 import { BotModule } from "./bot/bot.module";
 import { CurrencyRatesService } from "./common/currency-rates.service";
+import { RateLimitModule } from "./common/rate-limit.module";
 import { CouplesModule } from "./couples/couples.module";
 import { GoodsModule } from "./goods/goods.module";
 import { HealthModule } from "./health/health.module";
@@ -14,7 +15,7 @@ import { SummaryModule } from "./summary/summary.module";
 import { TransactionsModule } from "./transactions/transactions.module";
 
 @Module({
-  imports: [PrismaModule, AiModule, HealthModule, AuthModule, CouplesModule, GoodsModule, TransactionsModule, SummaryModule, ProfileModule, BotModule, AdminModule],
+  imports: [PrismaModule, RateLimitModule, AiModule, HealthModule, AuthModule, CouplesModule, GoodsModule, TransactionsModule, SummaryModule, ProfileModule, BotModule, AdminModule],
   providers: [CurrencyRatesService]
 })
 export class AppModule {}

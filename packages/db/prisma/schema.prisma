@@ -84,6 +84,8 @@ enum AuthEmailProvider {
 enum AuthEmailCodePurpose {
   LOGIN
   PASSWORD_RESET
+  REGISTRATION
+  EMAIL_CLAIM
 }
 
 model User {
@@ -91,9 +93,11 @@ model User {
   telegramId        BigInt        @unique
   lastTelegramChatId BigInt?
   email             String?       @unique
+  emailVerifiedAt   DateTime?     @map("email_verified_at")
   googleSub         String?       @unique @map("google_sub")
   passwordHash      String?
   passwordSetAt     DateTime?
+  tokenVersion      Int           @default(0) @map("token_version")
   coupleCode        String?       @unique
   username          String?
   firstName         String?
@@ -204,11 +208,22 @@ model ZeroAdmin {
   email        String   @id
   passwordHash String   @map("password_hash")
   isActive     Boolean  @default(true) @map("is_active")
+  tokenVersion Int      @default(0) @map("token_version")
   lastLoginAt  DateTime? @map("last_login_at")
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
   @@map("0admin")
+}
+
+model CurrencyRateSnapshot {
+  id        String   @id @default("default")
+  rates     Json
+  fetchedAt DateTime @map("fetched_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("currency_rate_snapshot")
 }
 
 model Couple {
@@ -358,7 +373,7 @@ model Category {
 
 model Transaction {
   id         String          @id @default(cuid())
-  clientMutationId String?  @unique @map("client_mutation_id")
+  clientMutationId String?  @map("client_mutation_id")
   coupleId   String
   couple     Couple          @relation(fields: [coupleId], references: [id], onDelete: Cascade)
   userId     String
@@ -375,6 +390,7 @@ model Transaction {
   createdAt  DateTime        @default(now())
   updatedAt  DateTime        @updatedAt
 
+  @@unique([userId, clientMutationId])
   @@index([coupleId, happenedAt])
   @@index([coupleId, currency, happenedAt])
 }
@@ -456,7 +472,7 @@ model GoodsUom {
 
 model GoodsItem {
   id                     String               @id @default(cuid())
-  clientMutationId       String?              @unique @map("client_mutation_id")
+  clientMutationId       String?              @map("client_mutation_id")
   coupleId               String               @map("couple_id")
   couple                 Couple               @relation(fields: [coupleId], references: [id], onDelete: Cascade)
   scope                  GoodsScope
@@ -489,6 +505,7 @@ model GoodsItem {
   createdAt              DateTime             @default(now()) @map("created_at")
   updatedAt              DateTime             @updatedAt @map("updated_at")
 
+  @@unique([createdById, clientMutationId])
   @@index([coupleId, scope, ownerUserId, isArchived])
   @@index([placeId, categoryId])
   @@index([normalizedName])

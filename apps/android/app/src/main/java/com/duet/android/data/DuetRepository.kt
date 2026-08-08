@@ -51,8 +51,14 @@ class DuetRepository(
         return response
     }
 
-    suspend fun register(email: String, password: String, firstName: String?): AuthResponse {
-        val response = api.register(PasswordRegisterRequest(email.trim(), password, firstName?.trim()?.ifBlank { null }))
+    suspend fun requestRegistrationCode(email: String): EmailCodeRequestResponse {
+        return api.requestRegistrationCode(EmailCodeRequest(email.trim()))
+    }
+
+    suspend fun register(email: String, code: String, password: String, firstName: String?): AuthResponse {
+        val response = api.register(
+            PasswordRegisterRequest(email.trim(), code.trim(), password, firstName?.trim()?.ifBlank { null })
+        )
         saveSession(response.accessToken, response.user.isDark)
         return response
     }
@@ -150,8 +156,12 @@ class DuetRepository(
         return api.updateProfilePreferences(UpdateProfilePreferencesRequest(weekStartsOn))
     }
 
-    suspend fun setupPassword(email: String, password: String): AuthMeResponse {
-        return api.setupPassword(PasswordSetupRequest(email.trim(), password))
+    suspend fun requestEmailClaimCode(email: String): EmailCodeRequestResponse {
+        return api.requestEmailClaimCode(EmailCodeRequest(email.trim()))
+    }
+
+    suspend fun setupPassword(email: String, code: String, password: String): AuthMeResponse {
+        return api.setupPassword(PasswordSetupRequest(email.trim(), code.trim(), password))
     }
 
     suspend fun updateCategoryPreferences(showShared: Boolean, defaultIncomeId: String?, defaultExpenseId: String?): CategoryCatalogResponse {

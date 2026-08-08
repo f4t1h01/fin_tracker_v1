@@ -3,6 +3,7 @@ import { Reflector } from "@nestjs/core";
 
 import { adminRateLimitMetadataKey, type AdminRateLimitOptions } from "./admin-rate-limit.decorator";
 import { AdminRateLimitService } from "./admin-rate-limit.service";
+import { readAdminSessionCookie, verifyAdminSessionToken } from "./admin-session.util";
 
 const defaultAdminRateLimit: AdminRateLimitOptions = {
   max: 120,
@@ -25,12 +26,18 @@ export class AdminRateLimitGuard implements CanActivate {
       ]) ?? defaultAdminRateLimit;
 
     const request = context.switchToHttp().getRequest();
-    const ip = String(request.ip ?? request.headers["x-forwarded-for"] ?? "unknown");
-    const adminEmail = typeof request.admin?.email === "string" ? request.admin.email : "anonymous";
+    const ip = typeof request.ip === "string" && request.ip ? request.ip : "unknown";
     const scope = options.scope ?? request.routerPath ?? request.url ?? "admin";
-    const key = `${scope}:${ip}:${adminEmail}`;
 
-    this.rateLimitService.check(key, options.max, options.windowMs);
+    // This guard is controller-scoped, so it runs before AdminSessionGuard and
+    // request.admin is not populated yet. Read the identity straight from the
+    // signed cookie (signature only, no DB round trip) so the per-admin bucket
+    // is real instead of always collapsing to "anonymous".
+    const claims = verifyAdminSessionToken(readAdminSessionCookie(request));
+    const adminEmail = claims?.email ?? "anonymous";
+
+    this.rateLimitService.check(`${scope}:ip:${ip}`, options.max, options.windowMs);
+    this.rateLimitService.check(`${scope}:admin:${adminEmail}`, options.max, options.windowMs);
     return true;
   }
 }

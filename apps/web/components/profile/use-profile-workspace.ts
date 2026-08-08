@@ -101,6 +101,9 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
   const [preferencesError, setPreferencesError] = useState<string | null>(null);
 
   const [setupEmail, setSetupEmail] = useState("");
+  const [setupCode, setSetupCode] = useState("");
+  const [hasRequestedSetupCode, setHasRequestedSetupCode] = useState(false);
+  const [isSendingSetupCode, setIsSendingSetupCode] = useState(false);
   const [setupPassword, setSetupPassword] = useState("");
   const [setupConfirmPassword, setSetupConfirmPassword] = useState("");
   const [isSettingPassword, setIsSettingPassword] = useState(false);
@@ -753,7 +756,6 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
   const onCreateTransaction = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!token) {
-      console.warn("[transaction:create] blocked: missing auth token");
       setTxError("Your session is not ready. Refresh the page and try again.");
       return;
     }
@@ -764,13 +766,6 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
       selectedCategoryId ? null : "category"
     ].filter((item): item is string => Boolean(item));
     if (missingFields.length > 0) {
-      console.warn("[transaction:create] blocked: invalid form", {
-        missingFields,
-        amount,
-        kind,
-        currency,
-        selectedCategoryId
-      });
       setTxError(`Check ${missingFields.join(" and ")} before saving.`);
       return;
     }
@@ -787,13 +782,6 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
         categoryId: selectedCategoryId,
         note: note || undefined
       };
-      console.info("[transaction:create] sending", {
-        amount: payload.amount,
-        kind: payload.kind,
-        currency: payload.currency,
-        hasCategoryId: Boolean(payload.categoryId),
-        hasNote: Boolean(payload.note)
-      });
       const response = await fetch(`${webEnv.apiUrl}/profile/me/transactions`, {
         method: "POST",
         headers: {
@@ -802,7 +790,6 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
         },
         body: JSON.stringify(payload)
       });
-      console.info("[transaction:create] response", { status: response.status, ok: response.ok });
 
       await parseApiResponse<unknown>(response);
       setAmount("");
@@ -818,6 +805,38 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
     }
   };
 
+  /**
+   * Step 1 of attaching an email: ask for a one-time code. Ownership has to be
+   * proven before the address is stored, otherwise an account could claim someone
+   * else's email.
+   */
+  const onRequestSetupCode = async () => {
+    if (!token) return;
+    setSetupError(null);
+    setSetupMessage(null);
+    setIsSendingSetupCode(true);
+
+    try {
+      const response = await fetch(`${webEnv.apiUrl}/auth/email/claim/request`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ email: setupEmail })
+      });
+
+      await parseApiResponse<{ ok: boolean }>(response);
+      setHasRequestedSetupCode(true);
+      setSetupMessage(`We sent a 6-digit code to ${setupEmail}.`);
+    } catch (error) {
+      setSetupError(error instanceof Error ? error.message : "Could not send the confirmation code");
+    } finally {
+      setIsSendingSetupCode(false);
+    }
+  };
+
+  /** Step 2: the code confirms the address, then email + password are saved. */
   const onSetupPassword = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!token) return;
@@ -837,7 +856,7 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`
         },
-        body: JSON.stringify({ email: setupEmail, password: setupPassword })
+        body: JSON.stringify({ email: setupEmail, code: setupCode, password: setupPassword })
       });
 
       const payload = await parseApiResponse<{ accessToken: string }>(response);
@@ -846,6 +865,8 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
       setToken(accessToken);
       setSetupPassword("");
       setSetupConfirmPassword("");
+      setSetupCode("");
+      setHasRequestedSetupCode(false);
       setSetupMessage("Email login is ready. You can now sign in from browser.");
       await fetchSnapshot(accessToken);
     } catch (error) {
@@ -877,12 +898,20 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
         body: JSON.stringify({ currentPassword, newPassword })
       });
 
-      await parseApiResponse<{ ok: boolean }>(response);
+      // A password change revokes every previously issued token, including this
+      // tab's, so adopt the fresh one the API returns.
+      const payload = await parseApiResponse<{ ok: boolean; accessToken?: string }>(response);
+      const nextToken = payload.accessToken ?? token;
+      if (payload.accessToken) {
+        localStorage.setItem(tokenKey, payload.accessToken);
+        setToken(payload.accessToken);
+      }
+
       setCurrentPassword("");
       setNewPassword("");
       setNewConfirmPassword("");
-      setChangePasswordMessage("Password changed.");
-      await fetchSnapshot(token);
+      setChangePasswordMessage("Password changed. Other devices were signed out.");
+      await fetchSnapshot(nextToken);
     } catch (error) {
       setChangePasswordError(error instanceof Error ? error.message : "Could not change password");
     } finally {
@@ -1003,6 +1032,11 @@ export function useProfileWorkspace(options?: UseProfileWorkspaceOptions) {
     onSavePreferences,
     setupEmail,
     setSetupEmail,
+    setupCode,
+    setSetupCode,
+    hasRequestedSetupCode,
+    isSendingSetupCode,
+    onRequestSetupCode,
     setupPassword,
     setSetupPassword,
     setupConfirmPassword,

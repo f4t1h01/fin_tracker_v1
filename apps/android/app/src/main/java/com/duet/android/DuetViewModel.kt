@@ -173,9 +173,22 @@ class DuetViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun register(email: String, password: String, firstName: String?) {
+    /**
+     * Step 1 of registration: send a one-time code so the email is confirmed before
+     * an account can claim it.
+     */
+    fun requestRegistrationCode(email: String, onSent: () -> Unit) {
         launchBusy {
-            val response = repository.register(email, password, firstName)
+            repository.requestRegistrationCode(email)
+            _uiState.update { it.withStatusMessage("Confirmation code sent to $email") }
+            onSent()
+        }
+    }
+
+    /** Step 2: the code proves the address, then the account is created. */
+    fun register(email: String, code: String, password: String, firstName: String?) {
+        launchBusy {
+            val response = repository.register(email, code, password, firstName)
             _uiState.update { it.copy(token = response.accessToken, isDark = response.user.isDark).withStatusMessage("Account created") }
             refreshAll(silent = true)
         }
@@ -578,9 +591,17 @@ class DuetViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun setupPassword(email: String, password: String) {
+    fun requestEmailClaimCode(email: String, onSent: () -> Unit) {
         launchBusy {
-            repository.setupPassword(email, password)
+            repository.requestEmailClaimCode(email)
+            _uiState.update { it.withStatusMessage("Confirmation code sent to $email") }
+            onSent()
+        }
+    }
+
+    fun setupPassword(email: String, code: String, password: String) {
+        launchBusy {
+            repository.setupPassword(email, code, password)
             _uiState.update { it.withStatusMessage("Email login is ready") }
             refreshAll(silent = true)
         }

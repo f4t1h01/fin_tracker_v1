@@ -3,6 +3,7 @@ import { HttpException, HttpStatus, Injectable } from "@nestjs/common";
 type LookupBucket = {
   missingAttempts: number;
   lockedUntil: number;
+  lastAttemptAt: number;
 };
 
 export type MissingEmailLookupResult = {
@@ -11,6 +12,9 @@ export type MissingEmailLookupResult = {
 };
 
 const MISSING_ATTEMPTS_PER_BATCH = 3;
+/** Idle window after which a caller's escalation history is forgiven. */
+const DECAY_AFTER_MS = 30 * 60_000;
+const MAX_BUCKETS = 50_000;
 
 @Injectable()
 export class AuthEmailLookupLimitService {
@@ -25,12 +29,24 @@ export class AuthEmailLookupLimitService {
     return ip;
   }
 
+  private sweep(now: number) {
+    for (const [key, bucket] of this.buckets) {
+      if (bucket.lockedUntil <= now && now - bucket.lastAttemptAt > DECAY_AFTER_MS) {
+        this.buckets.delete(key);
+      }
+    }
+  }
+
   recordMissingEmail(key: string): MissingEmailLookupResult {
     const now = this.nowMs();
-    const current = this.buckets.get(key) ?? {
-      missingAttempts: 0,
-      lockedUntil: 0
-    };
+    const stored = this.buckets.get(key);
+
+    // Escalation used to be permanent for a key, which meant one burst locked
+    // that caller into the longest delay forever. Forgive it after an idle gap.
+    const current =
+      stored && now - stored.lastAttemptAt <= DECAY_AFTER_MS
+        ? stored
+        : { missingAttempts: 0, lockedUntil: stored?.lockedUntil ?? 0, lastAttemptAt: now };
 
     if (current.lockedUntil > now) {
       this.throwLocked(current.lockedUntil, now);
@@ -45,8 +61,13 @@ export class AuthEmailLookupLimitService {
 
     this.buckets.set(key, {
       missingAttempts,
-      lockedUntil
+      lockedUntil,
+      lastAttemptAt: now
     });
+
+    if (this.buckets.size > MAX_BUCKETS) {
+      this.sweep(now);
+    }
 
     return {
       attemptsRemaining,
