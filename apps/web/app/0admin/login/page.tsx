@@ -3,7 +3,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import { BrandMark } from "@/components/marketing/brand-mark";
+import { Logo } from "@/components/brand/logo";
 import { useRouteTransitionPageReady } from "@/components/navigation/route-transition-provider";
 import { adminFetch } from "@/components/admin/client";
 import type { AdminSession } from "@/components/admin/types";
@@ -49,7 +49,7 @@ export default function AdminLoginPage() {
   return (
     <main className="container-shell pb-16 pt-24">
       <header className="soft-rise mb-8 space-y-4">
-        <BrandMark href="/" />
+        <Logo href="/" />
         <div>
           <p className="eyebrow-row">Admin access</p>
           <h1 className="mt-5 font-[family-name:var(--font-heading)] text-[clamp(34px,4vw,52px)] font-light leading-[1.08]">Sign in to the operations workspace.</h1>

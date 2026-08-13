@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { ReactNode, useEffect, useState } from "react";
 
-import { BrandMark } from "@/components/marketing/brand-mark";
+import { Logo } from "@/components/brand/logo";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/cn";
@@ -93,7 +93,7 @@ export function AdminFrame({ title, description, actions, children }: AdminFrame
   return (
     <main className="mx-auto max-w-7xl px-5 py-12 sm:px-8">
       <div className="soft-rise mb-6 space-y-4">
-        <BrandMark href="/" />
+        <Logo href="/" />
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="space-y-2">
             <p className="eyebrow-row">Operations</p>

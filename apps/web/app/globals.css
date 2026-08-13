@@ -192,6 +192,50 @@ select {
   animation: pulse 2s ease-in-out infinite;
 }
 
+/* Square icon variant of the brand mark (<Logo variant="icon" />). */
+.logo-icon-root {
+  display: inline-flex;
+  align-items: center;
+}
+
+.logo-icon {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  border-radius: 22%;
+}
+
+/*
+  Monogram placeholder, visible only until the icon asset exists. It is the
+  element's own content, so it sits underneath the ::after layer below.
+*/
+.logo-icon-fallback {
+  font-family: var(--font-heading), serif;
+  font-size: 0.62em;
+  font-weight: 300;
+  line-height: 1;
+  letter-spacing: 0;
+  color: var(--gold);
+}
+
+/*
+  The real asset, painted over the monogram. --logo-icon-src is set inline by the
+  Logo component. If the file is missing the background simply does not paint and
+  the monogram shows through, so there is never a broken-image glyph.
+*/
+.logo-icon::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: var(--logo-icon-src);
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
+  border-radius: inherit;
+}
+
 .nav-links {
   display: flex;
   align-items: center;

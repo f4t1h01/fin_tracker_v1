@@ -4,7 +4,7 @@ import Link from "next/link";
 
 import { AppLink } from "@/components/navigation/app-link";
 import { useRouteTransitionPageReady } from "@/components/navigation/route-transition-provider";
-import { BrandMark } from "@/components/marketing/brand-mark";
+import { Logo } from "@/components/brand/logo";
 import { Eyebrow } from "@/components/marketing/eyebrow";
 import {
   MarketingEffects,
@@ -134,7 +134,7 @@ export function LandingPage() {
     <>
       <MarketingEffects />
       <NavShell>
-        <BrandMark href="#top" />
+        <Logo href="#top" />
 
         <div className="nav-links">
           <Link className="nav-link" href="#features">
@@ -484,7 +484,7 @@ export function LandingPage() {
       <footer className="footer-shell">
         <div className="container-shell footer-grid">
           <div>
-            <BrandMark className="text-[var(--marketing-dark-ink)]" href="/" />
+            <Logo className="text-[var(--marketing-dark-ink)]" href="/" />
             <p className="footer-copy" style={{ marginTop: 18, maxWidth: 280 }}>
               Editorial calm for shared finances — built for partners who want
               one beautiful picture, not another noisy tool.

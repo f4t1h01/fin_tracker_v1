@@ -43,7 +43,17 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        <script nonce={nonce} dangerouslySetInnerHTML={{ __html: getThemeBootScript() }} />
+        {/*
+          suppressHydrationWarning is required, not cosmetic: browsers blank out the
+          nonce content attribute once the policy is applied (CSP nonce hiding), so
+          React reads nonce="" back from the server HTML and reports a mismatch
+          against the real value it holds on the client.
+        */}
+        <script
+          nonce={nonce}
+          suppressHydrationWarning
+          dangerouslySetInnerHTML={{ __html: getThemeBootScript() }}
+        />
       </head>
       <body className={`${heading.variable} ${body.variable}`}>
         <RouteTransitionProvider>{children}</RouteTransitionProvider>

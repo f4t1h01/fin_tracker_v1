@@ -3,7 +3,7 @@
 import type { ReactNode } from "react";
 
 import { AppLink } from "@/components/navigation/app-link";
-import { BrandMark } from "@/components/marketing/brand-mark";
+import { Logo } from "@/components/brand/logo";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -20,7 +20,7 @@ export function AuthShell({ eyebrow, title, description, children, footer }: Aut
     <main className="auth-page-shell container-shell pb-16 pt-24">
       <header className="soft-rise mb-8 flex flex-wrap items-start justify-between gap-4">
         <div className="space-y-4">
-          <BrandMark href="/" />
+          <Logo href="/" />
           <div>
             <p className="eyebrow-row">{eyebrow}</p>
             <h1 className="mt-5 font-[family-name:var(--font-heading)] text-[clamp(36px,4vw,52px)] font-light leading-[1.08]">{title}</h1>
