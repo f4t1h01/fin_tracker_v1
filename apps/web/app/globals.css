@@ -1410,6 +1410,75 @@ html[data-theme="dark"] .field-control {
   opacity: 0.64;
 }
 
+/*
+  AI Agent chat surface (components/agent). Everything here is scoped to that
+  route: the shell is a fixed-height app screen rather than a scrolling page, so
+  it owns its own scrollbars and motion.
+*/
+.agent-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(201, 168, 76, 0.45) transparent;
+}
+
+.agent-scroll::-webkit-scrollbar {
+  width: 10px;
+}
+
+.agent-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.agent-scroll::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background: rgba(201, 168, 76, 0.42);
+  background-clip: content-box;
+}
+
+.agent-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(201, 168, 76, 0.72);
+  background-clip: content-box;
+}
+
+/*
+  Sits after .app-input so its box wins: the shared control sets a fixed height,
+  radius and horizontal padding, and the search field needs room for the icon.
+*/
+.agent-search-input {
+  height: 40px;
+  border-radius: 14px;
+  padding-left: 36px;
+  padding-right: 12px;
+}
+
+.agent-message-in {
+  animation: agentMessageIn 320ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.agent-typing-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--gold);
+  animation: agentTypingDot 1.1s ease-in-out infinite;
+}
+
+.agent-typing-dot:nth-child(2) {
+  animation-delay: 0.16s;
+}
+
+.agent-typing-dot:nth-child(3) {
+  animation-delay: 0.32s;
+}
+
+.agent-drawer-in {
+  animation: agentDrawerIn 280ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.agent-scrim-in {
+  animation: agentScrimIn 220ms ease both;
+}
+
 .ai-features-overlay {
   animation: aiFeaturesOverlayIn 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
@@ -1422,6 +1491,26 @@ html[data-theme="dark"] .field-control {
 @keyframes fadeUp {
   from { opacity: 0; transform: translateY(30px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes agentMessageIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes agentTypingDot {
+  0%, 100% { opacity: 0.28; transform: translateY(0); }
+  50% { opacity: 1; transform: translateY(-3px); }
+}
+
+@keyframes agentDrawerIn {
+  from { opacity: 0; transform: translateX(-16px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes agentScrimIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 @keyframes aiFeaturesOverlayIn {
@@ -1558,7 +1647,11 @@ html[data-theme="dark"] .field-control {
   .ai-features-overlay,
   .ai-features-dialog,
   .auth-panel,
-  .auth-step {
+  .auth-step,
+  .agent-message-in,
+  .agent-typing-dot,
+  .agent-drawer-in,
+  .agent-scrim-in {
     animation: none !important;
   }
 

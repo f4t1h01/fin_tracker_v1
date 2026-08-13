@@ -1,8 +1,9 @@
 import type { LucideIcon } from "lucide-react";
-import { ArrowLeftRight, Banknote, BarChart3, Carrot, LayoutDashboard, MessageSquareText, Package, SlidersHorizontal, Tags, UserCog } from "lucide-react";
+import { ArrowLeftRight, Banknote, BarChart3, Carrot, LayoutDashboard, MessageSquareText, Package, SlidersHorizontal, Sparkles, Tags, UserCog } from "lucide-react";
 
 export const workspaceRoutes = {
   transactions: "/profile/me",
+  agent: "/profile/me/agent",
   dashboard: "/profile/me/dashboard",
   dashboardTrends: "/profile/me/dashboard/trends",
   dashboardRates: "/profile/me/dashboard/rates",
@@ -29,7 +30,8 @@ export type WorkspaceNavigationGroup = {
 
 const workspacePrimaryActionItems = [
   { href: workspaceRoutes.transactions, label: "Transactions", icon: ArrowLeftRight },
-  { href: workspaceRoutes.goods, label: "My Goods", icon: Carrot }
+  { href: workspaceRoutes.goods, label: "My Goods", icon: Carrot },
+  { href: workspaceRoutes.agent, label: "AI Agent", icon: Sparkles }
 ] as const satisfies readonly WorkspaceNavigationItem[];
 
 function normalizePathname(pathname: string) {
